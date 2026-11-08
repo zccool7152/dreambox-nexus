@@ -20,10 +20,14 @@ Dreambox Nexus is a 100% custom, ground-up PHP framework written with zero exter
 ## 🚀 Quick Start
 
 ### 1. Environment Configuration
-Copy the template configuration and set your local keys:
+Create your local `.env` configuration file in the project root:
 
-```bash
-cp .env.example .env
+```env
+APP_NAME="Dreambox Nexus"
+APP_ENV=development
+APP_KEY=base64:your_32_byte_base64_encryption_key
+APP_DEBUG=true
+APP_URL=http://localhost
 ```
 
 ### 2. Database Connection
