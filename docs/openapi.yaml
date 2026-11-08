@@ -1,0 +1,491 @@
+openapi: 3.0.3
+info:
+  title: Dreambox Nexus API Specification
+  description: Official OpenAPI 3.0 Contract Specification for Nexus Core custom security-first framework.
+  version: 7.0.0
+servers:
+  - url: http://localhost
+    description: Local WSL2 Development Server
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: Token
+    SessionCookie:
+      type: apiKey
+      in: cookie
+      name: nexus_session
+    CsrfToken:
+      type: apiKey
+      in: header
+      name: X-CSRF-Token
+
+  schemas:
+    MetaEnvelope:
+      type: object
+      required:
+        - trace_id
+        - timestamp
+      properties:
+        trace_id:
+          type: string
+          example: c1f7a0b8-4d5e-49b9-8e2b-7c3d1f0a2e4b
+        timestamp:
+          type: string
+          format: date-time
+          example: '2026-11-08T13:25:00Z'
+
+    StandardSuccessResponse:
+      type: object
+      required:
+        - data
+        - meta
+        - message
+      properties:
+        data:
+          type: object
+        meta:
+          $ref: '#/components/schemas/MetaEnvelope'
+        message:
+          type: string
+          example: Operation completed successfully.
+
+    StandardErrorResponse:
+      type: object
+      required:
+        - data
+        - meta
+        - message
+      properties:
+        data:
+          type: object
+          properties:
+            errors:
+              type: object
+              additionalProperties:
+                type: array
+                items:
+                  type: string
+        meta:
+          $ref: '#/components/schemas/MetaEnvelope'
+        message:
+          type: string
+          example: The requested resource could not be processed.
+
+paths:
+  /health:
+    get:
+      summary: Liveness Probe
+      description: Returns HTTP 200 if the web server / PHP runtime is operational.
+      responses:
+        '200':
+          description: Service is alive.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardSuccessResponse'
+
+  /health/ready:
+    get:
+      summary: Readiness Probe
+      description: Verifies database connectivity, storage writeability, and queue health.
+      responses:
+        '200':
+          description: Service is ready to accept traffic.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardSuccessResponse'
+        '503':
+          description: Service dependencies unhealthy.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardErrorResponse'
+
+  /api/v1/security/csrf-token:
+    get:
+      summary: Issue CSRF Token
+      description: Generates a cryptographically secure, timing-safe HMAC token bound to the active session.
+      responses:
+        '200':
+          description: CSRF token generated successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      csrf_token:
+                        type: string
+                        example: a8f5c3b1e9d2...
+                  meta:
+                    $ref: '#/components/schemas/MetaEnvelope'
+                  message:
+                    type: string
+
+  /api/v1/security/csp-reports:
+    post:
+      summary: Ingest Browser CSP Violation Report
+      description: Receives browser Content-Security-Policy violation payloads and forwards to the SOC monitor.
+      requestBody:
+        required: true
+        content:
+          application/csp-report:
+            schema:
+              type: object
+          application/json:
+            schema:
+              type: object
+      responses:
+        '204':
+          description: Report recorded.
+
+  /api/v1/auth/login:
+    post:
+      summary: User Authentication
+      description: Authenticates credentials using Argon2id with 5-strike lockout and optional MFA challenge.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  format: password
+      responses:
+        '200':
+          description: Authentication successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardSuccessResponse'
+        '401':
+          description: Invalid credentials.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardErrorResponse'
+        '423':
+          description: Account locked due to failed attempts (PCI Req 8.3.4).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardErrorResponse'
+
+  /api/v1/auth/mfa/verify:
+    post:
+      summary: Verify TOTP Multi-Factor Authentication
+      description: Validates RFC 6238 6-digit one-time code.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - code
+              properties:
+                code:
+                  type: string
+                  example: '492813'
+      responses:
+        '200':
+          description: MFA verification succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardSuccessResponse'
+        '401':
+          description: Invalid or expired code.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardErrorResponse'
+
+  /api/v1/auth/logout:
+    post:
+      summary: Terminate Session
+      description: Invalidates active session and rotates session identifier.
+      security:
+        - SessionCookie: []
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Logged out successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardSuccessResponse'
+
+  /api/v1/gdpr/consent:
+    post:
+      summary: Record Granular Consent
+      description: Logs affirmative user consent under GDPR Art 7.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - purpose
+                - version
+              properties:
+                purpose:
+                  type: string
+                  example: analytics
+                version:
+                  type: string
+                  example: v1.0
+      responses:
+        '200':
+          description: Consent recorded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardSuccessResponse'
+
+  /api/v1/gdpr/export:
+    post:
+      summary: Request Data Portability Export
+      description: Packages all personal data into a machine-readable JSON bundle (GDPR Art 20).
+      security:
+        - BearerAuth: []
+        - SessionCookie: []
+      responses:
+        '200':
+          description: Export bundle generated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardSuccessResponse'
+
+  /api/v1/gdpr/erase:
+    post:
+      summary: Request Right to be Forgotten
+      description: Triggers cascading erasure or cryptographic anonymization of PII (GDPR Art 17).
+      security:
+        - BearerAuth: []
+        - SessionCookie: []
+      responses:
+        '200':
+          description: Data shredded / anonymized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardSuccessResponse'
+
+  /nexus/monitor:
+    get:
+      summary: Cyber-Noir Framework Monitor & Diagnostic Cockpit
+      description: Interactive administrative observability HUD. Restricted to authorized administrators and local SecOps.
+      security:
+        - SessionCookie: []
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Cockpit HTML dashboard rendered.
+          content:
+            text/html:
+              schema:
+                type: string
+        '403':
+          description: Forbidden - Client IP not in allowlist or missing administrative privileges.
+          content:
+            text/html:
+              schema:
+                type: string
+
+  /api/v1/monitor/overview:
+    get:
+      summary: System Vitals Telemetry
+      description: Returns CPU load, memory usage, OPcache hit rate, and storage breakdown.
+      security:
+        - SessionCookie: []
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Telemetry data retrieved.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardSuccessResponse'
+        '403':
+          description: Forbidden - Administrative authorization required.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardErrorResponse'
+
+  /api/v1/monitor/security:
+    get:
+      summary: Security Operations Center Telemetry
+      description: Returns active throttled IPs, CSRF mismatches, and account lockout events.
+      security:
+        - SessionCookie: []
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Security telemetry data retrieved.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardSuccessResponse'
+
+  /api/v1/monitor/traffic:
+    get:
+      summary: HTTP Traffic & Request Ingress Telemetry
+      description: Returns request rates, latency distributions, and recent request traces.
+      security:
+        - SessionCookie: []
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Ingress telemetry retrieved.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardSuccessResponse'
+
+  /api/v1/monitor/database:
+    get:
+      summary: Database Performance & Migration Telemetry
+      description: Returns connection metrics, query timings, and migration state.
+      security:
+        - SessionCookie: []
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Database telemetry retrieved.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardSuccessResponse'
+
+  /api/v1/monitor/queue:
+    get:
+      summary: Background Queue Telemetry
+      description: Returns queue depths, worker heartbeats, and failed jobs list.
+      security:
+        - SessionCookie: []
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Queue metrics retrieved.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardSuccessResponse'
+
+  /api/v1/monitor/queue/retry:
+    post:
+      summary: Retry Failed Background Job
+      description: Moves a failed job from the dead-letter queue back to the active queue.
+      security:
+        - SessionCookie: []
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - job_id
+              properties:
+                job_id:
+                  type: integer
+      responses:
+        '200':
+          description: Job dispatched for retry.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardSuccessResponse'
+
+  /api/v1/monitor/scheduler:
+    get:
+      summary: Task Scheduler Timeline
+      description: Returns scheduled tasks, execution durations, and next countdowns.
+      security:
+        - SessionCookie: []
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Scheduler timeline retrieved.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardSuccessResponse'
+
+  /api/v1/monitor/cache:
+    get:
+      summary: Cache Efficiency Metrics
+      description: Returns cache hit/miss ratio, active keys, and distributed locks.
+      security:
+        - SessionCookie: []
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Cache metrics retrieved.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardSuccessResponse'
+    delete:
+      summary: Flush System Cache
+      description: Purges all stored keys from the application cache.
+      security:
+        - SessionCookie: []
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Cache flushed successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardSuccessResponse'
+
+  /api/v1/monitor/audit:
+    get:
+      summary: Compliance Audit Trail Explorer
+      description: Returns live filterable audit log stream with cryptographic hash-chain verification status.
+      security:
+        - SessionCookie: []
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Audit logs retrieved with chain verification status.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardSuccessResponse'
+
+  /api/v1/monitor/routes:
+    get:
+      summary: Interactive Route Registry
+      description: Returns complete table of registered routes, verbs, and active middleware stacks.
+      security:
+        - SessionCookie: []
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Route registry retrieved.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardSuccessResponse'
+

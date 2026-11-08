@@ -1,0 +1,28 @@
+#!/usr/bin/env php
+<?php
+declare(strict_types=1);
+
+// 1. Mandatory SAPI Guard: Enforce CLI execution only
+if (PHP_SAPI !== 'cli') {
+    http_response_code(403);
+    exit("Forbidden: CLI execution only.\n");
+}
+
+$baseDir = dirname(__DIR__);
+
+// 2. Initialize Native PSR-4 Autoloader
+require_once $baseDir . '/src/Core/Autoloader.php';
+$autoloader = new \Nexus\Core\Autoloader($baseDir);
+$autoloader->addNamespace('Nexus', $baseDir . '/src');
+$autoloader->addNamespace('Database\\Seeders', $baseDir . '/database/seeders');
+$autoloader->register();
+
+// 3. Bootstrap Framework Micro-Kernel
+$app = new \Nexus\Core\App($baseDir);
+
+// 4. Dispatch Terminal Command via Console Kernel
+$kernel = new \Nexus\Console\ConsoleKernel($app->getContainer(), $baseDir);
+$exitCode = $kernel->handle($argv);
+
+exit($exitCode);
+

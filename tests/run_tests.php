@@ -1,0 +1,211 @@
+<?php
+declare(strict_types=1);
+
+/**
+ * Dreambox Nexus: Automated QA Test Suite Runner
+ */
+
+$baseDir = dirname(__DIR__);
+
+// 1. Register Native Autoloader
+require_once $baseDir . '/src/Core/Autoloader.php';
+$autoloader = new \Nexus\Core\Autoloader($baseDir);
+$autoloader->addNamespace('Nexus', $baseDir . '/src');
+$autoloader->addNamespace('Database\\Seeders', $baseDir . '/database/seeders');
+$autoloader->register();
+
+// Test Result Aggregator
+$passed = 0;
+$failed = 0;
+$tests = [];
+
+$assertTest = function (string $description, bool $condition, ?string $errorDetails = null) use (&$passed, &$failed, &$tests) {
+    if ($condition) {
+        $passed++;
+        $tests[] = ['name' => $description, 'status' => 'PASS', 'details' => null];
+        echo "  \033[0;32m✔\033[0m {$description}\n";
+    } else {
+        $failed++;
+        $tests[] = ['name' => $description, 'status' => 'FAIL', 'details' => $errorDetails];
+        echo "  \033[0;31m✘\033[0m {$description}\n";
+        if ($errorDetails) {
+            echo "     └─ \033[0;90m{$errorDetails}\033[0m\n";
+        }
+    }
+};
+
+echo "\n\033[1;36m════════════════════════════════════════════════════════════════\033[0m\n";
+echo "\033[1;36m  DREAMBOX NEXUS CORE AUTOMATED TEST SUITE                      \033[0m\n";
+echo "\033[1;36m════════════════════════════════════════════════════════════════\033[0m\n\n";
+
+// ── Test 1: Native Autoloader Path Sanitization ──────────────────────────────
+echo "\033[1;37m[1] Native Autoloader Subsystem\033[0m\n";
+$autoloaderInstance = new \Nexus\Core\Autoloader($baseDir);
+$autoloaderInstance->addNamespace('Nexus', $baseDir . '/src');
+$loadedLegit = $autoloaderInstance->loadClass('Nexus\\Core\\Request');
+$assertTest('Autoloader loads valid class in namespace', $loadedLegit);
+
+$loadedTraversal = $autoloaderInstance->loadClass('Nexus\\..\\..\\etc\\passwd');
+$assertTest('Autoloader blocks directory traversal sequence', !$loadedTraversal);
+
+// ── Test 2: Cryptography & AEAD Authentication Tags ─────────────────────────
+echo "\n\033[1;37m[2] Cryptography & AEAD Engine\033[0m\n";
+$key = 'base64:' . base64_encode(random_bytes(32));
+$crypto = new \Nexus\Crypto\Crypto($key);
+
+$plaintext = 'Confidential Patient Health Record #90210';
+$encrypted = $crypto->encrypt($plaintext);
+$decrypted = $crypto->decrypt($encrypted);
+$assertTest('AES-256-GCM AEAD encryption and decryption match', $decrypted === $plaintext);
+
+// Tamper test: flip byte in ciphertext
+$tampered = base64_encode(substr(base64_decode($encrypted), 0, -1) . 'X');
+$tamperDetected = false;
+try {
+    $crypto->decrypt($tampered);
+} catch (\Throwable) {
+    $tamperDetected = true;
+}
+$assertTest('AEAD authentication tag rejects tampered ciphertext', $tamperDetected);
+
+// ── Test 3: Hasher & Password Verification ──────────────────────────────────
+echo "\n\033[1;37m[3] Password Security (Argon2id)\033[0m\n";
+$hasher = new \Nexus\Crypto\Hasher();
+$password = 'SecretMasterKey2026!';
+$hashed = $hasher->hash($password);
+$assertTest('Hasher generates valid hashed string', !empty($hashed) && $hashed !== $password);
+$assertTest('Hasher verifies correct password', $hasher->verify($password, $hashed));
+$assertTest('Hasher rejects incorrect password', !$hasher->verify('WrongPassword', $hashed));
+
+// ── Test 4: Timing-Safe HMAC CSRF Protection ────────────────────────────────
+echo "\n\033[1;37m[4] CSRF Protection & Timing Attack Resistance\033[0m\n";
+$csrf = new \Nexus\Security\Csrf('csrf_secret_salt_123');
+$sessionId = 'session_alpha_99';
+$token = $csrf->generateToken($sessionId);
+$assertTest('CSRF generates valid dot-separated token', str_contains($token, '.'));
+$assertTest('CSRF validates correct session token', $csrf->validateToken($token, $sessionId));
+$assertTest('CSRF rejects mismatched session token', !$csrf->validateToken($token, 'session_bravo_00'));
+$assertTest('CSRF rejects tampered token', !$csrf->validateToken($token . 'x', $sessionId));
+
+// ── Test 5: Schema Validation Engine ────────────────────────────────────────
+echo "\n\033[1;37m[5] Schema Validator (422 Envelope Provider)\033[0m\n";
+$rules = [
+    'email' => 'required|email',
+    'age' => 'required|int|min:18',
+    'role' => 'required|in:admin,user',
+];
+
+$validData = ['email' => 'user@nexus.local', 'age' => 25, 'role' => 'admin'];
+$validator1 = \Nexus\Security\Validator::make($validData, $rules);
+$assertTest('Validator passes valid dataset', $validator1->passes());
+
+$invalidData = ['email' => 'not-an-email', 'age' => 16, 'role' => 'hacker'];
+$validator2 = \Nexus\Security\Validator::make($invalidData, $rules);
+$assertTest('Validator catches invalid fields', $validator2->fails() && count($validator2->errors()) === 3);
+
+// ── Test 6: Compliance Data Masking ─────────────────────────────────────────
+echo "\n\033[1;37m[6] Compliance Data Masker (PCI-DSS & HIPAA)\033[0m\n";
+$pan = '4111222233334444';
+$maskedPan = \Nexus\Security\DataMasker::maskPan($pan);
+$assertTest('DataMasker truncates PAN to first-6 and last-4', $maskedPan === '411122******4444');
+
+$ssn = '123456789';
+$maskedSsn = \Nexus\Security\DataMasker::maskSsn($ssn);
+$assertTest('DataMasker masks SSN to last-4', $maskedSsn === '***-**-6789');
+
+// ── Test 7: Outbound HTTP Client SSRF Protection ────────────────────────────
+echo "\n\033[1;37m[7] Outbound HttpClient & SSRF Defense\033[0m\n";
+$httpClient = new \Nexus\Core\HttpClient();
+$assertTest('HttpClient classifies 127.0.0.1 as private IP', $httpClient->isPrivateOrReservedIp('127.0.0.1'));
+$assertTest('HttpClient classifies 169.254.169.254 (Cloud Metadata) as reserved', $httpClient->isPrivateOrReservedIp('169.254.169.254'));
+$assertTest('HttpClient classifies 10.0.1.5 as private IP', $httpClient->isPrivateOrReservedIp('10.0.1.5'));
+$assertTest('HttpClient classifies 8.8.8.8 as public IP', !$httpClient->isPrivateOrReservedIp('8.8.8.8'));
+
+// ── Test 8: Health Probes Envelope Compliance ────────────────────────────────
+echo "\n\033[1;37m[8] Health Probes & Response Envelope\033[0m\n";
+$req = new \Nexus\Core\Request('GET', '/health');
+$health = new \Nexus\Core\HealthCheck();
+$res = $health->liveness($req);
+$assertTest('Liveness probe returns HTTP 200', $res->getStatusCode() === 200);
+
+$json = json_decode($res->getContent(), true);
+$assertTest('Liveness response adheres to {data, meta, message} contract', isset($json['data'], $json['meta'], $json['message']));
+$assertTest('Response meta includes valid trace_id and timestamp', !empty($json['meta']['trace_id']) && !empty($json['meta']['timestamp']));
+
+// ── Test 9: Webhook Signature Verification ──────────────────────────────────
+echo "\n\033[1;37m[9] Inbound Webhook Signature Verifier\033[0m\n";
+$webhookSecret = 'whsec_test_secret_987';
+$verifier = new \Nexus\Security\WebhookVerifier($webhookSecret, 300);
+$payload = json_encode(['event' => 'payment_succeeded', 'amount' => 5000]);
+$timestamp = time();
+$signature = hash_hmac('sha256', "{$timestamp}.{$payload}", $webhookSecret);
+$header = "t={$timestamp},v1={$signature}";
+
+$assertTest('WebhookVerifier validates correct Stripe signature', $verifier->verifyStripeSignature($payload, $header));
+$assertTest('WebhookVerifier rejects expired timestamp (> 300s)', !$verifier->verifyStripeSignature($payload, "t=" . ($timestamp - 400) . ",v1={$signature}"));
+$assertTest('WebhookVerifier rejects forged signature', !$verifier->verifyStripeSignature($payload, "t={$timestamp},v1=forged_sig"));
+
+// ── Test 10: Administrative Telemetry & Public Gateway Isolation ──────────────
+echo "\n\033[1;37m[10] Telemetry Gating & Public Ingress Isolation\033[0m\n";
+$assertTest('public/index.html is removed from webroot to prevent static bypass', !file_exists($baseDir . '/public/index.html'));
+$assertTest('Internal monitor dashboard view exists in resources/views/monitor/', file_exists($baseDir . '/resources/views/monitor/dashboard.php'));
+$assertTest('Public welcome landing view exists in resources/views/', file_exists($baseDir . '/resources/views/welcome.php'));
+
+$app = new \Nexus\Core\App($baseDir);
+
+// 1. Test Public Root Route (GET /)
+$publicReq = new \Nexus\Core\Request('GET', '/');
+$publicRes = $app->handle($publicReq);
+$assertTest('Public root (GET /) returns HTTP 200', $publicRes->getStatusCode() === 200);
+$publicHtml = $publicRes->getContent();
+$assertTest('Public root serves safe Application Gateway without telemetry leaks', 
+    str_contains($publicHtml, 'Security-First Application Gateway') && 
+    !str_contains($publicHtml, 'val-mem') && 
+    !str_contains($publicHtml, 'tbl-audit') &&
+    !str_contains($publicHtml, 'tbl-failed-jobs')
+);
+
+// 2. Test Monitor Access Middleware with Unauthorized IP
+$unauthReqApi = new \Nexus\Core\Request('GET', '/api/v1/monitor/overview', ['Accept' => 'application/json'], [], [], '', '198.51.100.42');
+$unauthResApi = $app->handle($unauthReqApi);
+$assertTest('External client IP accessing /api/v1/monitor/* is rejected with HTTP 403', $unauthResApi->getStatusCode() === 403);
+$unauthJson = json_decode($unauthResApi->getContent(), true);
+$assertTest('403 API response adheres to standard envelope', isset($unauthJson['meta']['trace_id']) && str_contains($unauthJson['message'], 'Forbidden'));
+
+$unauthReqWeb = new \Nexus\Core\Request('GET', '/nexus/monitor', [], [], [], '', '198.51.100.42');
+$unauthResWeb = $app->handle($unauthReqWeb);
+$assertTest('External client IP accessing /nexus/monitor is rejected with HTTP 403 HTML', 
+    $unauthResWeb->getStatusCode() === 403 && str_contains($unauthResWeb->getContent(), '403 // ACCESS DENIED')
+);
+
+// 3. Test Monitor Access Middleware with Authorized Localhost IP
+$authReqApi = new \Nexus\Core\Request('GET', '/api/v1/monitor/overview', ['Accept' => 'application/json'], [], [], '', '127.0.0.1');
+$authResApi = $app->handle($authReqApi);
+$assertTest('Authorized local IP (127.0.0.1) accessing /api/v1/monitor/overview succeeds with HTTP 200', $authResApi->getStatusCode() === 200);
+
+// 4. Test Trailing Slash Normalization & Physical Bridges
+$trailingSlashReq = new \Nexus\Core\Request('GET', '/nexus/monitor/', [], [], [], '', '127.0.0.1');
+$trailingSlashRes = $app->handle($trailingSlashReq);
+$assertTest('Trailing slash URL (/nexus/monitor/) normalized and returns HTTP 200', $trailingSlashRes->getStatusCode() === 200);
+$assertTest('Physical bridge /nexus/monitor/index.php exists', file_exists($baseDir . '/nexus/monitor/index.php'));
+$assertTest('Physical bridge /health/index.php exists', file_exists($baseDir . '/health/index.php'));
+$assertTest('Root project forwarder /index.php exists', file_exists($baseDir . '/index.php'));
+$assertTest('Request::getAppBase() accurately resolves base path', \Nexus\Core\Request::getAppBase() === '/Dreambox Nexus');
+
+// ── Test 11: MongoDB NoSQL Subsystem & Driver ───────────────────────────────
+echo "\n\033[1;37m[11] MongoDB NoSQL Subsystem & Driver\033[0m\n";
+\Nexus\Core\Env::load($baseDir . '/.env');
+$dbConfig = require $baseDir . '/config/database.php';
+$mongoConfig = $dbConfig['connections']['mongodb'] ?? [];
+$mongoDb = new \Nexus\Database\Database($mongoConfig);
+$assertTest('Database driver identifies as mongodb', $mongoDb->getDriver() === 'mongodb');
+$assertTest('Database isSql() returns false for mongodb', !$mongoDb->isSql());
+$mongoAlive = $mongoDb->isAlive();
+$assertTest('MongoDB localhost connection authenticates and pings alive', $mongoAlive);
+
+// ── Summary ─────────────────────────────────────────────────────────────────
+echo "\n\033[1;36m════════════════════════════════════════════════════════════════\033[0m\n";
+echo "  \033[1;37mTEST SUMMARY:\033[0m \033[0;32m{$passed} Passed\033[0m | \033[0;31m{$failed} Failed\033[0m\n";
+echo "\033[1;36m════════════════════════════════════════════════════════════════\033[0m\n\n";
+
+exit($failed > 0 ? 1 : 0);
