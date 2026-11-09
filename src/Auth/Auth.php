@@ -66,6 +66,7 @@ class Auth
                 'roles' => $this->session->get('user_roles', ['Member']),
                 'avatar_url' => $this->session->get('user_avatar', ''),
                 'auth_provider' => $this->session->get('auth_provider', 'email'),
+                'must_change_password' => !empty($this->session->get('must_change_password')),
                 'guard' => 'session',
             ];
             return $this->currentUser;
@@ -74,8 +75,15 @@ class Auth
         return null;
     }
 
-    public function loginWithSession(string $userId, string $email, string $name = 'User', array $roles = ['Member'], string $avatar = '', string $provider = 'email'): void
-    {
+    public function loginWithSession(
+        string $userId,
+        string $email,
+        string $name = 'User',
+        array $roles = ['Member'],
+        string $avatar = '',
+        string $provider = 'email',
+        bool $mustChangePassword = false
+    ): void {
         $this->session->start();
         $this->session->regenerate();
         $this->session->set('user_id', $userId);
@@ -84,6 +92,7 @@ class Auth
         $this->session->set('user_roles', $roles);
         $this->session->set('user_avatar', $avatar);
         $this->session->set('auth_provider', $provider);
+        $this->session->set('must_change_password', $mustChangePassword);
         $this->currentUser = [
             'id' => $userId,
             'email' => $email,
@@ -91,6 +100,7 @@ class Auth
             'roles' => $roles,
             'avatar_url' => $avatar,
             'auth_provider' => $provider,
+            'must_change_password' => $mustChangePassword,
             'guard' => 'session'
         ];
     }

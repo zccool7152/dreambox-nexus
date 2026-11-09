@@ -182,20 +182,25 @@ class AuthController
         $this->session->remove('pending_auth_user_id');
         $this->session->remove('pending_totp_secret');
 
+        $mustChange = !empty($user['must_change_password']);
         $this->auth->loginWithSession(
             $user['id'],
             $user['email'],
             $user['name'],
             $user['roles'],
             $user['avatar_url'],
-            $user['auth_provider']
+            $user['auth_provider'],
+            $mustChange
         );
 
         $appBase = Request::getAppBase();
+        $redirectUrl = $mustChange ? ($appBase . '/auth/password/change/') : ($appBase . '/admin/');
+
         return Response::json([
             'authenticated' => true,
             'recovery_codes' => $recoveryCodes,
-            'redirect' => $appBase . '/admin/',
+            'must_change_password' => $mustChange,
+            'redirect' => $redirectUrl,
         ], 200, 'Two-factor authentication successfully enabled.');
     }
 
@@ -258,19 +263,88 @@ class AuthController
         }
 
         $this->session->remove('pending_auth_user_id');
+        $mustChange = !empty($user['must_change_password']);
         $this->auth->loginWithSession(
             $user['id'],
             $user['email'],
             $user['name'],
             $user['roles'],
             $user['avatar_url'],
-            $user['auth_provider']
+            $user['auth_provider'],
+            $mustChange
         );
+
+        $appBase = Request::getAppBase();
+        $redirectUrl = $mustChange ? ($appBase . '/auth/password/change/') : ($appBase . '/admin/');
 
         return Response::json([
             'authenticated' => true,
-            'redirect' => Request::getAppBase() . '/admin/',
+            'must_change_password' => $mustChange,
+            'redirect' => $redirectUrl,
         ], 200, 'Authentication complete.');
+    }
+
+    public function showChangePassword(Request $request): Response
+    {
+        $user = $this->auth->user($request);
+        if ($user === null) {
+            return Response::redirect(Request::getAppBase() . '/auth/login/');
+        }
+
+        $html = $this->view->render('auth.change_password', [
+            'appBase' => Request::getAppBase(),
+            'user' => $user,
+            'csrfToken' => $this->csrf->generate(),
+            'error' => $this->session->getFlash('pwd_error'),
+        ]);
+
+        return new Response($html, 200, ['Content-Type' => 'text/html; charset=UTF-8']);
+    }
+
+    public function changePassword(Request $request): Response
+    {
+        $user = $this->auth->user($request);
+        if ($user === null) {
+            return Response::error('Unauthorized session.', 401);
+        }
+
+        $currentPassword = $request->getString('current_password', '');
+        $newPassword = $request->getString('new_password', '');
+        $confirmPassword = $request->getString('confirm_password', '');
+
+        if (empty($currentPassword) || empty($newPassword)) {
+            return Response::error('Current password and new password are required.', 422);
+        }
+
+        if ($newPassword !== $confirmPassword) {
+            return Response::error('New password and confirmation do not match.', 422);
+        }
+
+        if (strlen($newPassword) < 8) {
+            return Response::error('New password must be at least 8 characters long.', 422);
+        }
+
+        if ($newPassword === $currentPassword) {
+            return Response::error('New password cannot be identical to the temporary initial password.', 422);
+        }
+
+        $fullUser = $this->userRepo->findById($user['id']);
+        $hasher = new Hasher();
+        if ($fullUser === null || empty($fullUser['password_hash']) || !$hasher->verify($currentPassword, $fullUser['password_hash'])) {
+            return Response::error('Current password verification failed.', 401);
+        }
+
+        $this->userRepo->update($user['id'], [
+            'password_hash' => $hasher->hash($newPassword),
+            'must_change_password' => 0,
+        ]);
+
+        $this->session->set('must_change_password', false);
+
+        return Response::json([
+            'success' => true,
+            'redirect' => Request::getAppBase() . '/admin/',
+        ], 200, 'Password successfully updated.');
     }
 
     public function redirectToOAuth(Request $request, string $provider): Response

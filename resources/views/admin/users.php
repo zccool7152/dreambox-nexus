@@ -400,7 +400,7 @@
                 </select>
 
                 <label for="password">Initial Password</label>
-                <input type="password" id="password" name="password" class="form-input" placeholder="TempPass@2026!" required value="TempPass@2026!">
+                <input type="password" id="password" name="password" class="form-input" placeholder="Enter secure initial password" required autocomplete="new-password">
 
                 <div style="display:flex;gap:0.5rem;margin-top:1rem;">
                     <button type="submit" class="btn-action btn-primary" style="flex:1;">Provision</button>

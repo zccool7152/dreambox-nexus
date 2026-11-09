@@ -268,12 +268,12 @@
         <form id="emailLoginForm">
             <div class="form-group">
                 <label for="email">Identity / Email</label>
-                <input type="email" id="email" class="form-input" placeholder="admin@localhost" required autocomplete="email" value="admin@localhost">
+                <input type="email" id="email" class="form-input" placeholder="identity@domain.com" required autocomplete="email">
             </div>
 
             <div class="form-group">
                 <label for="password">Password</label>
-                <input type="password" id="password" class="form-input" placeholder="••••••••••••" required autocomplete="current-password" value="NexusAdmin@2026!">
+                <input type="password" id="password" class="form-input" placeholder="••••••••••••" required autocomplete="current-password">
             </div>
 
             <button type="submit" id="btnSubmit" class="btn-submit">
@@ -283,7 +283,6 @@
 
         <div class="footer-note">
             <span>🔒 Protected by PCI-DSS Req 8.3 & RFC 6238 TOTP Engine.</span><br>
-            <span>Default SuperAdmin: <code>admin@localhost</code> / <code>NexusAdmin@2026!</code></span><br>
             <a href="<?= $appBase ?>/">← Return to Application Gateway</a>
         </div>
     </div>

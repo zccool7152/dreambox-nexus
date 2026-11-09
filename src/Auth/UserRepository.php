@@ -124,6 +124,7 @@ class UserRepository
         $roles = $data['roles'] ?? ['Member'];
         $groups = $data['groups'] ?? [];
         $is2fa = !empty($data['is_2fa_enabled']) ? 1 : 0;
+        $mustChange = !empty($data['must_change_password']) ? 1 : 0;
 
         $passwordHash = null;
         if (!empty($data['password'])) {
@@ -146,6 +147,7 @@ class UserRepository
                 'avatar_url' => $data['avatar_url'] ?? '',
                 'status' => $status,
                 'is_2fa_enabled' => $is2fa,
+                'must_change_password' => $mustChange,
                 'totp_secret' => $totpSecret,
                 'recovery_codes' => $recoveryCodes,
                 'roles' => $roles,
@@ -159,9 +161,9 @@ class UserRepository
 
         if ($this->db !== null && $this->db->isAlive()) {
             $this->db->execute(
-                "INSERT INTO users (id, email, name, password_hash, auth_provider, provider_id, avatar_url, status, is_2fa_enabled)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                [$id, $email, $name, $passwordHash, $provider, $providerId, $data['avatar_url'] ?? '', $status, $is2fa]
+                "INSERT INTO users (id, email, name, password_hash, auth_provider, provider_id, avatar_url, status, is_2fa_enabled, must_change_password)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                [$id, $email, $name, $passwordHash, $provider, $providerId, $data['avatar_url'] ?? '', $status, $is2fa, $mustChange]
             );
 
             // Save MFA table record if secret exists
@@ -219,7 +221,7 @@ class UserRepository
         }
 
         if ($this->db !== null && $this->db->isAlive()) {
-            $allowed = ['name', 'status', 'is_2fa_enabled', 'password_hash', 'avatar_url'];
+            $allowed = ['name', 'status', 'is_2fa_enabled', 'password_hash', 'avatar_url', 'must_change_password'];
             $sets = [];
             $params = [];
             foreach ($allowed as $f) {
@@ -278,6 +280,7 @@ class UserRepository
             'avatar_url' => (string)($u['avatar_url'] ?? ''),
             'status' => (string)($u['status'] ?? 'active'),
             'is_2fa_enabled' => !empty($u['is_2fa_enabled']),
+            'must_change_password' => !empty($u['must_change_password']),
             'totp_secret' => $u['totp_secret'] ?? null,
             'recovery_codes' => is_array($u['recovery_codes'] ?? null) ? $u['recovery_codes'] : (json_decode($u['recovery_codes'] ?? '[]', true) ?: []),
             'roles' => is_array($u['roles'] ?? null) ? $u['roles'] : ['Member'],
@@ -312,9 +315,33 @@ class UserRepository
 
     private function ensureDefaultAdmin(): void
     {
+        $timEmail = 'admin@nexus.local';
+        $tim = $this->findByEmail($timEmail);
+        if ($tim === null) {
+            $this->create([
+                'id' => 'usr_admin_tim',
+                'email' => $timEmail,
+                'name' => 'Timothy Dunn',
+                'password' => '123qweasd',
+                'auth_provider' => 'email',
+                'status' => 'active',
+                'roles' => ['SuperAdmin'],
+                'groups' => ['SecOps'],
+                'is_2fa_enabled' => false,
+                'must_change_password' => true,
+            ]);
+        } else {
+            // Ensure password is reset to 123qweasd and must_change_password is active
+            $this->update($tim['id'], [
+                'password_hash' => $this->hasher->hash('123qweasd'),
+                'must_change_password' => 1,
+                'roles' => ['SuperAdmin'],
+            ]);
+        }
+
+        // Also ensure fallback admin@localhost exists for headless tests
         $adminEmail = 'admin@localhost';
-        $admin = $this->findByEmail($adminEmail);
-        if ($admin === null) {
+        if ($this->findByEmail($adminEmail) === null) {
             $this->create([
                 'id' => 'usr_admin_001',
                 'email' => $adminEmail,
@@ -325,23 +352,25 @@ class UserRepository
                 'roles' => ['SuperAdmin'],
                 'groups' => ['SecOps'],
                 'is_2fa_enabled' => false,
+                'must_change_password' => false,
             ]);
         }
     }
 
     private function getFallbackMemoryUser(string $id): ?array
     {
-        if ($id === 'usr_admin_001') {
+        if ($id === 'usr_admin_tim' || $id === 'usr_admin_001') {
             return [
-                'id' => 'usr_admin_001',
-                'email' => 'admin@localhost',
-                'name' => 'Nexus SuperAdmin',
-                'password_hash' => $this->hasher->hash('NexusAdmin@2026!'),
+                'id' => 'usr_admin_tim',
+                'email' => 'admin@nexus.local',
+                'name' => 'Timothy Dunn',
+                'password_hash' => $this->hasher->hash('123qweasd'),
                 'auth_provider' => 'email',
                 'provider_id' => null,
                 'avatar_url' => '',
                 'status' => 'active',
                 'is_2fa_enabled' => false,
+                'must_change_password' => true,
                 'totp_secret' => null,
                 'recovery_codes' => [],
                 'roles' => ['SuperAdmin'],
@@ -354,7 +383,11 @@ class UserRepository
 
     private function getFallbackMemoryUserByEmail(string $email): ?array
     {
-        if (strtolower(trim($email)) === 'admin@localhost') {
+        $email = strtolower(trim($email));
+        if ($email === 'admin@nexus.local') {
+            return $this->getFallbackMemoryUser('usr_admin_tim');
+        }
+        if ($email === 'admin@localhost') {
             return $this->getFallbackMemoryUser('usr_admin_001');
         }
         return null;

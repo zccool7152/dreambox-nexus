@@ -67,7 +67,14 @@ class AdminController
             if ($request->wantsJson()) {
                 return Response::error('Unauthorized or insufficient permissions.', 403, 'FORBIDDEN');
             }
-            return Response::redirect(Request::getAppBase() . '/auth/login');
+            return Response::redirect(Request::getAppBase() . '/auth/login/');
+        }
+
+        if (!empty($currentUser['must_change_password'])) {
+            if ($request->wantsJson()) {
+                return Response::error('First-time authentication: password rotation required.', 403, 'PASSWORD_CHANGE_REQUIRED');
+            }
+            return Response::redirect(Request::getAppBase() . '/auth/password/change/');
         }
 
         $users = $this->userRepo->all();
@@ -104,10 +111,14 @@ class AdminController
         $email = strtolower(trim($request->getString('email', '')));
         $name = trim($request->getString('name', ''));
         $role = $request->getString('role', 'Member');
-        $password = $request->getString('password', 'TempPass@2026!');
+        $password = $request->getString('password', '');
 
         if (empty($email) || empty($name)) {
             return Response::error('Email and name are required.', 422);
+        }
+
+        if (empty($password)) {
+            return Response::error('A secure initial password is required.', 422);
         }
 
         $existing = $this->userRepo->findByEmail($email);
@@ -232,7 +243,11 @@ class AdminController
             if ($request->wantsJson()) {
                 return Response::error('Unauthorized or insufficient permissions.', 403, 'FORBIDDEN');
             }
-            return Response::redirect(Request::getAppBase() . '/auth/login');
+            return Response::redirect(Request::getAppBase() . '/auth/login/');
+        }
+
+        if (!empty($currentUser['must_change_password'])) {
+            return Response::redirect(Request::getAppBase() . '/auth/password/change/');
         }
 
         $roles = $this->roleMgr->getRoles();
@@ -263,7 +278,11 @@ class AdminController
             if ($request->wantsJson()) {
                 return Response::error('Unauthorized or insufficient permissions.', 403, 'FORBIDDEN');
             }
-            return Response::redirect(Request::getAppBase() . '/auth/login');
+            return Response::redirect(Request::getAppBase() . '/auth/login/');
+        }
+
+        if (!empty($currentUser['must_change_password'])) {
+            return Response::redirect(Request::getAppBase() . '/auth/password/change/');
         }
 
         $groups = $this->groupMgr->getGroups();
@@ -293,7 +312,11 @@ class AdminController
             if ($request->wantsJson()) {
                 return Response::error('Unauthorized or insufficient permissions.', 403, 'FORBIDDEN');
             }
-            return Response::redirect(Request::getAppBase() . '/auth/login');
+            return Response::redirect(Request::getAppBase() . '/auth/login/');
+        }
+
+        if (!empty($currentUser['must_change_password'])) {
+            return Response::redirect(Request::getAppBase() . '/auth/password/change/');
         }
 
         $logs = $this->fetchAuditLogs();

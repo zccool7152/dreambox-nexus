@@ -69,8 +69,8 @@ class Session
 
     public function regenerate(): void
     {
-        if (session_status() === PHP_SESSION_ACTIVE) {
-            session_regenerate_id(true);
+        if (session_status() === PHP_SESSION_ACTIVE && !headers_sent()) {
+            @session_regenerate_id(true);
         }
     }
 

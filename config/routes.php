@@ -145,6 +145,14 @@ $router->post('/api/v1/auth/2fa/verify', function (Request $req) use ($getAuthCo
     return $getAuthController()->verifyTotp($req);
 }, [], 'auth.verify_2fa');
 
+$router->get('/auth/password/change', function (Request $req) use ($getAuthController) {
+    return $getAuthController()->showChangePassword($req);
+}, [], 'auth.show_change_password');
+
+$router->post('/api/v1/auth/password/change', function (Request $req) use ($getAuthController) {
+    return $getAuthController()->changePassword($req);
+}, [], 'auth.change_password');
+
 $router->get('/auth/oauth/{provider}', function (Request $req, array $params) use ($getAuthController) {
     return $getAuthController()->redirectToOAuth($req, $params['provider']);
 }, [], 'auth.oauth_redirect');

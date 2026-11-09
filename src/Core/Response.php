@@ -23,11 +23,16 @@ class Response
 
     public static function json(
         mixed $data = [],
-        string $message = '',
-        int $statusCode = 200,
+        string|int $message = '',
+        int|string $statusCode = 200,
         array $headers = [],
         ?string $traceId = null
     ): static {
+        if (is_int($message)) {
+            $temp = $statusCode;
+            $statusCode = $message;
+            $message = is_string($temp) ? $temp : '';
+        }
         $meta = [
             'trace_id' => $traceId ?? Request::generateUuidV4(),
             'timestamp' => gmdate('Y-m-d\TH:i:s\Z'),

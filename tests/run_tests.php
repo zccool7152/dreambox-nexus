@@ -249,16 +249,19 @@ $otpUri = $mfa->getProvisioningUri('admin@localhost', 'JBSWY3DPEHPK3PXP', 'Dream
 $assertTest('MFA engine formats RFC 6238 provisioning URI correctly', str_starts_with($otpUri, 'otpauth://totp/'));
 
 // 3. User Repository & Default Admin
-$userRepo = new \Nexus\Auth\UserRepository($mongoDb, new \Nexus\Crypto\Hasher());
-$adminUser = $userRepo->findByEmail('admin@localhost');
-$assertTest('UserRepository finds default SuperAdmin identity', $adminUser !== null && $adminUser['email'] === 'admin@localhost');
-$assertTest('SuperAdmin identity holds SuperAdmin role', in_array('SuperAdmin', $adminUser['roles'], true));
+$hasher = new \Nexus\Crypto\Hasher();
+$userRepo = new \Nexus\Auth\UserRepository($mongoDb, $hasher);
+$timUser = $userRepo->findByEmail('admin@nexus.local');
+$assertTest('UserRepository finds SuperAdmin identity for admin@nexus.local', $timUser !== null && $timUser['email'] === 'admin@nexus.local');
+$assertTest('admin@nexus.local holds SuperAdmin role', in_array('SuperAdmin', $timUser['roles'], true));
+$assertTest('admin@nexus.local verifies initial temporary password 123qweasd', $hasher->verify('123qweasd', $timUser['password_hash']));
+$assertTest('admin@nexus.local has must_change_password flag active', !empty($timUser['must_change_password']));
 
 // 4. Role Manager & Permission Evaluation
 $roleMgr = new \Nexus\Auth\Rbac\RoleManager($mongoDb);
 $roles = $roleMgr->getRoles();
 $assertTest('RoleManager registers SuperAdmin, SecurityOfficer, ComplianceAuditor, Developer, Member', count($roles) >= 5);
-$assertTest('RoleManager grants unrestricted access to SuperAdmin', $roleMgr->userHasPermission($adminUser, 'non.existent.random.permission'));
+$assertTest('RoleManager grants unrestricted access to SuperAdmin', $roleMgr->userHasPermission($timUser, 'non.existent.random.permission'));
 $memberUser = ['email' => 'member@test.com', 'roles' => ['Member']];
 $assertTest('RoleManager denies non.existent permission to standard Member', !$roleMgr->userHasPermission($memberUser, 'non.existent.permission'));
 $assertTest('RoleManager permits profile.manage to standard Member', $roleMgr->userHasPermission($memberUser, 'profile.manage'));
@@ -294,6 +297,7 @@ $adminBridges = [
     '/auth/index.php' => $baseDir . '/auth/index.php',
     '/public/admin/index.php' => $baseDir . '/public/admin/index.php',
     '/public/auth/index.php' => $baseDir . '/public/auth/index.php',
+    '/auth/password/change/index.php' => $baseDir . '/auth/password/change/index.php',
 ];
 foreach ($adminBridges as $pathName => $fullPath) {
     $assertTest("Physical bridge {$pathName} exists", file_exists($fullPath));
