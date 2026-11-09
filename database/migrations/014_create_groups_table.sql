@@ -21,3 +21,4 @@ CREATE TABLE IF NOT EXISTS user_groups (
     INDEX idx_ug_user (user_id),
     INDEX idx_ug_group (group_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+

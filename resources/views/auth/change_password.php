@@ -153,20 +153,22 @@
 
         <div id="alertBox" class="alert alert-error"></div>
 
-        <form id="pwdForm">
+        <form id="pwdForm" method="POST" action="<?= $appBase ?>/auth/password/change/">
+            <input type="hidden" name="csrf_token" value="<?= $csrfToken ?>">
+
             <div class="form-group">
                 <label for="current_password">Temporary Current Password</label>
-                <input type="password" id="current_password" class="form-input" placeholder="••••••••••••" required autocomplete="current-password" autofocus>
+                <input type="password" id="current_password" name="current_password" class="form-input" placeholder="••••••••••••" required autocomplete="current-password" autofocus>
             </div>
 
             <div class="form-group">
                 <label for="new_password">New Private Password (min 8 characters)</label>
-                <input type="password" id="new_password" class="form-input" placeholder="••••••••••••" required minlength="8" autocomplete="new-password">
+                <input type="password" id="new_password" name="new_password" class="form-input" placeholder="••••••••••••" required minlength="8" autocomplete="new-password">
             </div>
 
             <div class="form-group">
                 <label for="confirm_password">Confirm New Password</label>
-                <input type="password" id="confirm_password" class="form-input" placeholder="••••••••••••" required minlength="8" autocomplete="new-password">
+                <input type="password" id="confirm_password" name="confirm_password" class="form-input" placeholder="••••••••••••" required minlength="8" autocomplete="new-password">
             </div>
 
             <button type="submit" id="btnSubmit" class="btn-submit">
@@ -175,7 +177,7 @@
         </form>
     </div>
 
-    <script>
+    <script nonce="<?= $nonce ?? '' ?>">
         const form = document.getElementById('pwdForm');
         const alertBox = document.getElementById('alertBox');
         const btnSubmit = document.getElementById('btnSubmit');
@@ -204,7 +206,7 @@
             btnSubmit.textContent = 'Updating Credentials...';
 
             try {
-                const res = await fetch('<?= $appBase ?>/api/v1/auth/password/change', {
+                const res = await fetch('<?= $appBase ?>/auth/password/change/', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -230,12 +232,11 @@
 
                 window.location.href = data.data.redirect || '<?= $appBase ?>/admin/';
             } catch (err) {
-                alertBox.textContent = 'Network error during password rotation.';
-                alertBox.style.display = 'block';
-                btnSubmit.disabled = false;
-                btnSubmit.textContent = 'Rotate Password & Enter System →';
+                // Defensive fallback to standard form submit
+                form.submit();
             }
         });
     </script>
 </body>
 </html>
+

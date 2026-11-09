@@ -80,3 +80,4 @@ class GroupManager
         return true;
     }
 }
+

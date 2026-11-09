@@ -247,9 +247,10 @@
             </div>
         </div>
 
-        <form id="setupForm">
+        <form id="setupForm" method="POST" action="<?= $appBase ?>/auth/2fa/setup/">
+            <input type="hidden" name="csrf_token" value="<?= $csrfToken ?>">
             <div class="form-group">
-                <input type="text" id="code" class="otp-input" placeholder="000000" maxlength="6" pattern="[0-9]{6}" inputmode="numeric" autocomplete="one-time-code" required autofocus>
+                <input type="text" id="code" name="code" class="otp-input" placeholder="000000" maxlength="6" pattern="[0-9]{6}" inputmode="numeric" autocomplete="one-time-code" required autofocus>
             </div>
 
             <button type="submit" id="btnSubmit" class="btn-submit">
@@ -274,7 +275,7 @@
         </div>
     </div>
 
-    <script>
+    <script nonce="<?= $nonce ?? '' ?>">
         const form = document.getElementById('setupForm');
         const alertBox = document.getElementById('alertBox');
         const btnSubmit = document.getElementById('btnSubmit');
@@ -290,7 +291,7 @@
             btnSubmit.textContent = 'Verifying Code...';
 
             try {
-                const res = await fetch('<?= $appBase ?>/api/v1/auth/2fa/setup', {
+                const res = await fetch('<?= $appBase ?>/auth/2fa/setup/', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -326,10 +327,8 @@
                     window.location.href = data.data.redirect || '<?= $appBase ?>/admin/';
                 }
             } catch (err) {
-                alertBox.textContent = 'Network communication failure during 2FA activation.';
-                alertBox.style.display = 'block';
-                btnSubmit.disabled = false;
-                btnSubmit.textContent = 'Confirm & Activate 2FA →';
+                // Defensive fallback to standard form submit
+                form.submit();
             }
         });
 
@@ -339,3 +338,4 @@
     </script>
 </body>
 </html>
+

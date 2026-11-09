@@ -125,6 +125,14 @@ $router->get('/login', function (Request $req) use ($getAuthController) {
     return $getAuthController()->showLogin($req);
 }, [], 'auth.login_alias');
 
+$router->post('/auth/login', function (Request $req) use ($getAuthController) {
+    return $getAuthController()->login($req);
+}, [], 'auth.post_login');
+
+$router->post('/login', function (Request $req) use ($getAuthController) {
+    return $getAuthController()->login($req);
+}, [], 'auth.post_login_alias');
+
 $router->post('/api/v1/auth/login', function (Request $req) use ($getAuthController) {
     return $getAuthController()->login($req);
 }, [], 'auth.login');
@@ -132,6 +140,10 @@ $router->post('/api/v1/auth/login', function (Request $req) use ($getAuthControl
 $router->get('/auth/2fa/setup', function (Request $req) use ($getAuthController) {
     return $getAuthController()->showSetup2fa($req);
 }, [], 'auth.show_setup_2fa');
+
+$router->post('/auth/2fa/setup', function (Request $req) use ($getAuthController) {
+    return $getAuthController()->processSetup2fa($req);
+}, [], 'auth.post_setup_2fa');
 
 $router->post('/api/v1/auth/2fa/setup', function (Request $req) use ($getAuthController) {
     return $getAuthController()->processSetup2fa($req);
@@ -141,6 +153,10 @@ $router->get('/auth/2fa', function (Request $req) use ($getAuthController) {
     return $getAuthController()->showTotp($req);
 }, [], 'auth.show_2fa');
 
+$router->post('/auth/2fa', function (Request $req) use ($getAuthController) {
+    return $getAuthController()->verifyTotp($req);
+}, [], 'auth.post_verify_2fa');
+
 $router->post('/api/v1/auth/2fa/verify', function (Request $req) use ($getAuthController) {
     return $getAuthController()->verifyTotp($req);
 }, [], 'auth.verify_2fa');
@@ -148,6 +164,10 @@ $router->post('/api/v1/auth/2fa/verify', function (Request $req) use ($getAuthCo
 $router->get('/auth/password/change', function (Request $req) use ($getAuthController) {
     return $getAuthController()->showChangePassword($req);
 }, [], 'auth.show_change_password');
+
+$router->post('/auth/password/change', function (Request $req) use ($getAuthController) {
+    return $getAuthController()->changePassword($req);
+}, [], 'auth.post_change_password');
 
 $router->post('/api/v1/auth/password/change', function (Request $req) use ($getAuthController) {
     return $getAuthController()->changePassword($req);
@@ -168,6 +188,10 @@ $router->get('/auth/{provider}/callback', function (Request $req, array $params)
 $router->get('/auth/logout', function (Request $req) use ($getAuthController) {
     return $getAuthController()->logout($req);
 }, [], 'auth.get_logout');
+
+$router->post('/auth/logout', function (Request $req) use ($getAuthController) {
+    return $getAuthController()->logout($req);
+}, [], 'auth.post_logout');
 
 $router->post('/api/v1/auth/logout', function (Request $req) use ($getAuthController) {
     return $getAuthController()->logout($req);

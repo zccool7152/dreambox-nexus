@@ -107,3 +107,4 @@ class GoogleProvider implements OAuthProviderInterface
         ];
     }
 }
+

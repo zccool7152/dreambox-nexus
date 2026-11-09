@@ -298,10 +298,46 @@ $adminBridges = [
     '/public/admin/index.php' => $baseDir . '/public/admin/index.php',
     '/public/auth/index.php' => $baseDir . '/public/auth/index.php',
     '/auth/password/change/index.php' => $baseDir . '/auth/password/change/index.php',
+    '/api/v1/auth/login/index.php' => $baseDir . '/api/v1/auth/login/index.php',
+    '/api/v1/auth/2fa/setup/index.php' => $baseDir . '/api/v1/auth/2fa/setup/index.php',
+    '/api/v1/auth/password/change/index.php' => $baseDir . '/api/v1/auth/password/change/index.php',
 ];
 foreach ($adminBridges as $pathName => $fullPath) {
     $assertTest("Physical bridge {$pathName} exists", file_exists($fullPath));
 }
+
+// 8. Content Security Policy Nonce Protection & Form Submissions
+$assertTest('Login view contains script with CSP nonce', str_contains($loginRes->getContent(), '<script nonce="') && !str_contains($loginRes->getContent(), '<script>'));
+$assertTest('Login form contains method="POST"', str_contains($loginRes->getContent(), 'method="POST"'));
+$assertTest('Zero credential leaks in public HTML markup', !str_contains($loginRes->getContent(), '123qweasd') && !str_contains($loginRes->getContent(), 'NexusAdmin@2026!'));
+
+$formLoginReq = new \Nexus\Core\Request(
+    'POST',
+    '/auth/login',
+    ['accept' => 'text/html', 'content-type' => 'application/x-www-form-urlencoded'],
+    [],
+    ['email' => 'admin@nexus.local', 'password' => '123qweasd'],
+    'email=admin%40nexus.local&password=123qweasd',
+    '127.0.0.1',
+    null,
+    '/auth/login'
+);
+$formLoginRes = $app->handle($formLoginReq);
+$assertTest('POST /auth/login via form redirects to 2FA enrollment (HTTP 302)', $formLoginRes->getStatusCode() === 302 && str_contains($formLoginRes->getHeader('location') ?? '', '/auth/2fa/setup/'));
+
+$ajaxLoginReq = new \Nexus\Core\Request(
+    'POST',
+    '/auth/login',
+    ['accept' => 'application/json', 'content-type' => 'application/json'],
+    [],
+    ['email' => 'admin@nexus.local', 'password' => '123qweasd'],
+    json_encode(['email' => 'admin@nexus.local', 'password' => '123qweasd']),
+    '127.0.0.1',
+    null,
+    '/auth/login'
+);
+$ajaxLoginRes = $app->handle($ajaxLoginReq);
+$assertTest('POST /auth/login via JSON returns HTTP 200 with requires_2fa_setup', $ajaxLoginRes->getStatusCode() === 200 && str_contains($ajaxLoginRes->getContent(), 'requires_2fa_setup'));
 
 // ── Summary ─────────────────────────────────────────────────────────────────
 echo "\n\033[1;36m════════════════════════════════════════════════════════════════\033[0m\n";

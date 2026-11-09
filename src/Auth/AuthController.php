@@ -58,6 +58,7 @@ class AuthController
         $html = $this->view->render('auth.login', [
             'appBase' => $appBase,
             'csrfToken' => $csrfToken,
+            'nonce' => \Nexus\Security\Headers::getNonce(),
             'error' => $this->session->getFlash('auth_error'),
             'success' => $this->session->getFlash('auth_success'),
         ]);
@@ -70,8 +71,13 @@ class AuthController
         $email = strtolower(trim($request->getString('email', '')));
         $password = $request->getString('password', '');
         $ip = $request->getClientIp();
+        $appBase = Request::getAppBase();
 
         if (empty($email) || empty($password)) {
+            if (!$request->wantsJson()) {
+                $this->session->flash('auth_error', 'Email and password are required.');
+                return Response::redirect($appBase . '/auth/login/');
+            }
             return Response::error('Email and password are required.', 422, 'VALIDATION_ERROR');
         }
 
@@ -79,11 +85,12 @@ class AuthController
         if ($this->lockout->isLocked($email)) {
             $rem = $this->lockout->getLockoutRemainingSeconds($email);
             $mins = ceil($rem / 60);
-            return Response::error(
-                "Account is locked due to repeated failed login attempts. Try again in {$mins} minutes.",
-                423,
-                'ACCOUNT_LOCKED'
-            );
+            $msg = "Account is locked due to repeated failed login attempts. Try again in {$mins} minutes.";
+            if (!$request->wantsJson()) {
+                $this->session->flash('auth_error', $msg);
+                return Response::redirect($appBase . '/auth/login/');
+            }
+            return Response::error($msg, 423, 'ACCOUNT_LOCKED');
         }
 
         $user = $this->userRepo->findByEmail($email);
@@ -91,10 +98,18 @@ class AuthController
 
         if ($user === null || empty($user['password_hash']) || !$hasher->verify($password, $user['password_hash'])) {
             $this->lockout->recordFailedAttempt($email, $ip);
+            if (!$request->wantsJson()) {
+                $this->session->flash('auth_error', 'Invalid email or password.');
+                return Response::redirect($appBase . '/auth/login/');
+            }
             return Response::error('Invalid credentials provided.', 401, 'INVALID_CREDENTIALS');
         }
 
         if ($user['status'] === 'suspended') {
+            if (!$request->wantsJson()) {
+                $this->session->flash('auth_error', 'This account has been administratively suspended.');
+                return Response::redirect($appBase . '/auth/login/');
+            }
             return Response::error('This account has been administratively suspended.', 403, 'ACCOUNT_SUSPENDED');
         }
 
@@ -104,20 +119,24 @@ class AuthController
         $this->session->start();
         $this->session->set('pending_auth_user_id', $user['id']);
 
-        $appBase = Request::getAppBase();
-
         if (empty($user['is_2fa_enabled']) || empty($user['totp_secret'])) {
             // First time email login: Mandate Google Authenticator 2FA Setup
+            if (!$request->wantsJson()) {
+                return Response::redirect($appBase . '/auth/2fa/setup/');
+            }
             return Response::json([
                 'requires_2fa_setup' => true,
-                'redirect' => $appBase . '/auth/2fa/setup',
+                'redirect' => $appBase . '/auth/2fa/setup/',
             ], 200, 'Two-factor authentication enrollment required.');
         }
 
         // Established email login: Prompt for 6-digit TOTP
+        if (!$request->wantsJson()) {
+            return Response::redirect($appBase . '/auth/2fa/');
+        }
         return Response::json([
             'requires_2fa' => true,
-            'redirect' => $appBase . '/auth/2fa',
+            'redirect' => $appBase . '/auth/2fa/',
         ], 200, 'Two-factor authentication challenge required.');
     }
 
@@ -162,12 +181,21 @@ class AuthController
         $userId = $this->session->get('pending_auth_user_id');
         $secret = $this->session->get('pending_totp_secret');
         $code = trim($request->getString('code', ''));
+        $appBase = Request::getAppBase();
 
         if (empty($userId) || empty($secret)) {
+            if (!$request->wantsJson()) {
+                $this->session->flash('mfa_error', 'Session expired. Please log in again.');
+                return Response::redirect($appBase . '/auth/login/');
+            }
             return Response::error('Session expired. Please log in again.', 401);
         }
 
         if (empty($code) || !$this->mfa->verifyCode($secret, $code)) {
+            if (!$request->wantsJson()) {
+                $this->session->flash('mfa_error', 'Invalid verification code from Google Authenticator.');
+                return Response::redirect($appBase . '/auth/2fa/setup/');
+            }
             return Response::error('Invalid verification code from Google Authenticator.', 422);
         }
 
@@ -193,8 +221,11 @@ class AuthController
             $mustChange
         );
 
-        $appBase = Request::getAppBase();
         $redirectUrl = $mustChange ? ($appBase . '/auth/password/change/') : ($appBase . '/admin/');
+
+        if (!$request->wantsJson()) {
+            return Response::redirect($redirectUrl);
+        }
 
         return Response::json([
             'authenticated' => true,
@@ -209,12 +240,12 @@ class AuthController
         $this->session->start();
         $userId = $this->session->get('pending_auth_user_id');
         if (empty($userId)) {
-            return Response::redirect(Request::getAppBase() . '/auth/login');
+            return Response::redirect(Request::getAppBase() . '/auth/login/');
         }
 
         $user = $this->userRepo->findById($userId);
         if ($user === null) {
-            return Response::redirect(Request::getAppBase() . '/auth/login');
+            return Response::redirect(Request::getAppBase() . '/auth/login/');
         }
 
         $html = $this->view->render('auth.totp', [
@@ -232,13 +263,22 @@ class AuthController
         $this->session->start();
         $userId = $this->session->get('pending_auth_user_id');
         $code = trim($request->getString('code', ''));
+        $appBase = Request::getAppBase();
 
         if (empty($userId)) {
+            if (!$request->wantsJson()) {
+                $this->session->flash('mfa_error', 'Authentication challenge session expired.');
+                return Response::redirect($appBase . '/auth/login/');
+            }
             return Response::error('Authentication challenge session expired.', 401);
         }
 
         $user = $this->userRepo->findById($userId);
         if ($user === null) {
+            if (!$request->wantsJson()) {
+                $this->session->flash('auth_error', 'User identity not found.');
+                return Response::redirect($appBase . '/auth/login/');
+            }
             return Response::error('User identity not found.', 404);
         }
 
@@ -259,6 +299,10 @@ class AuthController
         }
 
         if (!$verified) {
+            if (!$request->wantsJson()) {
+                $this->session->flash('mfa_error', 'Invalid Google Authenticator verification code.');
+                return Response::redirect($appBase . '/auth/2fa/');
+            }
             return Response::error('Invalid Google Authenticator verification code.', 401);
         }
 
@@ -274,8 +318,11 @@ class AuthController
             $mustChange
         );
 
-        $appBase = Request::getAppBase();
         $redirectUrl = $mustChange ? ($appBase . '/auth/password/change/') : ($appBase . '/admin/');
+
+        if (!$request->wantsJson()) {
+            return Response::redirect($redirectUrl);
+        }
 
         return Response::json([
             'authenticated' => true,
@@ -304,7 +351,12 @@ class AuthController
     public function changePassword(Request $request): Response
     {
         $user = $this->auth->user($request);
+        $appBase = Request::getAppBase();
+
         if ($user === null) {
+            if (!$request->wantsJson()) {
+                return Response::redirect($appBase . '/auth/login/');
+            }
             return Response::error('Unauthorized session.', 401);
         }
 
@@ -312,26 +364,34 @@ class AuthController
         $newPassword = $request->getString('new_password', '');
         $confirmPassword = $request->getString('confirm_password', '');
 
+        $err = null;
         if (empty($currentPassword) || empty($newPassword)) {
-            return Response::error('Current password and new password are required.', 422);
+            $err = 'Current password and new password are required.';
+        } elseif ($newPassword !== $confirmPassword) {
+            $err = 'New password and confirmation do not match.';
+        } elseif (strlen($newPassword) < 8) {
+            $err = 'New password must be at least 8 characters long.';
+        } elseif ($newPassword === $currentPassword) {
+            $err = 'New password cannot be identical to the temporary initial password.';
         }
 
-        if ($newPassword !== $confirmPassword) {
-            return Response::error('New password and confirmation do not match.', 422);
-        }
-
-        if (strlen($newPassword) < 8) {
-            return Response::error('New password must be at least 8 characters long.', 422);
-        }
-
-        if ($newPassword === $currentPassword) {
-            return Response::error('New password cannot be identical to the temporary initial password.', 422);
+        if ($err !== null) {
+            if (!$request->wantsJson()) {
+                $this->session->flash('pwd_error', $err);
+                return Response::redirect($appBase . '/auth/password/change/');
+            }
+            return Response::error($err, 422);
         }
 
         $fullUser = $this->userRepo->findById($user['id']);
         $hasher = new Hasher();
         if ($fullUser === null || empty($fullUser['password_hash']) || !$hasher->verify($currentPassword, $fullUser['password_hash'])) {
-            return Response::error('Current password verification failed.', 401);
+            $err = 'Current password verification failed.';
+            if (!$request->wantsJson()) {
+                $this->session->flash('pwd_error', $err);
+                return Response::redirect($appBase . '/auth/password/change/');
+            }
+            return Response::error($err, 401);
         }
 
         $this->userRepo->update($user['id'], [
@@ -341,9 +401,13 @@ class AuthController
 
         $this->session->set('must_change_password', false);
 
+        if (!$request->wantsJson()) {
+            return Response::redirect($appBase . '/admin/');
+        }
+
         return Response::json([
             'success' => true,
-            'redirect' => Request::getAppBase() . '/admin/',
+            'redirect' => $appBase . '/admin/',
         ], 200, 'Password successfully updated.');
     }
 

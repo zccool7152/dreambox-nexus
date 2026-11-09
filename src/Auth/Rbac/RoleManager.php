@@ -133,3 +133,4 @@ class RoleManager
         return true;
     }
 }
+

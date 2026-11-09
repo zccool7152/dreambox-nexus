@@ -150,8 +150,9 @@
 
         <div id="alertBox" class="alert alert-error"></div>
 
-        <form id="totpForm">
-            <input type="text" id="code" class="otp-input" placeholder="000000" maxlength="18" autocomplete="one-time-code" required autofocus>
+        <form id="totpForm" method="POST" action="<?= $appBase ?>/auth/2fa/">
+            <input type="hidden" name="csrf_token" value="<?= $csrfToken ?>">
+            <input type="text" id="code" name="code" class="otp-input" placeholder="000000" maxlength="18" autocomplete="one-time-code" required autofocus>
 
             <button type="submit" id="btnSubmit" class="btn-submit">
                 Verify Identity →
@@ -163,7 +164,7 @@
         </div>
     </div>
 
-    <script>
+    <script nonce="<?= $nonce ?? '' ?>">
         const form = document.getElementById('totpForm');
         const alertBox = document.getElementById('alertBox');
         const btnSubmit = document.getElementById('btnSubmit');
@@ -193,7 +194,7 @@
             btnSubmit.textContent = 'Verifying...';
 
             try {
-                const res = await fetch('<?= $appBase ?>/api/v1/auth/2fa/verify', {
+                const res = await fetch('<?= $appBase ?>/auth/2fa/', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -217,12 +218,11 @@
 
                 window.location.href = data.data.redirect || '<?= $appBase ?>/admin/';
             } catch (err) {
-                alertBox.textContent = 'Network error during verification.';
-                alertBox.style.display = 'block';
-                btnSubmit.disabled = false;
-                btnSubmit.textContent = 'Verify Identity →';
+                // Defensive fallback to standard form submit
+                form.submit();
             }
         });
     </script>
 </body>
 </html>
+

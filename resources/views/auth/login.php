@@ -265,15 +265,17 @@
         </div>
 
         <!-- Email & Password Authenticator -->
-        <form id="emailLoginForm">
+        <form id="emailLoginForm" method="POST" action="<?= $appBase ?>/auth/login/">
+            <input type="hidden" name="csrf_token" value="<?= $csrfToken ?>">
+
             <div class="form-group">
                 <label for="email">Identity / Email</label>
-                <input type="email" id="email" class="form-input" placeholder="identity@domain.com" required autocomplete="email">
+                <input type="email" id="email" name="email" class="form-input" placeholder="identity@domain.com" required autocomplete="email">
             </div>
 
             <div class="form-group">
                 <label for="password">Password</label>
-                <input type="password" id="password" class="form-input" placeholder="••••••••••••" required autocomplete="current-password">
+                <input type="password" id="password" name="password" class="form-input" placeholder="••••••••••••" required autocomplete="current-password">
             </div>
 
             <button type="submit" id="btnSubmit" class="btn-submit">
@@ -287,7 +289,7 @@
         </div>
     </div>
 
-    <script>
+    <script nonce="<?= $nonce ?? '' ?>">
         const form = document.getElementById('emailLoginForm');
         const alertBox = document.getElementById('alertBox');
         const btnSubmit = document.getElementById('btnSubmit');
@@ -299,7 +301,8 @@
             btnSubmit.textContent = 'Verifying...';
 
             try {
-                const res = await fetch('<?= $appBase ?>/api/v1/auth/login', {
+                const actionUrl = '<?= $appBase ?>/auth/login/';
+                const res = await fetch(actionUrl, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -307,7 +310,7 @@
                         'X-CSRF-Token': '<?= $csrfToken ?>'
                     },
                     body: JSON.stringify({
-                        email: document.getElementById('email').value,
+                        email: document.getElementById('email').value.trim(),
                         password: document.getElementById('password').value
                     })
                 });
@@ -329,11 +332,8 @@
                     window.location.href = '<?= $appBase ?>/admin/';
                 }
             } catch (err) {
-                alertBox.textContent = 'Connection error: Unable to contact authentication daemon.';
-                alertBox.className = 'alert alert-error';
-                alertBox.style.display = 'block';
-                btnSubmit.disabled = false;
-                btnSubmit.textContent = 'Verify Credentials →';
+                // Defensive fallback: submit form natively if AJAX fails
+                form.submit();
             }
         });
     </script>

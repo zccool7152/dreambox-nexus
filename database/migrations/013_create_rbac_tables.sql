@@ -29,3 +29,4 @@ CREATE TABLE IF NOT EXISTS user_roles (
     INDEX idx_ur_user (user_id),
     INDEX idx_ur_role (role_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+

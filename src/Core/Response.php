@@ -57,13 +57,26 @@ class Response
 
     public static function error(
         string $message,
-        array $errors = [],
-        int $statusCode = 400,
+        array|int $errors = [],
+        int|string|array $statusCode = 400,
         array $headers = [],
         ?string $traceId = null
     ): static {
+        if (is_int($errors)) {
+            $code = $errors;
+            $errList = is_array($statusCode) ? $statusCode : [];
+            if (is_string($statusCode)) {
+                $errList['code'] = $statusCode;
+            }
+            $statusCode = $code;
+            $errors = $errList;
+        } elseif (is_string($statusCode)) {
+            $errors['code'] = $statusCode;
+            $statusCode = 400;
+        }
+
         $data = !empty($errors) ? ['errors' => $errors] : new \stdClass();
-        return self::json($data, $message, $statusCode, $headers, $traceId);
+        return self::json($data, $message, (int)$statusCode, $headers, $traceId);
     }
 
     public static function noContent(array $headers = []): static
@@ -104,6 +117,11 @@ class Response
     }
 
     public function getContent(): string
+    {
+        return $this->content;
+    }
+
+    public function getBody(): string
     {
         return $this->content;
     }

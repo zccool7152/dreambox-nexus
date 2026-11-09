@@ -136,3 +136,4 @@ class GitHubProvider implements OAuthProviderInterface
         ];
     }
 }
+

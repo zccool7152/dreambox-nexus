@@ -410,7 +410,7 @@
         </div>
     </div>
 
-    <script>
+    <script nonce="<?= $nonce ?? '' ?>">
         const modal = document.getElementById('provisionModal');
         document.getElementById('btnOpenModal').addEventListener('click', () => modal.style.display = 'flex');
         document.getElementById('btnCloseModal').addEventListener('click', () => modal.style.display = 'none');

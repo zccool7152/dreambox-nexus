@@ -11,3 +11,4 @@ interface OAuthProviderInterface
     public function isMock(): bool;
     public function getMockUser(): array;
 }
+
