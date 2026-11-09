@@ -78,6 +78,32 @@ class RateLimiter implements MiddlewareInterface
     {
         $resetAt = $now + $this->decaySeconds;
 
+        if (!$this->db->isSql()) {
+            try {
+                $row = $this->db->mongoFindOne('rate_limits', ['key_id' => $key]);
+                if (!$row) {
+                    $this->db->mongoInsert('rate_limits', [
+                        'key_id' => $key,
+                        'hits' => 1,
+                        'reset_at' => $resetAt,
+                    ]);
+                    return ['hits' => 1, 'reset_at' => $resetAt];
+                }
+
+                $isExpired = (int)($row['reset_at'] ?? 0) < $now;
+                $hits = $isExpired ? 1 : ((int)($row['hits'] ?? 0) + 1);
+                $newResetAt = $isExpired ? $resetAt : (int)($row['reset_at'] ?? $resetAt);
+
+                $this->db->mongoUpdate('rate_limits', ['key_id' => $key], [
+                    '$set' => ['hits' => $hits, 'reset_at' => $newResetAt]
+                ]);
+
+                return ['hits' => $hits, 'reset_at' => $newResetAt];
+            } catch (\Throwable) {
+                return $this->fileIncrement($key, $now);
+            }
+        }
+
         $sql = "INSERT INTO rate_limits (key_id, hits, reset_at)
                 VALUES (?, 1, ?)
                 ON DUPLICATE KEY UPDATE

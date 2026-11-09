@@ -30,23 +30,30 @@ class AccountLockout
             return false;
         }
 
-        $row = $this->db->fetch(
-            "SELECT attempts, locked_until FROM login_attempts WHERE identity = ?",
-            [$identity]
-        );
+        try {
+            if (!$this->db->isSql()) {
+                $row = $this->db->mongoFindOne('login_attempts', ['identity' => $identity]);
+                if (!$row || empty($row['locked_until'])) {
+                    return false;
+                }
+                $lockedUntil = strtotime((string)$row['locked_until']);
+                return $lockedUntil > time();
+            }
 
-        if (!$row) {
+            $row = $this->db->fetch(
+                "SELECT attempts, locked_until FROM login_attempts WHERE identity = ?",
+                [$identity]
+            );
+
+            if (!$row || empty($row['locked_until'])) {
+                return false;
+            }
+
+            $lockedUntil = strtotime((string)$row['locked_until']);
+            return $lockedUntil > time();
+        } catch (\Throwable) {
             return false;
         }
-
-        if ($row['locked_until'] !== null) {
-            $lockedUntil = strtotime($row['locked_until']);
-            if ($lockedUntil > time()) {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     public function recordFailedAttempt(string $identity, string $ip): void
@@ -55,27 +62,61 @@ class AccountLockout
             return;
         }
 
-        $row = $this->db->fetch("SELECT id, attempts FROM login_attempts WHERE identity = ?", [$identity]);
+        try {
+            if (!$this->db->isSql()) {
+                $row = $this->db->mongoFindOne('login_attempts', ['identity' => $identity]);
+                if (!$row) {
+                    $this->db->mongoInsert('login_attempts', [
+                        'identity' => $identity,
+                        'ip_address' => $ip,
+                        'attempts' => 1,
+                        'locked_until' => null,
+                        'last_attempt_at' => date('Y-m-d H:i:s'),
+                    ]);
+                    return;
+                }
 
-        if (!$row) {
+                $newAttempts = (int)($row['attempts'] ?? 0) + 1;
+                $lockedUntil = null;
+                if ($newAttempts >= $this->maxAttempts) {
+                    $lockedUntil = date('Y-m-d H:i:s', time() + ($this->lockoutMinutes * 60));
+                }
+
+                $this->db->mongoUpdate('login_attempts', ['identity' => $identity], [
+                    '$set' => [
+                        'attempts' => $newAttempts,
+                        'locked_until' => $lockedUntil,
+                        'ip_address' => $ip,
+                        'last_attempt_at' => date('Y-m-d H:i:s'),
+                    ]
+                ]);
+                return;
+            }
+
+            $row = $this->db->fetch("SELECT id, attempts FROM login_attempts WHERE identity = ?", [$identity]);
+
+            if (!$row) {
+                $this->db->execute(
+                    "INSERT INTO login_attempts (identity, ip_address, attempts, last_attempt_at) VALUES (?, ?, 1, CURRENT_TIMESTAMP)",
+                    [$identity, $ip]
+                );
+                return;
+            }
+
+            $newAttempts = (int)$row['attempts'] + 1;
+            $lockedUntil = null;
+
+            if ($newAttempts >= $this->maxAttempts) {
+                $lockedUntil = date('Y-m-d H:i:s', time() + ($this->lockoutMinutes * 60));
+            }
+
             $this->db->execute(
-                "INSERT INTO login_attempts (identity, ip_address, attempts, last_attempt_at) VALUES (?, ?, 1, CURRENT_TIMESTAMP)",
-                [$identity, $ip]
+                "UPDATE login_attempts SET attempts = ?, locked_until = ?, ip_address = ?, last_attempt_at = CURRENT_TIMESTAMP WHERE id = ?",
+                [$newAttempts, $lockedUntil, $ip, $row['id']]
             );
-            return;
+        } catch (\Throwable) {
+            // Fail open to avoid blocking valid authentication on telemetry errors
         }
-
-        $newAttempts = (int)$row['attempts'] + 1;
-        $lockedUntil = null;
-
-        if ($newAttempts >= $this->maxAttempts) {
-            $lockedUntil = date('Y-m-d H:i:s', time() + ($this->lockoutMinutes * 60));
-        }
-
-        $this->db->execute(
-            "UPDATE login_attempts SET attempts = ?, locked_until = ?, ip_address = ?, last_attempt_at = CURRENT_TIMESTAMP WHERE id = ?",
-            [$newAttempts, $lockedUntil, $ip, $row['id']]
-        );
     }
 
     public function resetAttempts(string $identity): void
@@ -84,7 +125,16 @@ class AccountLockout
             return;
         }
 
-        $this->db->execute("DELETE FROM login_attempts WHERE identity = ?", [$identity]);
+        try {
+            if (!$this->db->isSql()) {
+                $this->db->mongoDelete('login_attempts', ['identity' => $identity]);
+                return;
+            }
+
+            $this->db->execute("DELETE FROM login_attempts WHERE identity = ?", [$identity]);
+        } catch (\Throwable) {
+            // Safe ignore
+        }
     }
 
     public function getLockoutRemainingSeconds(string $identity): int
@@ -93,13 +143,26 @@ class AccountLockout
             return 0;
         }
 
-        $row = $this->db->fetch("SELECT locked_until FROM login_attempts WHERE identity = ?", [$identity]);
-        if (!$row || $row['locked_until'] === null) {
+        try {
+            if (!$this->db->isSql()) {
+                $row = $this->db->mongoFindOne('login_attempts', ['identity' => $identity]);
+                if (!$row || empty($row['locked_until'])) {
+                    return 0;
+                }
+                $remaining = strtotime((string)$row['locked_until']) - time();
+                return max(0, $remaining);
+            }
+
+            $row = $this->db->fetch("SELECT locked_until FROM login_attempts WHERE identity = ?", [$identity]);
+            if (!$row || empty($row['locked_until'])) {
+                return 0;
+            }
+
+            $remaining = strtotime((string)$row['locked_until']) - time();
+            return max(0, $remaining);
+        } catch (\Throwable) {
             return 0;
         }
-
-        $remaining = strtotime($row['locked_until']) - time();
-        return max(0, $remaining);
     }
 }
 

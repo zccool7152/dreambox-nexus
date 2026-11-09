@@ -40,10 +40,22 @@ class Auth
         $bearer = $request->getBearerToken();
         if ($bearer !== null && $this->db !== null && $this->db->isAlive()) {
             $tokenHash = hash('sha256', $bearer);
-            $tokenRow = $this->db->fetch(
-                "SELECT user_id FROM cache_store WHERE cache_key = ? AND expiration > ?",
-                ['token:' . $tokenHash, time()]
-            );
+            $tokenRow = null;
+            try {
+                if (!$this->db->isSql()) {
+                    $tokenRow = $this->db->mongoFindOne('cache_store', [
+                        'cache_key' => 'token:' . $tokenHash,
+                        'expiration' => ['$gt' => time()]
+                    ]);
+                } else {
+                    $tokenRow = $this->db->fetch(
+                        "SELECT user_id FROM cache_store WHERE cache_key = ? AND expiration > ?",
+                        ['token:' . $tokenHash, time()]
+                    );
+                }
+            } catch (\Throwable) {
+                $tokenRow = null;
+            }
 
             if ($tokenRow) {
                 $this->currentUser = [
