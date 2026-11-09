@@ -66,6 +66,12 @@ class Response
         return new static('', 204, $headers);
     }
 
+    public static function redirect(string $url, int $statusCode = 302, array $headers = []): static
+    {
+        $headers['Location'] = $url;
+        return new static('', $statusCode, $headers);
+    }
+
     public static function html(string $html, int $statusCode = 200, array $headers = []): static
     {
         $headers['Content-Type'] = 'text/html; charset=UTF-8';
@@ -80,6 +86,16 @@ class Response
     public function getHeaders(): array
     {
         return $this->headers;
+    }
+
+    public function getHeader(string $name, ?string $default = null): ?string
+    {
+        foreach ($this->headers as $k => $v) {
+            if (strcasecmp($k, $name) === 0) {
+                return $v;
+            }
+        }
+        return $default;
     }
 
     public function getContent(): string

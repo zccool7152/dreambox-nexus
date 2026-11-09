@@ -269,7 +269,7 @@ class ConsoleKernel
 
     private function showHelp(): int
     {
-        echo "\033[1;36mDreambox Nexus CLI Runner (v7.0.0)\033[0m\n\n";
+        echo "\033[1;36mDreambox Nexus CLI Runner (v0.1.0 Alpha)\033[0m\n\n";
         echo "Available Commands:\n";
         echo "  \033[0;32mmigrate\033[0m                 Run pending database schema migrations\n";
         echo "  \033[0;32mmigrate:rollback\033[0m        Undo the last database migration batch\n";

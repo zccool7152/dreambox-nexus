@@ -443,7 +443,7 @@ $totalControls = $summary['total_evaluated_controls'] ?? 24;
     <header>
         <div class="brand-title">
             <span>DREAMBOX NEXUS</span>
-            <span class="brand-badge">COMPLIANCE MATRIX v7.0</span>
+            <span class="brand-badge">COMPLIANCE MATRIX v0.1 ALPHA</span>
         </div>
         <div class="header-actions">
             <a href="<?= $appBase . '/' ?>" class="btn btn-secondary">&larr; Exit to Gateway</a>
@@ -624,7 +624,7 @@ $totalControls = $summary['total_evaluated_controls'] ?? 24;
     </main>
 
     <footer>
-        Dreambox Nexus Core v7.0 // Zero-Guessing Security Invariant // Built for Extreme Reliability
+        Dreambox Nexus Core v0.1 Alpha // Zero-Guessing Security Invariant // Built for Extreme Reliability
     </footer>
 
     <script nonce="<?= $nonce ?? '' ?>">
@@ -661,3 +661,4 @@ $totalControls = $summary['total_evaluated_controls'] ?? 24;
     </script>
 </body>
 </html>
+

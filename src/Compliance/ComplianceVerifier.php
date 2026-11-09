@@ -122,10 +122,14 @@ class ComplianceVerifier
 
         // 10. Database Schema & Datastore Status
         if (!$this->db->isAlive()) {
+            $driverName = $this->db->getDriver() === 'mongodb' ? 'MongoDB (localhost:27017)' : 'Relational Database';
+            $hint = $this->db->getDriver() === 'mongodb' 
+                ? 'Service inactive after system restart. Start via: sudo systemctl enable --now mongod' 
+                : 'Database connection offline or driver unavailable in environment.';
             $results['migrations_applied'] = [
-                'name' => 'Database Schema & Datastore Online',
+                'name' => "{$driverName} Datastore Online",
                 'passed' => false,
-                'details' => 'Database connection offline or driver unavailable in environment.',
+                'details' => $hint,
                 'frameworks' => ['NIST RS.MI-1', 'PCI-DSS Req 10.1'],
             ];
         } elseif ($this->db->getDriver() === 'mongodb') {

@@ -35,21 +35,24 @@ class Session
             mkdir($sessionPath, 0700, true);
         }
 
-        ini_set('session.save_path', $sessionPath);
-        ini_set('session.use_strict_mode', '1');
-        ini_set('session.use_only_cookies', '1');
+        if (!headers_sent()) {
+            @ini_set('session.save_path', $sessionPath);
+            @ini_set('session.use_strict_mode', '1');
+            @ini_set('session.use_only_cookies', '1');
 
-        session_set_cookie_params([
-            'lifetime' => 0, // Session cookie (dies on browser close)
-            'path' => '/',
-            'domain' => '',
-            'secure' => $this->secureCookie,
-            'httponly' => true,
-            'samesite' => 'Strict',
-        ]);
+            @session_set_cookie_params([
+                'lifetime' => 0, // Session cookie (dies on browser close)
+                'path' => '/',
+                'domain' => '',
+                'secure' => $this->secureCookie,
+                'httponly' => true,
+                'samesite' => 'Strict',
+            ]);
 
-        session_name('nexus_session');
-        session_start();
+            @session_name('nexus_session');
+        }
+
+        @session_start();
 
         // Enforce HIPAA Inactivity Timeout
         $now = time();
@@ -84,6 +87,20 @@ class Session
     public function has(string $key): bool
     {
         return isset($_SESSION[$key]);
+    }
+
+    public function flash(string $key, mixed $value): void
+    {
+        $this->start();
+        $_SESSION['__flash'][$key] = $value;
+    }
+
+    public function getFlash(string $key, mixed $default = null): mixed
+    {
+        $this->start();
+        $val = $_SESSION['__flash'][$key] ?? $default;
+        unset($_SESSION['__flash'][$key]);
+        return $val;
     }
 
     public function remove(string $key): void

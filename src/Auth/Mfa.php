@@ -62,6 +62,13 @@ class Mfa
         return $codes;
     }
 
+    public function getProvisioningUri(string $account, string $secret, string $issuer = 'Dreambox Nexus'): string
+    {
+        $label = rawurlencode($issuer) . ':' . rawurlencode($account);
+        $encodedIssuer = rawurlencode($issuer);
+        return "otpauth://totp/{$label}?secret={$secret}&issuer={$encodedIssuer}&algorithm=SHA1&digits=6&period=30";
+    }
+
     private function base32Decode(string $b32): string
     {
         $b32 = strtoupper(trim($b32));

@@ -257,7 +257,7 @@ $appBase = $appBase ?? \Nexus\Core\Request::getAppBase();
     <header>
         <div class="brand-title">
             <span>DREAMBOX NEXUS</span>
-            <span class="brand-badge">CORE v7.0</span>
+            <span class="brand-badge">CORE v0.1 ALPHA</span>
         </div>
         <div class="status-pill">
             <span>OPENAPI 3.0.3 CONTRACT</span>
@@ -364,7 +364,7 @@ $appBase = $appBase ?? \Nexus\Core\Request::getAppBase();
     </main>
 
     <footer>
-        Dreambox Nexus Core v7.0 // Zero-Guessing Security Invariant // OpenAPI Contract Registry
+        Dreambox Nexus Core v0.1 Alpha // Zero-Guessing Security Invariant // OpenAPI Contract Registry
     </footer>
 </body>
 </html>

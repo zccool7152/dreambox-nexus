@@ -245,5 +245,21 @@ class Request
     {
         return $this->traceId;
     }
+
+    public function wantsJson(): bool
+    {
+        $accept = (string)$this->getHeader('accept', '');
+        return str_contains($accept, '/json') || str_contains($accept, '+json') || $this->getString('format') === 'json';
+    }
+
+    public function getUserAgent(): string
+    {
+        return (string)$this->getHeader('user-agent', 'Unknown');
+    }
+
+    public function has(string $key): bool
+    {
+        return array_key_exists($key, $this->queryParams) || array_key_exists($key, $this->body);
+    }
 }
 

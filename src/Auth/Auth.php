@@ -62,6 +62,10 @@ class Auth
             $this->currentUser = [
                 'id' => $userId,
                 'email' => $this->session->get('user_email', ''),
+                'name' => $this->session->get('user_name', 'User'),
+                'roles' => $this->session->get('user_roles', ['Member']),
+                'avatar_url' => $this->session->get('user_avatar', ''),
+                'auth_provider' => $this->session->get('auth_provider', 'email'),
                 'guard' => 'session',
             ];
             return $this->currentUser;
@@ -70,13 +74,25 @@ class Auth
         return null;
     }
 
-    public function loginWithSession(string $userId, string $email): void
+    public function loginWithSession(string $userId, string $email, string $name = 'User', array $roles = ['Member'], string $avatar = '', string $provider = 'email'): void
     {
         $this->session->start();
         $this->session->regenerate();
         $this->session->set('user_id', $userId);
         $this->session->set('user_email', $email);
-        $this->currentUser = ['id' => $userId, 'email' => $email, 'guard' => 'session'];
+        $this->session->set('user_name', $name);
+        $this->session->set('user_roles', $roles);
+        $this->session->set('user_avatar', $avatar);
+        $this->session->set('auth_provider', $provider);
+        $this->currentUser = [
+            'id' => $userId,
+            'email' => $email,
+            'name' => $name,
+            'roles' => $roles,
+            'avatar_url' => $avatar,
+            'auth_provider' => $provider,
+            'guard' => 'session'
+        ];
     }
 
     public function logout(): void

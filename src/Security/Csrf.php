@@ -19,6 +19,11 @@ class Csrf implements MiddlewareInterface
         $this->secret = $secret;
     }
 
+    public function generate(?string $sessionId = null): string
+    {
+        return $this->generateToken($sessionId ?? (session_id() ?: 'default_session'));
+    }
+
     public function generateToken(string $sessionId): string
     {
         $entropy = bin2hex(random_bytes(16));

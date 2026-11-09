@@ -7,3 +7,4 @@ declare(strict_types=1);
 
 $_GET['r'] = '/compliance';
 require_once dirname(__DIR__) . '/index.php';
+

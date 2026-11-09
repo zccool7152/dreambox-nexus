@@ -376,6 +376,24 @@ class Database
         return (int)($res[0]->n ?? 0);
     }
 
+    public function mongoFindOne(string $collection, array $filter = [], array $options = []): ?array
+    {
+        $options['limit'] = 1;
+        $results = $this->mongoFind($collection, $filter, $options);
+        return $results[0] ?? null;
+    }
+
+    public function mongoUpdate(string $collection, array $filter, array $newObj, array $updateOptions = []): int
+    {
+        $manager = $this->getMongoManager();
+        $db = $this->config['database'] ?? 'dreambox_nexus';
+        $bulkClass = '\\MongoDB\\Driver\\BulkWrite';
+        $bulk = new $bulkClass();
+        $bulk->update($filter, $newObj, $updateOptions);
+        $result = $manager->executeBulkWrite("{$db}.{$collection}", $bulk);
+        return ($result->getModifiedCount() ?? 0) + ($result->getUpsertedCount() ?? 0);
+    }
+
     public function mongoDelete(string $collection, array $filter = []): int
     {
         $manager = $this->getMongoManager();

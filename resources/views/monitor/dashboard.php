@@ -290,7 +290,7 @@ $initStorageBreakdown = 'Logs: ' . ($vitals['storage_formatted']['logs'] ?? '0 B
         <div>
             <div class="brand-title">
                 <span>DREAMBOX NEXUS</span>
-                <span class="brand-badge">CORE v7.0</span>
+                <span class="brand-badge">CORE v0.1 ALPHA</span>
             </div>
             <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 4px;">
                 Zero-Dependency Security-First Architecture & Regulatory Telemetry

@@ -1,4 +1,4 @@
-# Dreambox Nexus // Core v7.0
+# Dreambox Nexus // Core v0.1 Alpha
 
 > **Zero-Dependency, Security-First PHP Framework Engineered for High-Integrity & Regulatory-Compliant Workloads.**
 

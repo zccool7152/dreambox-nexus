@@ -1,8 +1,8 @@
 openapi: 3.0.3
 info:
   title: Dreambox Nexus API Specification
-  description: Official OpenAPI 3.0 Contract Specification for Nexus Core custom security-first framework.
-  version: 7.0.0
+  description: Official OpenAPI 3.0 Contract Specification for Nexus Core custom security-first framework (Alpha Release).
+  version: 0.1.0
 servers:
   - url: http://localhost
     description: Local WSL2 Development Server
@@ -511,4 +511,177 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/StandardSuccessResponse'
+
+  # ── CIA Triad & IAM Administration Endpoints ─────────────────────────────────
+  /api/v1/auth/login:
+    post:
+      summary: Authenticate User Identity (Email + Password)
+      description: Validates credentials, checks account lockout status, and determines whether 2FA is required.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  format: password
+      responses:
+        '200':
+          description: Authentication successful or 2FA challenge triggered.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardSuccessResponse'
+        '401':
+          description: Invalid credentials.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardErrorResponse'
+        '423':
+          description: Account locked due to repeated failed attempts.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardErrorResponse'
+
+  /api/v1/auth/2fa/verify:
+    post:
+      summary: Verify Google Authenticator 2FA Code
+      description: Validates 6-digit TOTP code with time-drift protection.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - code
+              properties:
+                code:
+                  type: string
+                  example: '123456'
+      responses:
+        '200':
+          description: 2FA verified and session issued.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardSuccessResponse'
+        '401':
+          description: Invalid 2FA code.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardErrorResponse'
+
+  /api/v1/auth/2fa/setup:
+    post:
+      summary: Initiate Google Authenticator Enrollment
+      description: Generates a new Base32 TOTP secret and pure SVG QR code for scanner enrollment.
+      security:
+        - SessionCookie: []
+      responses:
+        '200':
+          description: TOTP secret and QR code returned.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardSuccessResponse'
+
+  /api/v1/auth/logout:
+    post:
+      summary: Terminate Session
+      description: Destroys authenticated session and revokes active token.
+      security:
+        - SessionCookie: []
+      responses:
+        '200':
+          description: Logged out successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardSuccessResponse'
+
+  /api/v1/admin/users:
+    get:
+      summary: List Managed Users
+      description: Returns paginated user records with roles, status, and 2FA states.
+      security:
+        - SessionCookie: []
+      responses:
+        '200':
+          description: User directory retrieved.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardSuccessResponse'
+    post:
+      summary: Provision New User
+      description: Creates a new user record with role assignment and audit logging.
+      security:
+        - SessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - name
+              properties:
+                email:
+                  type: string
+                  format: email
+                name:
+                  type: string
+                role:
+                  type: string
+                password:
+                  type: string
+      responses:
+        '201':
+          description: User provisioned.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardSuccessResponse'
+
+  /api/v1/admin/roles:
+    get:
+      summary: List RBAC Roles & Assigned Permissions
+      description: Returns all system and custom roles with granular permission mappings.
+      security:
+        - SessionCookie: []
+      responses:
+        '200':
+          description: Roles and permissions retrieved.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardSuccessResponse'
+
+  /api/v1/admin/groups:
+    get:
+      summary: List Identity Groups
+      description: Returns organizational groups and their assigned roles and members.
+      security:
+        - SessionCookie: []
+      responses:
+        '200':
+          description: Groups list retrieved.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardSuccessResponse'
+
 

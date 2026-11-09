@@ -47,3 +47,4 @@ class ComplianceController
         return Response::json($report, 'Regulatory compliance matrix retrieved.', 200, [], $request->getTraceId());
     }
 }
+

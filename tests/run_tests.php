@@ -235,6 +235,70 @@ $assertTest('Compliance JSON response adheres to standard envelope', isset($json
 $assertTest('Physical bridge /compliance/index.php exists', file_exists($baseDir . '/compliance/index.php'));
 $assertTest('Public bridge /public/compliance/index.php exists', file_exists($baseDir . '/public/compliance/index.php'));
 
+// ── Test 13: CIA IAM Security Triad & RBAC Governance ────────────────────────
+echo "\n\033[1;37m[13] CIA IAM Security Triad & RBAC Governance\033[0m\n";
+
+// 1. Vector SVG QR-Code Generator
+$qrSvg = \Nexus\View\QrCodeGenerator::svg('otpauth://totp/Nexus:test@localhost?secret=JBSWY3DPEHPK3PXP');
+$assertTest('Native QR generator emits valid XML/SVG markup without external APIs', str_starts_with($qrSvg, '<svg') && str_contains($qrSvg, '</svg>'));
+$assertTest('QR SVG includes viewBox and crispEdges rendering flags', str_contains($qrSvg, 'viewBox') && str_contains($qrSvg, 'crispEdges'));
+
+// 2. TOTP Provisioning URI
+$mfa = new \Nexus\Auth\Mfa();
+$otpUri = $mfa->getProvisioningUri('admin@localhost', 'JBSWY3DPEHPK3PXP', 'Dreambox Nexus');
+$assertTest('MFA engine formats RFC 6238 provisioning URI correctly', str_starts_with($otpUri, 'otpauth://totp/'));
+
+// 3. User Repository & Default Admin
+$userRepo = new \Nexus\Auth\UserRepository($mongoDb, new \Nexus\Crypto\Hasher());
+$adminUser = $userRepo->findByEmail('admin@localhost');
+$assertTest('UserRepository finds default SuperAdmin identity', $adminUser !== null && $adminUser['email'] === 'admin@localhost');
+$assertTest('SuperAdmin identity holds SuperAdmin role', in_array('SuperAdmin', $adminUser['roles'], true));
+
+// 4. Role Manager & Permission Evaluation
+$roleMgr = new \Nexus\Auth\Rbac\RoleManager($mongoDb);
+$roles = $roleMgr->getRoles();
+$assertTest('RoleManager registers SuperAdmin, SecurityOfficer, ComplianceAuditor, Developer, Member', count($roles) >= 5);
+$assertTest('RoleManager grants unrestricted access to SuperAdmin', $roleMgr->userHasPermission($adminUser, 'non.existent.random.permission'));
+$memberUser = ['email' => 'member@test.com', 'roles' => ['Member']];
+$assertTest('RoleManager denies non.existent permission to standard Member', !$roleMgr->userHasPermission($memberUser, 'non.existent.permission'));
+$assertTest('RoleManager permits profile.manage to standard Member', $roleMgr->userHasPermission($memberUser, 'profile.manage'));
+
+// 5. Group Manager
+$groupMgr = new \Nexus\Auth\Rbac\GroupManager($mongoDb);
+$groups = $groupMgr->getGroups();
+$assertTest('GroupManager registers default identity groups', isset($groups['SecOps'], $groups['Engineering'], $groups['ComplianceAuditors']));
+
+// 6. Multi-Provider OAuth Manager
+$session = new \Nexus\Security\Session($mongoDb);
+$oauthConfig = [
+    'google' => ['client_id' => '', 'client_secret' => '', 'redirect_uri' => 'http://localhost/auth/google/callback', 'mock_enabled' => true],
+    'github' => ['client_id' => '', 'client_secret' => '', 'redirect_uri' => 'http://localhost/auth/github/callback', 'mock_enabled' => true],
+];
+$oauthMgr = new \Nexus\Auth\OAuth\OAuthManager($oauthConfig, $session);
+$googleProvider = $oauthMgr->getProvider('google');
+$gitHubProvider = $oauthMgr->getProvider('github');
+$assertTest('OAuthManager registers Google provider', $googleProvider->getName() === 'google');
+$assertTest('OAuthManager registers GitHub provider', $gitHubProvider->getName() === 'github');
+$oauthState = $oauthMgr->generateState();
+$assertTest('OAuthManager generates high-entropy CSRF state token', strlen($oauthState) === 32);
+$assertTest('OAuthManager validates correct CSRF state', $oauthMgr->validateState($oauthState));
+$assertTest('OAuthManager invalidates state after first use (replay defense)', !$oauthMgr->validateState($oauthState));
+
+// 7. Route & View Dispatches
+$loginReq = new \Nexus\Core\Request('GET', '/auth/login', ['Accept' => 'text/html'], [], [], '', '127.0.0.1');
+$loginRes = $app->handle($loginReq);
+$assertTest('GET /auth/login returns HTTP 200 HTML', $loginRes->getStatusCode() === 200 && str_contains($loginRes->getContent(), 'Identity Verification'));
+
+$adminBridges = [
+    '/admin/index.php' => $baseDir . '/admin/index.php',
+    '/auth/index.php' => $baseDir . '/auth/index.php',
+    '/public/admin/index.php' => $baseDir . '/public/admin/index.php',
+    '/public/auth/index.php' => $baseDir . '/public/auth/index.php',
+];
+foreach ($adminBridges as $pathName => $fullPath) {
+    $assertTest("Physical bridge {$pathName} exists", file_exists($fullPath));
+}
+
 // ── Summary ─────────────────────────────────────────────────────────────────
 echo "\n\033[1;36m════════════════════════════════════════════════════════════════\033[0m\n";
 echo "  \033[1;37mTEST SUMMARY:\033[0m \033[0;32m{$passed} Passed\033[0m | \033[0;31m{$failed} Failed\033[0m\n";

@@ -6,7 +6,7 @@ $appBase = $appBase ?? \Nexus\Core\Request::getAppBase();
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dreambox Nexus // Core v7.0</title>
+    <title>Dreambox Nexus // Core v0.1 Alpha</title>
     <style>
         :root {
             --bg-base: #06080e;
@@ -235,7 +235,7 @@ $appBase = $appBase ?? \Nexus\Core\Request::getAppBase();
     <header>
         <div class="brand-title">
             <span>DREAMBOX NEXUS</span>
-            <span class="brand-badge">CORE v7.0</span>
+            <span class="brand-badge">CORE v0.1 ALPHA</span>
         </div>
         <div class="status-pill">
             <div class="pulse-dot"></div>
@@ -284,7 +284,8 @@ $appBase = $appBase ?? \Nexus\Core\Request::getAppBase();
         </div>
 
         <div class="actions">
-            <a href="<?= $appBase ?>/nexus/monitor/" class="btn btn-primary">🔒 SecOps Cockpit (Restricted)</a>
+            <a href="<?= $appBase ?>/admin/" class="btn btn-primary">👥 CIA Admin Console</a>
+            <a href="<?= $appBase ?>/nexus/monitor/" class="btn btn-secondary">🔒 SecOps Cockpit</a>
             <a href="<?= $appBase ?>/compliance/" class="btn btn-secondary">⚖️ Compliance Matrix</a>
             <a href="<?= $appBase ?>/health/" class="btn btn-secondary">❤️ Health Probe</a>
             <a href="<?= $appBase ?>/docs/" class="btn btn-secondary">📜 OpenAPI 3.0 Contract</a>
@@ -292,7 +293,7 @@ $appBase = $appBase ?? \Nexus\Core\Request::getAppBase();
     </main>
 
     <footer>
-        Dreambox Nexus Core v7.0 // Zero-Guessing Security Invariant // Built for Extreme Reliability
+        Dreambox Nexus Core v0.1 Alpha // Zero-Guessing Security Invariant // Built for Extreme Reliability
     </footer>
 </body>
 </html>

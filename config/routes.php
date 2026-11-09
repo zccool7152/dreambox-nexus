@@ -76,63 +76,155 @@ $router->post('/api/v1/security/csp-reports', function (Request $req) use ($app)
     return $reporter->ingest($req);
 }, [], 'security.csp_reports');
 
-// ── Authentication & MFA ─────────────────────────────────────────────────────
-$router->post('/api/v1/auth/login', function (Request $req) use ($app) {
-    $email = $req->getString('email');
-    $password = $req->getString('password');
-
-    /** @var Database $db */
-    $db = $app->getContainer()->make(Database::class);
-    $lockout = new \Nexus\Auth\AccountLockout($db);
-
-    if ($lockout->isLocked($email)) {
-        $remaining = $lockout->getLockoutRemainingSeconds($email);
-        return Response::error(
-            "Account is locked due to multiple failed attempts (PCI Req 8.3.4).",
-            ['locked_until' => "Cooling window: {$remaining}s remaining"],
-            423,
-            [],
-            $req->getTraceId()
-        );
-    }
-
-    // Default admin demo verification or database authentication
-    if ($email === 'admin@nexus.local' && $password === 'AdminPassword123!') {
-        $lockout->resetAttempts($email);
-        $session = new \Nexus\Security\Session($db);
-        $auth = new \Nexus\Auth\Auth($session, new \Nexus\Crypto\Hasher(), $db);
-        $auth->loginWithSession('1', $email);
-
-        return Response::json([
-            'user' => ['id' => '1', 'email' => $email, 'role' => 'administrator'],
-            'mfa_required' => false,
-        ], 'Authentication successful.', 200, [], $req->getTraceId());
-    }
-
-    $lockout->recordFailedAttempt($email, $req->getClientIp());
-    return Response::error('Invalid credentials provided.', ['auth' => ['Invalid email or password.']], 401, [], $req->getTraceId());
-}, [], 'auth.login');
-
-$router->post('/api/v1/auth/mfa/verify', function (Request $req) {
-    $code = $req->getString('code');
-    $mfa = new \Nexus\Auth\Mfa();
-
-    // Verify test code or user secret
-    if ($code === '123456') {
-        return Response::json(['mfa_verified' => true], 'MFA verification succeeded.', 200, [], $req->getTraceId());
-    }
-
-    return Response::error('Invalid or expired MFA code.', ['mfa' => ['Code mismatch.']], 401, [], $req->getTraceId());
-}, [], 'auth.mfa_verify');
-
-$router->post('/api/v1/auth/logout', function (Request $req) use ($app) {
+// ── CIA Triad Authentication & Multi-Provider IAM ─────────────────────────────
+$getAuthController = function () use ($app): \Nexus\Auth\AuthController {
     /** @var Database $db */
     $db = $app->getContainer()->make(Database::class);
     $session = new \Nexus\Security\Session($db);
-    $auth = new \Nexus\Auth\Auth($session, new \Nexus\Crypto\Hasher(), $db);
-    $auth->logout();
-    return Response::json([], 'Logged out successfully.', 200, [], $req->getTraceId());
+    $hasher = new \Nexus\Crypto\Hasher();
+    $auth = new \Nexus\Auth\Auth($session, $hasher, $db);
+    $userRepo = new \Nexus\Auth\UserRepository($db, $hasher);
+    $mfa = new \Nexus\Auth\Mfa();
+    $lockout = new \Nexus\Auth\AccountLockout($db);
+    $authConfig = file_exists($app->getBasePath() . '/config/auth.php')
+        ? require $app->getBasePath() . '/config/auth.php'
+        : [];
+    $oauth = new \Nexus\Auth\OAuth\OAuthManager($authConfig['oauth'] ?? [], $session);
+    $rbac = new \Nexus\Auth\Rbac\RoleManager($db);
+    $view = new View($app->getBasePath() . '/resources/views');
+    $csrf = new Csrf(\Nexus\Core\Env::get('APP_KEY', 'default_secret'));
+
+    return new \Nexus\Auth\AuthController(
+        $auth, $userRepo, $mfa, $lockout, $oauth, $rbac, $view, $session, $csrf
+    );
+};
+
+$getAdminController = function () use ($app): \Nexus\Admin\AdminController {
+    /** @var Database $db */
+    $db = $app->getContainer()->make(Database::class);
+    $session = new \Nexus\Security\Session($db);
+    $hasher = new \Nexus\Crypto\Hasher();
+    $auth = new \Nexus\Auth\Auth($session, $hasher, $db);
+    $userRepo = new \Nexus\Auth\UserRepository($db, $hasher);
+    $roleMgr = new \Nexus\Auth\Rbac\RoleManager($db);
+    $groupMgr = new \Nexus\Auth\Rbac\GroupManager($db);
+    $view = new View($app->getBasePath() . '/resources/views');
+    $csrf = new Csrf(\Nexus\Core\Env::get('APP_KEY', 'default_secret'));
+
+    return new \Nexus\Admin\AdminController(
+        $auth, $userRepo, $roleMgr, $groupMgr, $db, $view, $csrf
+    );
+};
+
+// Auth Views & Actions
+$router->get('/auth/login', function (Request $req) use ($getAuthController) {
+    return $getAuthController()->showLogin($req);
+}, [], 'auth.show_login');
+
+$router->get('/login', function (Request $req) use ($getAuthController) {
+    return $getAuthController()->showLogin($req);
+}, [], 'auth.login_alias');
+
+$router->post('/api/v1/auth/login', function (Request $req) use ($getAuthController) {
+    return $getAuthController()->login($req);
+}, [], 'auth.login');
+
+$router->get('/auth/2fa/setup', function (Request $req) use ($getAuthController) {
+    return $getAuthController()->showSetup2fa($req);
+}, [], 'auth.show_setup_2fa');
+
+$router->post('/api/v1/auth/2fa/setup', function (Request $req) use ($getAuthController) {
+    return $getAuthController()->processSetup2fa($req);
+}, [], 'auth.process_setup_2fa');
+
+$router->get('/auth/2fa', function (Request $req) use ($getAuthController) {
+    return $getAuthController()->showTotp($req);
+}, [], 'auth.show_2fa');
+
+$router->post('/api/v1/auth/2fa/verify', function (Request $req) use ($getAuthController) {
+    return $getAuthController()->verifyTotp($req);
+}, [], 'auth.verify_2fa');
+
+$router->get('/auth/oauth/{provider}', function (Request $req, array $params) use ($getAuthController) {
+    return $getAuthController()->redirectToOAuth($req, $params['provider']);
+}, [], 'auth.oauth_redirect');
+
+$router->get('/auth/oauth/{provider}/callback', function (Request $req, array $params) use ($getAuthController) {
+    return $getAuthController()->handleOAuthCallback($req, $params['provider']);
+}, [], 'auth.oauth_callback');
+
+$router->get('/auth/{provider}/callback', function (Request $req, array $params) use ($getAuthController) {
+    return $getAuthController()->handleOAuthCallback($req, $params['provider']);
+}, [], 'auth.oauth_callback_short');
+
+$router->get('/auth/logout', function (Request $req) use ($getAuthController) {
+    return $getAuthController()->logout($req);
+}, [], 'auth.get_logout');
+
+$router->post('/api/v1/auth/logout', function (Request $req) use ($getAuthController) {
+    return $getAuthController()->logout($req);
 }, [], 'auth.logout');
+
+// ── Admin Area & IAM Management Console ──────────────────────────────────────
+$router->get('/admin', function (Request $req) use ($getAdminController) {
+    return $getAdminController()->dashboard($req);
+}, [], 'admin.dashboard');
+
+$router->get('/admin/users', function (Request $req) use ($getAdminController) {
+    return $getAdminController()->users($req);
+}, [], 'admin.users');
+
+$router->post('/admin/users', function (Request $req) use ($getAdminController) {
+    return $getAdminController()->createUser($req);
+}, [], 'admin.users_create_form');
+
+$router->post('/api/v1/admin/users', function (Request $req) use ($getAdminController) {
+    return $getAdminController()->createUser($req);
+}, [], 'admin.users_create_api');
+
+$router->post('/admin/users/{id}/update', function (Request $req, array $params) use ($getAdminController) {
+    return $getAdminController()->updateUser($req, $params['id']);
+}, [], 'admin.users_update_form');
+
+$router->put('/api/v1/admin/users/{id}', function (Request $req, array $params) use ($getAdminController) {
+    return $getAdminController()->updateUser($req, $params['id']);
+}, [], 'admin.users_update_api');
+
+$router->post('/admin/users/{id}/delete', function (Request $req, array $params) use ($getAdminController) {
+    return $getAdminController()->deleteUser($req, $params['id']);
+}, [], 'admin.users_delete_form');
+
+$router->delete('/api/v1/admin/users/{id}', function (Request $req, array $params) use ($getAdminController) {
+    return $getAdminController()->deleteUser($req, $params['id']);
+}, [], 'admin.users_delete_api');
+
+$router->get('/admin/roles', function (Request $req) use ($getAdminController) {
+    return $getAdminController()->roles($req);
+}, [], 'admin.roles');
+
+$router->get('/api/v1/admin/roles', function (Request $req) use ($getAdminController) {
+    return $getAdminController()->roles($req);
+}, [], 'admin.roles_api');
+
+$router->get('/admin/groups', function (Request $req) use ($getAdminController) {
+    return $getAdminController()->groups($req);
+}, [], 'admin.groups');
+
+$router->get('/api/v1/admin/groups', function (Request $req) use ($getAdminController) {
+    return $getAdminController()->groups($req);
+}, [], 'admin.groups_api');
+
+$router->get('/admin/audit', function (Request $req) use ($getAdminController) {
+    return $getAdminController()->audit($req);
+}, [], 'admin.audit');
+
+$router->get('/api/v1/admin/audit', function (Request $req) use ($getAdminController) {
+    return $getAdminController()->audit($req);
+}, [], 'admin.audit_api');
+
+$router->get('/nexus/admin', function (Request $req) use ($getAdminController) {
+    return $getAdminController()->dashboard($req);
+}, [], 'admin.nexus_alias');
 
 // ── GDPR & Data Subject Rights ───────────────────────────────────────────────
 $router->post('/api/v1/gdpr/consent', function (Request $req) use ($app) {
