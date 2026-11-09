@@ -294,8 +294,10 @@ $assertTest('GET /auth/login returns HTTP 200 HTML', $loginRes->getStatusCode() 
 
 $adminBridges = [
     '/admin/index.php' => $baseDir . '/admin/index.php',
+    '/admin/users/index.php' => $baseDir . '/admin/users/index.php',
     '/auth/index.php' => $baseDir . '/auth/index.php',
     '/public/admin/index.php' => $baseDir . '/public/admin/index.php',
+    '/public/admin/users/index.php' => $baseDir . '/public/admin/users/index.php',
     '/public/auth/index.php' => $baseDir . '/public/auth/index.php',
     '/auth/password/change/index.php' => $baseDir . '/auth/password/change/index.php',
     '/api/v1/auth/login/index.php' => $baseDir . '/api/v1/auth/login/index.php',
@@ -338,6 +340,50 @@ $ajaxLoginReq = new \Nexus\Core\Request(
 );
 $ajaxLoginRes = $app->handle($ajaxLoginReq);
 $assertTest('POST /auth/login via JSON returns HTTP 200 with requires_2fa_setup', $ajaxLoginRes->getStatusCode() === 200 && str_contains($ajaxLoginRes->getContent(), 'requires_2fa_setup'));
+
+// 9. Admin IAM Directory & Action Form Verification
+$adminView = new \Nexus\View\View($baseDir . '/resources/views');
+$renderedAdminHtml = $adminView->render('admin.users', [
+    'appBase' => '/Dreambox Nexus',
+    'currentUser' => ['id' => 'usr_admin_tim', 'email' => 'admin@nexus.local', 'roles' => ['SuperAdmin'], 'name' => 'Timothy Dunn'],
+    'users' => [
+        [
+            'id' => 'usr_test_victim',
+            'email' => 'victim@example.com',
+            'name' => 'Test Victim',
+            'auth_provider' => 'email',
+            'roles' => ['Member'],
+            'groups' => [],
+            'status' => 'active',
+            'is_2fa_enabled' => true,
+        ]
+    ],
+    'roles' => ['SuperAdmin' => ['description' => 'Unrestricted'], 'Member' => ['description' => 'Standard']],
+    'groups' => [],
+    'csrfToken' => 'csrf_mock_token_123',
+    'nonce' => 'nonce_test_456',
+    'error' => null,
+    'success' => null,
+]);
+
+$assertTest('Admin IAM view renders active user directory table', str_contains($renderedAdminHtml, 'victim@example.com'));
+$assertTest('Admin IAM view has Suspend action posting to /admin/users/', str_contains($renderedAdminHtml, 'name="_action" value="update"') && str_contains($renderedAdminHtml, 'name="status" value="suspended"'));
+$assertTest('Admin IAM view has Delete action posting to /admin/users/', str_contains($renderedAdminHtml, 'name="_action" value="delete"') && str_contains($renderedAdminHtml, 'name="user_id" value="usr_test_victim"'));
+$assertTest('Admin IAM view includes CSRF protection on action forms', str_contains($renderedAdminHtml, 'name="csrf_token" value="csrf_mock_token_123"'));
+
+// 10. User Deletion Permanence & Anti-Resurrection Verification
+$testUserRepo = new \Nexus\Auth\UserRepository($mongoDb);
+$createdUser = $testUserRepo->create([
+    'email' => 'to_be_deleted@example.com',
+    'name' => 'To Be Deleted',
+    'password' => 'SecurePass123!',
+    'status' => 'suspended',
+]);
+$assertTest('Test user created in suspended state', $createdUser['status'] === 'suspended');
+$testUserRepo->delete($createdUser['id']);
+$reconstructedRepo = new \Nexus\Auth\UserRepository($mongoDb);
+$assertTest('Deleted user is not found after UserRepository re-instantiation', $reconstructedRepo->findByEmail('to_be_deleted@example.com') === null);
+$assertTest('admin@localhost is not resurrected if deleted or absent', $reconstructedRepo->findByEmail('admin@localhost') === null);
 
 // ── Summary ─────────────────────────────────────────────────────────────────
 echo "\n\033[1;36m════════════════════════════════════════════════════════════════\033[0m\n";

@@ -7,3 +7,4 @@ declare(strict_types=1);
 
 $_GET['r'] = '/api/v1/auth/logout';
 require_once dirname(__DIR__, 4) . '/public/index.php';
+

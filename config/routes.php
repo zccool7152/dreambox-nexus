@@ -112,7 +112,7 @@ $getAdminController = function () use ($app): \Nexus\Admin\AdminController {
     $csrf = new Csrf(\Nexus\Core\Env::get('APP_KEY', 'default_secret'));
 
     return new \Nexus\Admin\AdminController(
-        $auth, $userRepo, $roleMgr, $groupMgr, $db, $view, $csrf
+        $auth, $userRepo, $roleMgr, $groupMgr, $db, $view, $csrf, $session
     );
 };
 
@@ -207,8 +207,19 @@ $router->get('/admin/users', function (Request $req) use ($getAdminController) {
 }, [], 'admin.users');
 
 $router->post('/admin/users', function (Request $req) use ($getAdminController) {
+    $action = $req->getString('_action', '');
+    $userId = $req->getString('user_id', '');
+
+    if ($action === 'delete' && $userId !== '') {
+        return $getAdminController()->deleteUser($req, $userId);
+    }
+
+    if ($action === 'update' && $userId !== '') {
+        return $getAdminController()->updateUser($req, $userId);
+    }
+
     return $getAdminController()->createUser($req);
-}, [], 'admin.users_create_form');
+}, [], 'admin.users_post_handler');
 
 $router->post('/api/v1/admin/users', function (Request $req) use ($getAdminController) {
     return $getAdminController()->createUser($req);

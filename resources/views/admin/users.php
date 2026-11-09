@@ -261,6 +261,26 @@
 
         .form-input:focus { border-color: var(--neon-cyan); }
         label { font-size: 0.68rem; color: var(--text-muted); text-transform: uppercase; margin-bottom: 0.3rem; display: block; }
+
+        .alert {
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            font-size: 0.78rem;
+            margin-bottom: 1.2rem;
+            display: block;
+        }
+
+        .alert-error {
+            background: rgba(244, 63, 94, 0.12);
+            border: 1px solid rgba(244, 63, 94, 0.3);
+            color: #fda4af;
+        }
+
+        .alert-success {
+            background: rgba(16, 185, 129, 0.12);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            color: var(--neon-emerald);
+        }
     </style>
 </head>
 <body>
@@ -291,6 +311,13 @@
             <a href="<?= $appBase ?>/nexus/monitor/" class="nav-link">🔒 SecOps Cockpit</a>
             <a href="<?= $appBase ?>/auth/logout" class="nav-link" style="color:var(--neon-rose);margin-left:auto;">🚪 Logout</a>
         </nav>
+
+        <?php if (!empty($error)): ?>
+            <div class="alert alert-error"><?= htmlspecialchars($error) ?></div>
+        <?php endif; ?>
+        <?php if (!empty($success)): ?>
+            <div class="alert alert-success"><?= htmlspecialchars($success) ?></div>
+        <?php endif; ?>
 
         <div class="section-header">
             <div>
@@ -354,14 +381,20 @@
                                 <?php endif; ?>
                             </td>
                             <td>
-                                <form method="POST" action="<?= $appBase ?>/admin/users/<?= urlencode($u['id']) ?>/update" style="display:inline;">
+                                <form method="POST" action="<?= $appBase ?>/admin/users/" style="display:inline;">
+                                    <input type="hidden" name="csrf_token" value="<?= $csrfToken ?>">
+                                    <input type="hidden" name="_action" value="update">
+                                    <input type="hidden" name="user_id" value="<?= htmlspecialchars($u['id']) ?>">
                                     <input type="hidden" name="status" value="<?= $u['status'] === 'active' ? 'suspended' : 'active' ?>">
                                     <button type="submit" class="btn-table">
                                         <?= $u['status'] === 'active' ? 'Suspend' : 'Activate' ?>
                                     </button>
                                 </form>
                                 <?php if ($u['is_2fa_enabled']): ?>
-                                    <form method="POST" action="<?= $appBase ?>/admin/users/<?= urlencode($u['id']) ?>/update" style="display:inline;">
+                                    <form method="POST" action="<?= $appBase ?>/admin/users/" style="display:inline;">
+                                        <input type="hidden" name="csrf_token" value="<?= $csrfToken ?>">
+                                        <input type="hidden" name="_action" value="update">
+                                        <input type="hidden" name="user_id" value="<?= htmlspecialchars($u['id']) ?>">
                                         <input type="hidden" name="reset_2fa" value="1">
                                         <button type="submit" class="btn-table" title="Reset Google Authenticator">
                                             Reset 2FA
@@ -369,7 +402,10 @@
                                     </form>
                                 <?php endif; ?>
                                 <?php if ($u['id'] !== $currentUser['id']): ?>
-                                    <form method="POST" action="<?= $appBase ?>/admin/users/<?= urlencode($u['id']) ?>/delete" style="display:inline;" onsubmit="return confirm('Permanently revoke this identity?');">
+                                    <form method="POST" action="<?= $appBase ?>/admin/users/" style="display:inline;" onsubmit="return confirm('Permanently revoke this identity?');">
+                                        <input type="hidden" name="csrf_token" value="<?= $csrfToken ?>">
+                                        <input type="hidden" name="_action" value="delete">
+                                        <input type="hidden" name="user_id" value="<?= htmlspecialchars($u['id']) ?>">
                                         <button type="submit" class="btn-table" style="color:var(--neon-rose);">Delete</button>
                                     </form>
                                 <?php endif; ?>
@@ -385,7 +421,9 @@
     <div id="provisionModal" class="modal">
         <div class="modal-content">
             <h3 style="font-size:1.1rem;margin-bottom:1rem;color:var(--neon-cyan);">+ Provision Identity</h3>
-            <form method="POST" action="<?= $appBase ?>/admin/users">
+            <form method="POST" action="<?= $appBase ?>/admin/users/">
+                <input type="hidden" name="csrf_token" value="<?= $csrfToken ?>">
+                <input type="hidden" name="_action" value="create">
                 <label for="name">Full Name</label>
                 <input type="text" id="name" name="name" class="form-input" placeholder="Alex Vance" required>
 

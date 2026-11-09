@@ -22,6 +22,7 @@ class AdminController
     private ?Database $db;
     private View $view;
     private Csrf $csrf;
+    private ?\Nexus\Security\Session $session;
 
     public function __construct(
         Auth $auth,
@@ -30,7 +31,8 @@ class AdminController
         GroupManager $groupMgr,
         ?Database $db,
         View $view,
-        Csrf $csrf
+        Csrf $csrf,
+        ?\Nexus\Security\Session $session = null
     ) {
         $this->auth = $auth;
         $this->userRepo = $userRepo;
@@ -39,6 +41,7 @@ class AdminController
         $this->db = $db;
         $this->view = $view;
         $this->csrf = $csrf;
+        $this->session = $session;
     }
 
     private function authenticateAdmin(Request $request, string $requiredPermission = 'users.view'): ?array
@@ -96,6 +99,9 @@ class AdminController
             'roles' => $roles,
             'groups' => $groups,
             'csrfToken' => $this->csrf->generate(),
+            'nonce' => \Nexus\Security\Headers::getNonce(),
+            'error' => $this->session ? $this->session->getFlash('admin_error') : null,
+            'success' => $this->session ? $this->session->getFlash('admin_success') : null,
         ]);
 
         return new Response($html, 200, ['Content-Type' => 'text/html; charset=UTF-8']);
@@ -112,17 +118,30 @@ class AdminController
         $name = trim($request->getString('name', ''));
         $role = $request->getString('role', 'Member');
         $password = $request->getString('password', '');
+        $appBase = Request::getAppBase();
 
         if (empty($email) || empty($name)) {
+            if (!$request->wantsJson()) {
+                if ($this->session !== null) $this->session->flash('admin_error', 'Email and name are required.');
+                return Response::redirect($appBase . '/admin/users/');
+            }
             return Response::error('Email and name are required.', 422);
         }
 
         if (empty($password)) {
+            if (!$request->wantsJson()) {
+                if ($this->session !== null) $this->session->flash('admin_error', 'A secure initial password is required.');
+                return Response::redirect($appBase . '/admin/users/');
+            }
             return Response::error('A secure initial password is required.', 422);
         }
 
         $existing = $this->userRepo->findByEmail($email);
         if ($existing !== null) {
+            if (!$request->wantsJson()) {
+                if ($this->session !== null) $this->session->flash('admin_error', 'A user with this email address already exists.');
+                return Response::redirect($appBase . '/admin/users/');
+            }
             return Response::error('A user with this email address already exists.', 409);
         }
 
@@ -150,7 +169,11 @@ class AdminController
             return Response::json($newUser, 201, 'User successfully provisioned.');
         }
 
-        return Response::redirect(Request::getAppBase() . '/admin/users');
+        if ($this->session !== null) {
+            $this->session->flash('admin_success', "User identity {$newUser['email']} successfully provisioned.");
+        }
+
+        return Response::redirect($appBase . '/admin/users/');
     }
 
     public function updateUser(Request $request, string $id): Response
@@ -160,20 +183,29 @@ class AdminController
             return Response::error('Unauthorized or insufficient permissions.', 403, 'FORBIDDEN');
         }
 
+        $appBase = Request::getAppBase();
         $user = $this->userRepo->findById($id);
         if ($user === null) {
+            if (!$request->wantsJson()) {
+                if ($this->session !== null) $this->session->flash('admin_error', 'User identity not found.');
+                return Response::redirect($appBase . '/admin/users/');
+            }
             return Response::error('User identity not found.', 404);
         }
 
         $fields = [];
-        $status = $request->getString('status');
-        if ($status !== null) {
-            $fields['status'] = $status;
+        if ($request->has('status')) {
+            $status = $request->getString('status');
+            if ($status !== '') {
+                $fields['status'] = $status;
+            }
         }
 
-        $role = $request->getString('role');
-        if ($role !== null) {
-            $fields['roles'] = [$role];
+        if ($request->has('role')) {
+            $role = $request->getString('role');
+            if ($role !== '') {
+                $fields['roles'] = [$role];
+            }
         }
 
         if ($request->has('reset_2fa')) {
@@ -182,23 +214,34 @@ class AdminController
             $fields['recovery_codes'] = [];
         }
 
-        $this->userRepo->update($id, $fields);
-
-        $this->recordAudit(
-            $request,
-            $currentUser['id'],
-            'USER_UPDATE',
-            'users',
-            $id,
-            $user,
-            $fields
-        );
+        if (!empty($fields)) {
+            $this->userRepo->update($id, $fields);
+            $this->recordAudit(
+                $request,
+                $currentUser['id'],
+                'USER_UPDATE',
+                'users',
+                $id,
+                $user,
+                $fields
+            );
+        }
 
         if ($request->wantsJson()) {
             return Response::json($this->userRepo->findById($id), 200, 'User updated.');
         }
 
-        return Response::redirect(Request::getAppBase() . '/admin/users');
+        if ($this->session !== null) {
+            $msg = 'User identity updated.';
+            if (isset($fields['status'])) {
+                $msg = "User {$user['email']} status changed to {$fields['status']}.";
+            } elseif (isset($fields['is_2fa_enabled']) && $fields['is_2fa_enabled'] === 0) {
+                $msg = "Two-factor authentication reset for {$user['email']}.";
+            }
+            $this->session->flash('admin_success', $msg);
+        }
+
+        return Response::redirect($appBase . '/admin/users/');
     }
 
     public function deleteUser(Request $request, string $id): Response
@@ -208,12 +251,26 @@ class AdminController
             return Response::error('Unauthorized or insufficient permissions.', 403, 'FORBIDDEN');
         }
 
+        $appBase = Request::getAppBase();
+
         if ($id === $currentUser['id']) {
+            if (!$request->wantsJson()) {
+                if ($this->session !== null) {
+                    $this->session->flash('admin_error', 'You cannot delete your own administrative identity.');
+                }
+                return Response::redirect($appBase . '/admin/users/');
+            }
             return Response::error('You cannot delete your own administrative identity.', 400);
         }
 
         $user = $this->userRepo->findById($id);
         if ($user === null) {
+            if (!$request->wantsJson()) {
+                if ($this->session !== null) {
+                    $this->session->flash('admin_error', 'User identity not found.');
+                }
+                return Response::redirect($appBase . '/admin/users/');
+            }
             return Response::error('User identity not found.', 404);
         }
 
@@ -233,7 +290,11 @@ class AdminController
             return Response::json([], 200, 'User identity deleted.');
         }
 
-        return Response::redirect(Request::getAppBase() . '/admin/users');
+        if ($this->session !== null) {
+            $this->session->flash('admin_success', "User identity {$user['email']} successfully deleted.");
+        }
+
+        return Response::redirect($appBase . '/admin/users/');
     }
 
     public function roles(Request $request): Response

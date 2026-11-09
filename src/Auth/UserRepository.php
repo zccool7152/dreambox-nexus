@@ -31,6 +31,10 @@ class UserRepository
     {
         if ($this->isMongo()) {
             $user = $this->db->mongoFindOne('users', ['id' => $id]);
+            if ($user === null && strlen($id) === 24 && ctype_xdigit($id)) {
+                $oidClass = '\\MongoDB\\BSON\\ObjectId';
+                $user = $this->db->mongoFindOne('users', ['_id' => new $oidClass($id)]);
+            }
             return $user ? $this->normalizeUser($user) : null;
         }
 
@@ -217,7 +221,11 @@ class UserRepository
                 $updateSet[$k] = $v;
             }
             $mod = $this->db->mongoUpdate('users', ['id' => $id], ['$set' => $updateSet]);
-            return $mod > 0;
+            if ($mod === 0 && strlen($id) === 24 && ctype_xdigit($id)) {
+                $oidClass = '\\MongoDB\\BSON\\ObjectId';
+                $mod = $this->db->mongoUpdate('users', ['_id' => new $oidClass($id)], ['$set' => $updateSet]);
+            }
+            return true;
         }
 
         if ($this->db !== null && $this->db->isAlive()) {
@@ -254,7 +262,15 @@ class UserRepository
     public function delete(string $id): bool
     {
         if ($this->isMongo()) {
-            return $this->db->mongoDelete('users', ['id' => $id]) > 0;
+            $deleted = $this->db->mongoDelete('users', ['id' => $id]);
+            if ($deleted === 0 && strlen($id) === 24 && ctype_xdigit($id)) {
+                $oidClass = '\\MongoDB\\BSON\\ObjectId';
+                $deleted = $this->db->mongoDelete('users', ['_id' => new $oidClass($id)]);
+            }
+            if ($deleted === 0) {
+                $deleted = $this->db->mongoDelete('users', ['_id' => $id]);
+            }
+            return $deleted > 0;
         }
 
         if ($this->db !== null && $this->db->isAlive()) {
@@ -330,30 +346,6 @@ class UserRepository
                 'is_2fa_enabled' => false,
                 'must_change_password' => true,
             ]);
-        } else {
-            // Ensure password is reset to 123qweasd and must_change_password is active
-            $this->update($tim['id'], [
-                'password_hash' => $this->hasher->hash('123qweasd'),
-                'must_change_password' => 1,
-                'roles' => ['SuperAdmin'],
-            ]);
-        }
-
-        // Also ensure fallback admin@localhost exists for headless tests
-        $adminEmail = 'admin@localhost';
-        if ($this->findByEmail($adminEmail) === null) {
-            $this->create([
-                'id' => 'usr_admin_001',
-                'email' => $adminEmail,
-                'name' => 'Nexus SuperAdmin',
-                'password' => 'NexusAdmin@2026!',
-                'auth_provider' => 'email',
-                'status' => 'active',
-                'roles' => ['SuperAdmin'],
-                'groups' => ['SecOps'],
-                'is_2fa_enabled' => false,
-                'must_change_password' => false,
-            ]);
         }
     }
 
@@ -386,9 +378,6 @@ class UserRepository
         $email = strtolower(trim($email));
         if ($email === 'admin@nexus.local') {
             return $this->getFallbackMemoryUser('usr_admin_tim');
-        }
-        if ($email === 'admin@localhost') {
-            return $this->getFallbackMemoryUser('usr_admin_001');
         }
         return null;
     }
