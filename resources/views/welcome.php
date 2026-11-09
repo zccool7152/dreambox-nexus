@@ -285,6 +285,7 @@ $appBase = $appBase ?? \Nexus\Core\Request::getAppBase();
 
         <div class="actions">
             <a href="<?= $appBase ?>/nexus/monitor/" class="btn btn-primary">🔒 SecOps Cockpit (Restricted)</a>
+            <a href="<?= $appBase ?>/compliance/" class="btn btn-secondary">⚖️ Compliance Matrix</a>
             <a href="<?= $appBase ?>/health/" class="btn btn-secondary">❤️ Health Probe</a>
             <a href="<?= $appBase ?>/docs/" class="btn btn-secondary">📜 OpenAPI 3.0 Contract</a>
         </div>

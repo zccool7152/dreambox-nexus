@@ -28,6 +28,14 @@ $router->get('/health/ready', function (Request $req) use ($app) {
     return (new HealthCheck())->readiness($req, $db, $app->getBasePath() . '/storage');
 }, [], 'health.readiness');
 
+// ── Compliance Matrix & Regulatory Verification ──────────────────────────────
+$router->get('/compliance', function (Request $req) use ($app) {
+    /** @var Database $db */
+    $db = $app->getContainer()->make(Database::class);
+    $controller = new \Nexus\Compliance\ComplianceController($db, $app->getBasePath());
+    return $controller->index($req);
+}, [], 'compliance.index');
+
 $router->get('/docs/openapi.yaml', function (Request $req) use ($app) {
     $file = $app->getBasePath() . '/docs/openapi.yaml';
     if (!file_exists($file)) {

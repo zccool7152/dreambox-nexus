@@ -75,6 +75,29 @@ components:
           example: The requested resource could not be processed.
 
 paths:
+  /compliance:
+    get:
+      summary: Compliance Matrix & Regulatory Verification
+      description: Returns the real-time regulatory compliance scorecard, framework breakdown (PCI-DSS, HIPAA, NIST, GDPR, OWASP), and automated verification status.
+      parameters:
+        - in: query
+          name: format
+          schema:
+            type: string
+            enum: [json, html]
+          description: Optional response format (defaults to text/html for browsers, application/json for API clients).
+      responses:
+        '200':
+          description: Compliance matrix and automated audit verification report.
+          content:
+            text/html:
+              schema:
+                type: string
+                description: Interactive Cyber-Noir compliance dashboard.
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardSuccessResponse'
+
   /health:
     get:
       summary: Liveness Probe
