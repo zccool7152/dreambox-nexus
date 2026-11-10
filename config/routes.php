@@ -193,6 +193,14 @@ $router->post('/auth/logout', function (Request $req) use ($getAuthController) {
     return $getAuthController()->logout($req);
 }, [], 'auth.post_logout');
 
+$router->get('/logout', function (Request $req) use ($getAuthController) {
+    return $getAuthController()->logout($req);
+}, [], 'auth.get_logout_alias');
+
+$router->post('/logout', function (Request $req) use ($getAuthController) {
+    return $getAuthController()->logout($req);
+}, [], 'auth.post_logout_alias');
+
 $router->post('/api/v1/auth/logout', function (Request $req) use ($getAuthController) {
     return $getAuthController()->logout($req);
 }, [], 'auth.logout');

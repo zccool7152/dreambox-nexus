@@ -164,7 +164,7 @@
             <a href="<?= $appBase ?>/compliance/" class="nav-link">⚖️ Compliance Matrix</a>
             <a href="<?= $appBase ?>/health/" class="nav-link">💖 Health Probe</a>
             <a href="<?= $appBase ?>/nexus/monitor/" class="nav-link">🔒 SecOps Cockpit</a>
-            <a href="<?= $appBase ?>/auth/logout" class="nav-link" style="color:var(--neon-rose);margin-left:auto;">🚪 Logout</a>
+            <a href="<?= $appBase ?>/auth/logout/" class="nav-link" style="color:var(--neon-rose);margin-left:auto;">🚪 Logout</a>
         </nav>
 
         <div class="table-card">

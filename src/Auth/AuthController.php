@@ -477,7 +477,7 @@ class AuthController
             return Response::redirect(Request::getAppBase() . '/admin/');
         } catch (\Throwable $e) {
             $this->session->flash('auth_error', 'OAuth authentication failed: ' . $e->getMessage());
-            return Response::redirect(Request::getAppBase() . '/auth/login');
+            return Response::redirect(Request::getAppBase() . '/auth/login/');
         }
     }
 
@@ -487,6 +487,6 @@ class AuthController
         if ($request->wantsJson()) {
             return Response::json([], 200, 'Successfully logged out.');
         }
-        return Response::redirect(Request::getAppBase() . '/auth/login');
+        return Response::redirect(Request::getAppBase() . '/auth/login/');
     }
 }

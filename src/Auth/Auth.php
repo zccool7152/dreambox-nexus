@@ -121,6 +121,9 @@ class Auth
     {
         $this->session->destroy();
         $this->currentUser = null;
+        if (isset($_COOKIE[session_name()])) {
+            unset($_COOKIE[session_name()]);
+        }
     }
 }
 

@@ -110,6 +110,10 @@ class Session
 
     public function destroy(): void
     {
+        if (session_status() !== PHP_SESSION_ACTIVE) {
+            $this->start();
+        }
+
         if (session_status() === PHP_SESSION_ACTIVE) {
             $_SESSION = [];
             if (ini_get("session.use_cookies")) {
@@ -118,13 +122,14 @@ class Session
                     session_name(),
                     '',
                     time() - 42000,
-                    $params["path"],
+                    $params["path"] ?: '/',
                     $params["domain"],
                     $params["secure"],
                     $params["httponly"]
                 );
             }
-            session_destroy();
+            @session_unset();
+            @session_destroy();
         }
     }
 
