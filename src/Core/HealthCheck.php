@@ -18,9 +18,21 @@ class HealthCheck
 
         // When viewed in a browser (text/html without explicit json query), render the visual UI
         if (!$wantsJson && str_contains($accept, 'text/html') && $baseDir !== null) {
+            $user = null;
+            try {
+                $db = new Database();
+                $session = new \Nexus\Security\Session($db);
+                $hasher = new \Nexus\Crypto\Hasher();
+                $auth = new \Nexus\Auth\Auth($session, $hasher, $db);
+                $user = $auth->user($request);
+            } catch (\Throwable $e) {}
+
             $view = new \Nexus\View\View($baseDir . '/resources/views');
             $html = $view->render('health', [
                 'traceId' => $request->getTraceId(),
+                'user' => $user,
+                'currentUser' => $user,
+                'appBase' => Request::getAppBase(),
             ]);
             return Response::html($html);
         }

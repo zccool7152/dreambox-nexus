@@ -464,6 +464,35 @@ $accountSource = file_get_contents($baseDir . '/resources/views/account/index.ph
 $assertTest('Account settings page links to centralized theme.css', str_contains($accountSource, '/css/theme.css'));
 $assertTest('Topbar partial links to centralized theme.css', str_contains($topbarHtml, '/css/theme.css'));
 
+// Universal UI Framework validation across all 14 view templates
+$allViewFiles = [];
+$rdi = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($baseDir . '/resources/views'));
+foreach ($rdi as $file) {
+    if ($file->isFile() && $file->getExtension() === 'php' && !str_contains($file->getPathname(), '/partials/')) {
+        $allViewFiles[] = $file->getPathname();
+    }
+}
+$assertTest('Total view templates discovered equals 14', count($allViewFiles) === 14);
+
+$viewsMissingTheme = [];
+$viewsMissingTopbar = [];
+$viewsWithInlineStyle = [];
+foreach ($allViewFiles as $vPath) {
+    $vContent = (string)file_get_contents($vPath);
+    if (!str_contains($vContent, 'theme.css')) {
+        $viewsMissingTheme[] = basename($vPath);
+    }
+    if (!str_contains($vContent, 'topbar.php')) {
+        $viewsMissingTopbar[] = basename($vPath);
+    }
+    if (str_contains($vContent, '<style')) {
+        $viewsWithInlineStyle[] = basename($vPath);
+    }
+}
+$assertTest('All 14 view templates link to centralized theme.css', empty($viewsMissingTheme));
+$assertTest('All 14 view templates embed universal topbar.php', empty($viewsMissingTopbar));
+$assertTest('Zero view templates contain legacy inline <style> tags', empty($viewsWithInlineStyle));
+
 // Test GET / as guest
 $guestHomeReq = new \Nexus\Core\Request('GET', '/', ['accept' => 'text/html'], [], [], '', '127.0.0.1');
 $guestHomeRes = $app->handle($guestHomeReq);

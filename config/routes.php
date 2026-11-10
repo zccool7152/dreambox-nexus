@@ -48,10 +48,20 @@ $router->get('/docs/openapi.yaml', function (Request $req) use ($app) {
     $wantsYaml = str_contains($accept, 'text/yaml') || str_contains($accept, 'application/x-yaml') || $format === 'yaml';
 
     if (!$wantsYaml && str_contains($accept, 'text/html')) {
+        /** @var Database $db */
+        $db = $app->getContainer()->make(Database::class);
+        $session = new \Nexus\Security\Session($db);
+        $hasher = new \Nexus\Crypto\Hasher();
+        $auth = new \Nexus\Auth\Auth($session, $hasher, $db);
+        $user = $auth->user($req);
+
         $view = new View($app->getBasePath() . '/resources/views');
         $html = $view->render('docs', [
             'rawYaml' => $yaml,
             'traceId' => $req->getTraceId(),
+            'user' => $user,
+            'currentUser' => $user,
+            'appBase' => Request::getAppBase(),
         ]);
         return Response::html($html);
     }
@@ -372,10 +382,22 @@ $router->get('/', function (Request $req) use ($app): Response {
 
 // ── Secured Cyber-Noir Telemetry Cockpit (HTML) ──────────────────────────────
 $router->get('/nexus/monitor', function (Request $req) use ($app) {
+    /** @var Database $db */
+    $db = $app->getContainer()->make(Database::class);
+    $session = new \Nexus\Security\Session($db);
+    $hasher = new \Nexus\Crypto\Hasher();
+    $auth = new \Nexus\Auth\Auth($session, $hasher, $db);
+    $user = $auth->user($req);
+
     $view = new View($app->getBasePath() . '/resources/views');
     $profiler = new \Nexus\Monitor\SystemProfiler();
     $vitals = $profiler->getMetrics();
-    $html = $view->render('monitor.dashboard', ['vitals' => $vitals]);
+    $html = $view->render('monitor.dashboard', [
+        'vitals' => $vitals,
+        'user' => $user,
+        'currentUser' => $user,
+        'appBase' => Request::getAppBase(),
+    ]);
     return Response::html($html);
 }, [MonitorAccessMiddleware::class], 'nexus.monitor');
 

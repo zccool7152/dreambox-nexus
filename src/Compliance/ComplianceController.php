@@ -36,10 +36,17 @@ class ComplianceController
 
         // When accessed from a browser without explicit json format request, render HTML HUD
         if (!$wantsJson && str_contains($accept, 'text/html')) {
+            $sess = new \Nexus\Security\Session($this->db);
+            $auth = new \Nexus\Auth\Auth($sess, new \Nexus\Crypto\Hasher(), $this->db);
+            $user = $auth->user($request);
+
             $view = new View($this->baseDir . '/resources/views');
             $html = $view->render('compliance', [
                 'report' => $report,
                 'traceId' => $request->getTraceId(),
+                'user' => $user,
+                'currentUser' => $user,
+                'appBase' => Request::getAppBase(),
             ]);
             return Response::html($html);
         }
