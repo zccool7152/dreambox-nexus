@@ -13,6 +13,7 @@ class UserRepository
     private ?Database $db;
     private Hasher $hasher;
     private ?Aead $crypto;
+    private static array $memoryStore = [];
 
     public function __construct(?Database $db = null, ?Hasher $hasher = null, ?Aead $crypto = null)
     {
@@ -47,6 +48,10 @@ class UserRepository
             }
         }
 
+        if (isset(self::$memoryStore[$id])) {
+            return $this->normalizeUser(self::$memoryStore[$id]);
+        }
+
         return $this->getFallbackMemoryUser($id);
     }
 
@@ -68,7 +73,44 @@ class UserRepository
             }
         }
 
+        foreach (self::$memoryStore as $mUser) {
+            if (strtolower($mUser['email'] ?? '') === $email) {
+                return $this->normalizeUser($mUser);
+            }
+        }
+
         return $this->getFallbackMemoryUserByEmail($email);
+    }
+
+    public function findByUsername(string $username): ?array
+    {
+        $username = trim($username);
+
+        if ($this->isMongo()) {
+            $user = $this->db->mongoFindOne('users', ['username' => $username]);
+            return $user ? $this->normalizeUser($user) : null;
+        }
+
+        if ($this->db !== null && $this->db->isAlive()) {
+            $user = $this->db->fetch("SELECT * FROM users WHERE username = ?", [$username]);
+            if ($user) {
+                $user['roles'] = $this->getUserRolesFromSql($user['id']);
+                $user['groups'] = $this->getUserGroupsFromSql($user['id']);
+                return $this->normalizeUser($user);
+            }
+        }
+
+        foreach (self::$memoryStore as $mUser) {
+            if (($mUser['username'] ?? '') === $username) {
+                return $this->normalizeUser($mUser);
+            }
+        }
+
+        if ($username === 'nexus_admin') {
+            return $this->getFallbackMemoryUser('usr_admin_tim');
+        }
+
+        return null;
     }
 
     public function findByOAuth(string $provider, string $providerId): ?array
@@ -122,6 +164,12 @@ class UserRepository
         $id = $data['id'] ?? 'usr_' . bin2hex(random_bytes(8));
         $email = strtolower(trim($data['email']));
         $name = trim($data['name']);
+        $username = trim($data['username'] ?? '');
+        if ($username === '') {
+            $username = strstr($email, '@', true) ?: $id;
+        }
+        $rawPref = $data['display_preference'] ?? 'name';
+        $displayPreference = in_array($rawPref, ['name', 'username'], true) ? $rawPref : 'name';
         $provider = $data['auth_provider'] ?? 'email';
         $providerId = $data['provider_id'] ?? null;
         $status = $data['status'] ?? 'active';
@@ -145,6 +193,8 @@ class UserRepository
                 'id' => $id,
                 'email' => $email,
                 'name' => $name,
+                'username' => $username,
+                'display_preference' => $displayPreference,
                 'password_hash' => $passwordHash,
                 'auth_provider' => $provider,
                 'provider_id' => $providerId,
@@ -165,9 +215,9 @@ class UserRepository
 
         if ($this->db !== null && $this->db->isAlive()) {
             $this->db->execute(
-                "INSERT INTO users (id, email, name, password_hash, auth_provider, provider_id, avatar_url, status, is_2fa_enabled, must_change_password)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                [$id, $email, $name, $passwordHash, $provider, $providerId, $data['avatar_url'] ?? '', $status, $is2fa, $mustChange]
+                "INSERT INTO users (id, email, name, username, display_preference, password_hash, auth_provider, provider_id, avatar_url, status, is_2fa_enabled, must_change_password)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                [$id, $email, $name, $username, $displayPreference, $passwordHash, $provider, $providerId, $data['avatar_url'] ?? '', $status, $is2fa, $mustChange]
             );
 
             // Save MFA table record if secret exists
@@ -195,12 +245,15 @@ class UserRepository
             'id' => $id,
             'email' => $email,
             'name' => $name,
+            'username' => $username,
+            'display_preference' => $displayPreference,
             'password_hash' => $passwordHash,
             'auth_provider' => $provider,
             'provider_id' => $providerId,
             'avatar_url' => $data['avatar_url'] ?? '',
             'status' => $status,
             'is_2fa_enabled' => $is2fa,
+            'must_change_password' => $mustChange,
             'totp_secret' => $totpSecret,
             'recovery_codes' => $recoveryCodes,
             'roles' => $roles,
@@ -208,6 +261,7 @@ class UserRepository
             'created_at' => date('Y-m-d H:i:s'),
             'updated_at' => date('Y-m-d H:i:s'),
         ];
+        self::$memoryStore[$id] = $doc;
         return $this->normalizeUser($doc);
     }
 
@@ -229,7 +283,7 @@ class UserRepository
         }
 
         if ($this->db !== null && $this->db->isAlive()) {
-            $allowed = ['name', 'status', 'is_2fa_enabled', 'password_hash', 'avatar_url', 'must_change_password'];
+            $allowed = ['name', 'status', 'is_2fa_enabled', 'password_hash', 'avatar_url', 'must_change_password', 'username', 'display_preference'];
             $sets = [];
             $params = [];
             foreach ($allowed as $f) {
@@ -254,6 +308,13 @@ class UserRepository
             }
 
             return true;
+        }
+
+        if (isset(self::$memoryStore[$id])) {
+            foreach ($fields as $k => $v) {
+                self::$memoryStore[$id][$k] = $v;
+            }
+            self::$memoryStore[$id]['updated_at'] = date('Y-m-d H:i:s');
         }
 
         return true;
@@ -281,6 +342,7 @@ class UserRepository
             return true;
         }
 
+        unset(self::$memoryStore[$id]);
         return true;
     }
 
@@ -290,6 +352,8 @@ class UserRepository
             'id' => (string)($u['id'] ?? $u['_id'] ?? ''),
             'email' => (string)($u['email'] ?? ''),
             'name' => (string)($u['name'] ?? ''),
+            'username' => (string)($u['username'] ?? ''),
+            'display_preference' => in_array((string)($u['display_preference'] ?? 'name'), ['name', 'username'], true) ? (string)($u['display_preference'] ?? 'name') : 'name',
             'password_hash' => $u['password_hash'] ?? null,
             'auth_provider' => (string)($u['auth_provider'] ?? 'email'),
             'provider_id' => $u['provider_id'] ?? null,
@@ -356,6 +420,8 @@ class UserRepository
                 'id' => 'usr_admin_tim',
                 'email' => 'admin@nexus.local',
                 'name' => 'Timothy Dunn',
+                'username' => 'nexus_admin',
+                'display_preference' => 'name',
                 'password_hash' => $this->hasher->hash('123qweasd'),
                 'auth_provider' => 'email',
                 'provider_id' => null,

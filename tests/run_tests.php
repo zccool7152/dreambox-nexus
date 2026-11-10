@@ -385,6 +385,67 @@ $reconstructedRepo = new \Nexus\Auth\UserRepository($mongoDb);
 $assertTest('Deleted user is not found after UserRepository re-instantiation', $reconstructedRepo->findByEmail('to_be_deleted@example.com') === null);
 $assertTest('admin@localhost is not resurrected if deleted or absent', $reconstructedRepo->findByEmail('admin@localhost') === null);
 
+// ── [14] User Self-Service Account Management & Universal Top Bar ───────────
+echo "\n\033[1;34m[14] User Self-Service Account Management & Universal Top Bar\033[0m\n";
+
+$assertTest('Physical bridge /account/index.php exists', file_exists($baseDir . '/account/index.php'));
+$assertTest('Physical bridge /public/account/index.php exists', file_exists($baseDir . '/public/account/index.php'));
+
+$openApiSpec = file_get_contents($baseDir . '/docs/openapi.yaml');
+$assertTest('OpenAPI documents /api/v1/account', str_contains($openApiSpec, '/api/v1/account:'));
+$assertTest('OpenAPI documents /api/v1/account/profile', str_contains($openApiSpec, '/api/v1/account/profile:'));
+$assertTest('OpenAPI documents /api/v1/account/password', str_contains($openApiSpec, '/api/v1/account/password:'));
+
+$unauthReq = new \Nexus\Core\Request('GET', '/account', ['accept' => 'text/html'], [], [], '', '127.0.0.1', null, '/account');
+$unauthRes = $app->handle($unauthReq);
+$assertTest('GET /account unauthenticated redirects to /auth/login/', $unauthRes->getStatusCode() === 302 && str_contains($unauthRes->getHeader('location') ?? '', '/auth/login'));
+
+$accountUser = $testUserRepo->create([
+    'email' => 'account_test@example.com',
+    'name' => 'Account Test User',
+    'username' => 'acct_test',
+    'display_preference' => 'username',
+    'password' => 'InitialPassword123!',
+    'roles' => ['Member'],
+    'groups' => ['Engineering'],
+]);
+
+$assertTest('User repository persists username', $accountUser['username'] === 'acct_test');
+$assertTest('User repository persists display_preference', $accountUser['display_preference'] === 'username');
+
+$foundByUsername = $testUserRepo->findByUsername('acct_test');
+$assertTest('findByUsername resolves created user correctly', $foundByUsername !== null && $foundByUsername['email'] === 'account_test@example.com');
+
+$testUserRepo->update($accountUser['id'], [
+    'name' => 'Updated Account User',
+    'display_preference' => 'name',
+]);
+$updatedUser = $testUserRepo->findById($accountUser['id']);
+$assertTest('User update mutates display_preference to name', $updatedUser['display_preference'] === 'name');
+$assertTest('User update mutates full name', $updatedUser['name'] === 'Updated Account User');
+
+$topbarHtml = file_get_contents($baseDir . '/resources/views/partials/topbar.php');
+$assertTest('Topbar partial contains brand logo on left', str_contains($topbarHtml, 'class="nexus-brand"'));
+$assertTest('Topbar partial contains login link for guests', str_contains($topbarHtml, 'class="nexus-btn-login"'));
+$assertTest('Topbar partial contains user dropdown menu for authenticated sessions', str_contains($topbarHtml, 'class="nexus-user-menu"') && str_contains($topbarHtml, 'class="nexus-dropdown"'));
+$assertTest('Topbar partial contains account settings link', str_contains($topbarHtml, '/account/'));
+$assertTest('Topbar partial contains logout button', str_contains($topbarHtml, '/auth/logout/'));
+
+$accountView = new \Nexus\View\View($baseDir . '/resources/views');
+$renderedAccountHtml = $accountView->render('account.index', [
+    'appBase' => '/Dreambox Nexus',
+    'user' => $updatedUser,
+    'csrfToken' => 'csrf_token_test',
+    'success' => null,
+    'error' => null,
+    'traceId' => 'trace_account_test',
+]);
+$assertTest('Account view renders profile identity section', str_contains($renderedAccountHtml, 'Profile & Identity'));
+$assertTest('Account view renders display preference choice cards', str_contains($renderedAccountHtml, 'name="display_preference"'));
+$assertTest('Account view renders password rotation form with Argon2id', str_contains($renderedAccountHtml, 'Password Security') && str_contains($renderedAccountHtml, 'name="current_password"'));
+
+$testUserRepo->delete($accountUser['id']);
+
 // ── Summary ─────────────────────────────────────────────────────────────────
 echo "\n\033[1;36m════════════════════════════════════════════════════════════════\033[0m\n";
 echo "  \033[1;37mTEST SUMMARY:\033[0m \033[0;32m{$passed} Passed\033[0m | \033[0;31m{$failed} Failed\033[0m\n";

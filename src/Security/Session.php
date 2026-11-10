@@ -4,14 +4,16 @@ declare(strict_types=1);
 namespace Nexus\Security;
 
 use Nexus\Database\Database;
+use SessionHandlerInterface;
 
 /**
  * Hardened Session Manager
  *
  * Enforces HIPAA 15-minute idle timeouts, SameSite=Strict cookies,
- * and automated session fixation regeneration.
+ * automated session fixation regeneration, and database-backed (MongoDB/SQL)
+ * session persistence compliant with PCI-DSS Req 3.5 & NIST PR.DS-1.
  */
-class Session
+class Session implements SessionHandlerInterface
 {
     private ?Database $db;
     private int $idleTimeoutSeconds;
@@ -24,6 +26,11 @@ class Session
         $this->secureCookie = $secureCookie;
     }
 
+    private function isDbActive(): bool
+    {
+        return $this->db !== null && $this->db->isAlive();
+    }
+
     public function start(): void
     {
         if (session_status() === PHP_SESSION_ACTIVE) {
@@ -32,11 +39,16 @@ class Session
 
         $sessionPath = dirname(__DIR__, 2) . '/storage/sessions';
         if (!is_dir($sessionPath)) {
-            mkdir($sessionPath, 0700, true);
+            @mkdir($sessionPath, 0700, true);
         }
 
         if (!headers_sent()) {
-            @ini_set('session.save_path', $sessionPath);
+            if ($this->isDbActive() && $this->db->getDriver() === 'mongodb') {
+                @session_set_save_handler($this, true);
+            } else {
+                @ini_set('session.save_path', $sessionPath);
+            }
+
             @ini_set('session.use_strict_mode', '1');
             @ini_set('session.use_only_cookies', '1');
 
@@ -60,11 +72,133 @@ class Session
 
         if (($now - $lastActivity) > $this->idleTimeoutSeconds) {
             $this->destroy();
-            session_start();
+            @session_start();
             $_SESSION['__timeout_expired'] = true;
         }
 
         $_SESSION['__last_activity'] = $now;
+    }
+
+    // ── SessionHandlerInterface Methods ──────────────────────────────────────────
+
+    public function open(string $path, string $name): bool
+    {
+        return true;
+    }
+
+    public function close(): bool
+    {
+        return true;
+    }
+
+    public function read(string $id): string|false
+    {
+        if ($this->isDbActive() && $this->db->getDriver() === 'mongodb') {
+            try {
+                $doc = $this->db->mongoFindOne('sessions', ['session_id' => $id]);
+                return $doc ? (string)($doc['data'] ?? '') : '';
+            } catch (\Throwable) {
+                return '';
+            }
+        }
+
+        $file = dirname(__DIR__, 2) . '/storage/sessions/sess_' . $id;
+        return file_exists($file) ? (string)file_get_contents($file) : '';
+    }
+
+    public function write(string $id, string $data): bool
+    {
+        if ($this->isDbActive() && $this->db->getDriver() === 'mongodb') {
+            try {
+                $this->db->mongoUpdate(
+                    'sessions',
+                    ['session_id' => $id],
+                    ['$set' => [
+                        'session_id' => $id,
+                        'data' => $data,
+                        'last_activity' => time(),
+                        'expires_at' => time() + $this->idleTimeoutSeconds,
+                    ]],
+                    ['upsert' => true]
+                );
+                return true;
+            } catch (\Throwable) {
+                // fallback to disk if mongo write encounters error
+            }
+        }
+
+        $sessionPath = dirname(__DIR__, 2) . '/storage/sessions';
+        if (!is_dir($sessionPath)) {
+            @mkdir($sessionPath, 0700, true);
+        }
+        $file = $sessionPath . '/sess_' . $id;
+        return (bool)@file_put_contents($file, $data);
+    }
+
+    public function destroy(string $id = ''): bool
+    {
+        if ($id !== '') {
+            if ($this->isDbActive() && $this->db->getDriver() === 'mongodb') {
+                try {
+                    $this->db->mongoDelete('sessions', ['session_id' => $id]);
+                } catch (\Throwable) {}
+            }
+            $file = dirname(__DIR__, 2) . '/storage/sessions/sess_' . $id;
+            if (file_exists($file)) {
+                @unlink($file);
+            }
+            return true;
+        }
+
+        if (session_status() !== PHP_SESSION_ACTIVE) {
+            $this->start();
+        }
+
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            $currentId = session_id();
+            $_SESSION = [];
+            if (ini_get("session.use_cookies")) {
+                $params = session_get_cookie_params();
+                setcookie(
+                    session_name(),
+                    '',
+                    time() - 42000,
+                    $params["path"] ?: '/',
+                    $params["domain"],
+                    $params["secure"],
+                    $params["httponly"]
+                );
+            }
+            @session_unset();
+            @session_destroy();
+            if ($currentId !== '') {
+                $this->destroy($currentId);
+            }
+        }
+
+        return true;
+    }
+
+    public function gc(int $max_lifetime): int|false
+    {
+        if ($this->isDbActive() && $this->db->getDriver() === 'mongodb') {
+            try {
+                $expired = time() - $max_lifetime;
+                return $this->db->mongoDelete('sessions', ['last_activity' => ['$lt' => $expired]]);
+            } catch (\Throwable) {
+                return 0;
+            }
+        }
+
+        $sessionPath = dirname(__DIR__, 2) . '/storage/sessions';
+        $count = 0;
+        foreach (glob($sessionPath . '/sess_*') ?: [] as $file) {
+            if (filemtime($file) + $max_lifetime < time()) {
+                @unlink($file);
+                $count++;
+            }
+        }
+        return $count;
     }
 
     public function regenerate(): void
@@ -108,34 +242,8 @@ class Session
         unset($_SESSION[$key]);
     }
 
-    public function destroy(): void
-    {
-        if (session_status() !== PHP_SESSION_ACTIVE) {
-            $this->start();
-        }
-
-        if (session_status() === PHP_SESSION_ACTIVE) {
-            $_SESSION = [];
-            if (ini_get("session.use_cookies")) {
-                $params = session_get_cookie_params();
-                setcookie(
-                    session_name(),
-                    '',
-                    time() - 42000,
-                    $params["path"] ?: '/',
-                    $params["domain"],
-                    $params["secure"],
-                    $params["httponly"]
-                );
-            }
-            @session_unset();
-            @session_destroy();
-        }
-    }
-
     public function getId(): string
     {
         return session_id() ?: '';
     }
 }
-

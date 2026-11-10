@@ -724,4 +724,124 @@ paths:
               schema:
                 $ref: '#/components/schemas/StandardSuccessResponse'
 
+  /api/v1/account:
+    get:
+      summary: Get Authenticated User Profile & Preferences
+      description: Returns the active session profile including username, display preference, roles, and groups.
+      security:
+        - SessionCookie: []
+      responses:
+        '200':
+          description: User profile retrieved.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardSuccessResponse'
+        '401':
+          description: Unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardErrorResponse'
+
+  /api/v1/account/profile:
+    put:
+      summary: Update Account Profile & Display Preferences
+      description: Allows the user to update their full name, unique username, and preferred display name (name vs username).
+      security:
+        - SessionCookie: []
+        - CsrfToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - username
+                - display_preference
+              properties:
+                name:
+                  type: string
+                  example: Timothy Dunn
+                username:
+                  type: string
+                  example: nexus_admin
+                display_preference:
+                  type: string
+                  enum: [name, username]
+                  example: username
+                avatar_url:
+                  type: string
+                  example: https://avatar.url/user.png
+      responses:
+        '200':
+          description: Profile updated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardSuccessResponse'
+        '401':
+          description: Unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardErrorResponse'
+        '422':
+          description: Validation error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardErrorResponse'
+
+  /api/v1/account/password:
+    post:
+      summary: Change Account Password
+      description: Rotates password with current password verification and Argon2id memory-hardened encryption.
+      security:
+        - SessionCookie: []
+        - CsrfToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - current_password
+                - new_password
+                - new_password_confirmation
+              properties:
+                current_password:
+                  type: string
+                  format: password
+                new_password:
+                  type: string
+                  format: password
+                  minLength: 8
+                new_password_confirmation:
+                  type: string
+                  format: password
+                  minLength: 8
+      responses:
+        '200':
+          description: Password updated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardSuccessResponse'
+        '401':
+          description: Current password incorrect or unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardErrorResponse'
+        '422':
+          description: Validation error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardErrorResponse'
+
 

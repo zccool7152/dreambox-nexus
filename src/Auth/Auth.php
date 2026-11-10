@@ -75,7 +75,10 @@ class Auth
                 'id' => $userId,
                 'email' => $this->session->get('user_email', ''),
                 'name' => $this->session->get('user_name', 'User'),
+                'username' => $this->session->get('user_username', ''),
+                'display_preference' => $this->session->get('user_display_preference', 'name'),
                 'roles' => $this->session->get('user_roles', ['Member']),
+                'groups' => $this->session->get('user_groups', []),
                 'avatar_url' => $this->session->get('user_avatar', ''),
                 'auth_provider' => $this->session->get('auth_provider', 'email'),
                 'must_change_password' => !empty($this->session->get('must_change_password')),
@@ -94,7 +97,10 @@ class Auth
         array $roles = ['Member'],
         string $avatar = '',
         string $provider = 'email',
-        bool $mustChangePassword = false
+        bool $mustChangePassword = false,
+        string $username = '',
+        string $displayPreference = 'name',
+        array $groups = []
     ): void {
         $this->session->start();
         $this->session->regenerate();
@@ -105,16 +111,48 @@ class Auth
         $this->session->set('user_avatar', $avatar);
         $this->session->set('auth_provider', $provider);
         $this->session->set('must_change_password', $mustChangePassword);
+        $this->session->set('user_username', $username !== '' ? $username : (strstr($email, '@', true) ?: 'user'));
+        $this->session->set('user_display_preference', in_array($displayPreference, ['name', 'username'], true) ? $displayPreference : 'name');
+        $this->session->set('user_groups', $groups);
+
         $this->currentUser = [
             'id' => $userId,
             'email' => $email,
             'name' => $name,
+            'username' => $this->session->get('user_username'),
+            'display_preference' => $this->session->get('user_display_preference'),
             'roles' => $roles,
+            'groups' => $groups,
             'avatar_url' => $avatar,
             'auth_provider' => $provider,
             'must_change_password' => $mustChangePassword,
             'guard' => 'session'
         ];
+    }
+
+    public function updateSessionUser(array $fields): void
+    {
+        $this->session->start();
+        if (isset($fields['name'])) {
+            $this->session->set('user_name', $fields['name']);
+        }
+        if (isset($fields['username'])) {
+            $this->session->set('user_username', $fields['username']);
+        }
+        if (isset($fields['display_preference'])) {
+            $this->session->set('user_display_preference', $fields['display_preference']);
+        }
+        if (isset($fields['avatar_url'])) {
+            $this->session->set('user_avatar', $fields['avatar_url']);
+        }
+        if (isset($fields['roles'])) {
+            $this->session->set('user_roles', $fields['roles']);
+        }
+        if (isset($fields['groups'])) {
+            $this->session->set('user_groups', $fields['groups']);
+        }
+
+        $this->currentUser = null; // force reload from session on next check
     }
 
     public function logout(): void

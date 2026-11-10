@@ -116,6 +116,21 @@ $getAdminController = function () use ($app): \Nexus\Admin\AdminController {
     );
 };
 
+$getAccountController = function () use ($app): \Nexus\Auth\AccountController {
+    /** @var Database $db */
+    $db = $app->getContainer()->make(Database::class);
+    $session = new \Nexus\Security\Session($db);
+    $hasher = new \Nexus\Crypto\Hasher();
+    $auth = new \Nexus\Auth\Auth($session, $hasher, $db);
+    $userRepo = new \Nexus\Auth\UserRepository($db, $hasher);
+    $view = new View($app->getBasePath() . '/resources/views');
+    $csrf = new Csrf(\Nexus\Core\Env::get('APP_KEY', 'default_secret'));
+
+    return new \Nexus\Auth\AccountController(
+        $auth, $userRepo, $hasher, $db, $view, $csrf, $session
+    );
+};
+
 // Auth Views & Actions
 $router->get('/auth/login', function (Request $req) use ($getAuthController) {
     return $getAuthController()->showLogin($req);
@@ -204,6 +219,39 @@ $router->post('/logout', function (Request $req) use ($getAuthController) {
 $router->post('/api/v1/auth/logout', function (Request $req) use ($getAuthController) {
     return $getAuthController()->logout($req);
 }, [], 'auth.logout');
+
+// ── User Self-Service Account Management ─────────────────────────────────────
+$router->get('/account', function (Request $req) use ($getAccountController) {
+    return $getAccountController()->show($req);
+}, [], 'account.show');
+
+$router->post('/account', function (Request $req) use ($getAccountController) {
+    $action = $req->getString('_action', '');
+    if ($action === 'password') {
+        return $getAccountController()->changePassword($req);
+    }
+    return $getAccountController()->updateProfile($req);
+}, [], 'account.post_handler');
+
+$router->post('/account/profile', function (Request $req) use ($getAccountController) {
+    return $getAccountController()->updateProfile($req);
+}, [], 'account.post_profile');
+
+$router->put('/api/v1/account/profile', function (Request $req) use ($getAccountController) {
+    return $getAccountController()->updateProfile($req);
+}, [], 'account.api_profile');
+
+$router->post('/account/password', function (Request $req) use ($getAccountController) {
+    return $getAccountController()->changePassword($req);
+}, [], 'account.post_password');
+
+$router->post('/api/v1/account/password', function (Request $req) use ($getAccountController) {
+    return $getAccountController()->changePassword($req);
+}, [], 'account.api_password');
+
+$router->get('/api/v1/account', function (Request $req) use ($getAccountController) {
+    return $getAccountController()->show($req);
+}, [], 'account.api_get');
 
 // ── Admin Area & IAM Management Console ──────────────────────────────────────
 $router->get('/admin', function (Request $req) use ($getAdminController) {

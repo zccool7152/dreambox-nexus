@@ -75,33 +75,54 @@
         }
 
         .qr-card {
-            background: #090e17;
-            border: 1px solid rgba(0, 242, 254, 0.25);
-            border-radius: 12px;
-            padding: 1.2rem;
+            background: #ffffff;
+            border: 1px solid #cbd5e1;
+            border-radius: 16px;
+            padding: 1.5rem;
             display: inline-flex;
             flex-direction: column;
             align-items: center;
-            margin-bottom: 1.2rem;
-            box-shadow: 0 0 20px rgba(0, 242, 254, 0.08);
+            margin-bottom: 1.4rem;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
         }
 
         .qr-card svg {
             display: block;
             margin: 0 auto;
-            border-radius: 6px;
+            border-radius: 4px;
         }
 
         .secret-box {
-            margin-top: 0.8rem;
+            margin-top: 1rem;
             font-size: 0.8rem;
-            background: rgba(0, 0, 0, 0.4);
-            padding: 0.4rem 0.8rem;
-            border-radius: 6px;
-            border: 1px dashed rgba(0, 242, 254, 0.3);
-            letter-spacing: 0.12em;
-            color: var(--neon-cyan);
+            font-weight: 600;
+            background: #f1f5f9;
+            color: #0f172a;
+            padding: 0.5rem 0.9rem;
+            border-radius: 8px;
+            border: 1px solid #cbd5e1;
+            letter-spacing: 0.15em;
             word-break: break-all;
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            max-width: 100%;
+        }
+
+        .btn-copy-secret {
+            background: #0284c7;
+            color: #ffffff;
+            border: none;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 0.72rem;
+            font-family: var(--font-mono);
+            cursor: pointer;
+            transition: background 0.15s ease;
+        }
+
+        .btn-copy-secret:hover {
+            background: #0369a1;
         }
 
         .instructions {
@@ -243,7 +264,8 @@
         <div class="qr-card">
             <?= $qrSvg ?>
             <div class="secret-box" title="Manual Entry Key">
-                KEY: <?= htmlspecialchars($secret) ?>
+                <span>KEY: <strong id="rawSecret"><?= htmlspecialchars(chunk_split($secret, 4, ' ')) ?></strong></span>
+                <button type="button" id="btnCopyKey" class="btn-copy-secret" data-secret="<?= htmlspecialchars($secret) ?>">Copy</button>
             </div>
         </div>
 
@@ -283,6 +305,20 @@
         const recoveryGrid = document.getElementById('recoveryGrid');
         const btnProceedAdmin = document.getElementById('btnProceedAdmin');
         let redirectTarget = '<?= $appBase ?>/admin/';
+
+        const btnCopyKey = document.getElementById('btnCopyKey');
+        if (btnCopyKey) {
+            btnCopyKey.addEventListener('click', () => {
+                const secret = btnCopyKey.getAttribute('data-secret');
+                navigator.clipboard.writeText(secret).then(() => {
+                    const original = btnCopyKey.textContent;
+                    btnCopyKey.textContent = 'Copied!';
+                    setTimeout(() => { btnCopyKey.textContent = original; }, 2000);
+                }).catch(() => {
+                    prompt('Copy secret key:', secret);
+                });
+            });
+        }
 
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
