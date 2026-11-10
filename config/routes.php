@@ -353,9 +353,20 @@ $router->post('/api/v1/gdpr/erase', function (Request $req) use ($app) {
 }, [], 'gdpr.erase');
 
 // ── Public Gateway ────────────────────────────────────────────────────────────
-$router->get('/', function (Request $req) use ($app) {
+$router->get('/', function (Request $req) use ($app): Response {
+    /** @var Database $db */
+    $db = $app->getContainer()->make(Database::class);
+    $session = new \Nexus\Security\Session($db);
+    $hasher = new \Nexus\Crypto\Hasher();
+    $auth = new \Nexus\Auth\Auth($session, $hasher, $db);
+    $user = $auth->user($req);
+
     $view = new View($app->getBasePath() . '/resources/views');
-    $html = $view->render('welcome');
+    $html = $view->render('welcome', [
+        'user' => $user,
+        'currentUser' => $user,
+        'appBase' => Request::getAppBase(),
+    ]);
     return Response::html($html);
 }, [], 'home');
 

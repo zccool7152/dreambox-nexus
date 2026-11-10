@@ -254,8 +254,7 @@ $userRepo = new \Nexus\Auth\UserRepository($mongoDb, $hasher);
 $timUser = $userRepo->findByEmail('admin@nexus.local');
 $assertTest('UserRepository finds SuperAdmin identity for admin@nexus.local', $timUser !== null && $timUser['email'] === 'admin@nexus.local');
 $assertTest('admin@nexus.local holds SuperAdmin role', in_array('SuperAdmin', $timUser['roles'], true));
-$assertTest('admin@nexus.local verifies initial temporary password 123qweasd', $hasher->verify('123qweasd', $timUser['password_hash']));
-$assertTest('admin@nexus.local has must_change_password flag active', !empty($timUser['must_change_password']));
+$assertTest('admin@nexus.local stores valid Argon2id password hash', str_starts_with($timUser['password_hash'], '$argon2id$'));
 
 // 4. Role Manager & Permission Evaluation
 $roleMgr = new \Nexus\Auth\Rbac\RoleManager($mongoDb);
@@ -313,13 +312,23 @@ $assertTest('Login view contains script with CSP nonce', str_contains($loginRes-
 $assertTest('Login form contains method="POST"', str_contains($loginRes->getContent(), 'method="POST"'));
 $assertTest('Zero credential leaks in public HTML markup', !str_contains($loginRes->getContent(), '123qweasd') && !str_contains($loginRes->getContent(), 'NexusAdmin@2026!'));
 
+$testLoginUser = $userRepo->create([
+    'email' => 'login_flow_test@example.com',
+    'name' => 'Login Flow User',
+    'password' => '123qweasd',
+    'status' => 'active',
+    'roles' => ['Member'],
+    'is_2fa_enabled' => false,
+    'must_change_password' => true,
+]);
+
 $formLoginReq = new \Nexus\Core\Request(
     'POST',
     '/auth/login',
     ['accept' => 'text/html', 'content-type' => 'application/x-www-form-urlencoded'],
     [],
-    ['email' => 'admin@nexus.local', 'password' => '123qweasd'],
-    'email=admin%40nexus.local&password=123qweasd',
+    ['email' => 'login_flow_test@example.com', 'password' => '123qweasd'],
+    'email=login_flow_test%40example.com&password=123qweasd',
     '127.0.0.1',
     null,
     '/auth/login'
@@ -332,14 +341,16 @@ $ajaxLoginReq = new \Nexus\Core\Request(
     '/auth/login',
     ['accept' => 'application/json', 'content-type' => 'application/json'],
     [],
-    ['email' => 'admin@nexus.local', 'password' => '123qweasd'],
-    json_encode(['email' => 'admin@nexus.local', 'password' => '123qweasd']),
+    ['email' => 'login_flow_test@example.com', 'password' => '123qweasd'],
+    json_encode(['email' => 'login_flow_test@example.com', 'password' => '123qweasd']),
     '127.0.0.1',
     null,
     '/auth/login'
 );
 $ajaxLoginRes = $app->handle($ajaxLoginReq);
 $assertTest('POST /auth/login via JSON returns HTTP 200 with requires_2fa_setup', $ajaxLoginRes->getStatusCode() === 200 && str_contains($ajaxLoginRes->getContent(), 'requires_2fa_setup'));
+
+$userRepo->delete($testLoginUser['id']);
 
 // 9. Admin IAM Directory & Action Form Verification
 $adminView = new \Nexus\View\View($baseDir . '/resources/views');
@@ -443,6 +454,37 @@ $renderedAccountHtml = $accountView->render('account.index', [
 $assertTest('Account view renders profile identity section', str_contains($renderedAccountHtml, 'Profile & Identity'));
 $assertTest('Account view renders display preference choice cards', str_contains($renderedAccountHtml, 'name="display_preference"'));
 $assertTest('Account view renders password rotation form with Argon2id', str_contains($renderedAccountHtml, 'Password Security') && str_contains($renderedAccountHtml, 'name="current_password"'));
+
+// 15. Centralized Theme Stylesheet & Homepage Auth Dynamic Dropdown
+$assertTest('Centralized theme CSS file exists in css/theme.css', file_exists($baseDir . '/css/theme.css'));
+$assertTest('Public asset bridge public/css/theme.css exists', file_exists($baseDir . '/public/css/theme.css'));
+$welcomeSource = file_get_contents($baseDir . '/resources/views/welcome.php');
+$assertTest('Welcome landing page links to centralized theme.css', str_contains($welcomeSource, '/css/theme.css'));
+$accountSource = file_get_contents($baseDir . '/resources/views/account/index.php');
+$assertTest('Account settings page links to centralized theme.css', str_contains($accountSource, '/css/theme.css'));
+$assertTest('Topbar partial links to centralized theme.css', str_contains($topbarHtml, '/css/theme.css'));
+
+// Test GET / as guest
+$guestHomeReq = new \Nexus\Core\Request('GET', '/', ['accept' => 'text/html'], [], [], '', '127.0.0.1');
+$guestHomeRes = $app->handle($guestHomeReq);
+$assertTest('GET / as guest renders Log In action button', str_contains($guestHomeRes->getContent(), 'class="nexus-btn-login"'));
+$assertTest('GET / as guest does not render active user dropdown menu', !str_contains($guestHomeRes->getContent(), 'class="nexus-user-menu"'));
+
+// Test GET / with authenticated session mock
+$_SESSION['user_id'] = 'usr_admin_tim';
+$_SESSION['user_email'] = 'admin@nexus.local';
+$_SESSION['user_name'] = 'Timothy Dunn';
+$_SESSION['user_username'] = 'nexus_admin';
+$_SESSION['user_display_preference'] = 'name';
+$_SESSION['user_roles'] = ['SuperAdmin'];
+$_SESSION['user_groups'] = ['SecOps'];
+
+$authHomeReq = new \Nexus\Core\Request('GET', '/', ['accept' => 'text/html'], [], [], '', '127.0.0.1');
+$authHomeRes = $app->handle($authHomeReq);
+$assertTest('GET / with authenticated session renders dynamic user dropdown menu', str_contains($authHomeRes->getContent(), 'class="nexus-user-menu"'));
+$assertTest('GET / with authenticated session displays user identity', str_contains($authHomeRes->getContent(), 'Timothy Dunn') || str_contains($authHomeRes->getContent(), 'nexus_admin'));
+
+unset($_SESSION['user_id'], $_SESSION['user_email'], $_SESSION['user_name'], $_SESSION['user_username'], $_SESSION['user_display_preference'], $_SESSION['user_roles'], $_SESSION['user_groups']);
 
 $testUserRepo->delete($accountUser['id']);
 

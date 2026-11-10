@@ -5,19 +5,31 @@ declare(strict_types=1);
  * Dreambox Nexus: Universal Light-Theme Navigation Top Bar & Dynamic User Dropdown
  */
 
-if (session_status() !== PHP_SESSION_ACTIVE && isset($_COOKIE['nexus_session'])) {
-    @session_start();
+$user = $user ?? $currentUser ?? null;
+if ($user !== null && is_array($user)) {
+    $isLoggedIn = !empty($user['id']);
+    $userEmail = (string)($user['email'] ?? '');
+    $userName = (string)($user['name'] ?? 'User');
+    $userUsername = (string)($user['username'] ?? '');
+    $userDisplayPref = (string)($user['display_preference'] ?? 'name');
+    $userRoles = (array)($user['roles'] ?? ['Member']);
+    $userGroups = (array)($user['groups'] ?? []);
+    $userAvatar = (string)($user['avatar_url'] ?? '');
+} else {
+    if (session_status() !== PHP_SESSION_ACTIVE && isset($_COOKIE['nexus_session'])) {
+        @session_start();
+    }
+    $isLoggedIn = !empty($_SESSION['user_id']);
+    $userEmail = (string)($_SESSION['user_email'] ?? '');
+    $userName = (string)($_SESSION['user_name'] ?? 'User');
+    $userUsername = (string)($_SESSION['user_username'] ?? '');
+    $userDisplayPref = (string)($_SESSION['user_display_preference'] ?? 'name');
+    $userRoles = (array)($_SESSION['user_roles'] ?? ['Member']);
+    $userGroups = (array)($_SESSION['user_groups'] ?? []);
+    $userAvatar = (string)($_SESSION['user_avatar'] ?? '');
 }
 
 $appBase = $appBase ?? \Nexus\Core\Request::getAppBase();
-$isLoggedIn = !empty($_SESSION['user_id']);
-$userEmail = $_SESSION['user_email'] ?? '';
-$userName = $_SESSION['user_name'] ?? 'User';
-$userUsername = $_SESSION['user_username'] ?? '';
-$userDisplayPref = $_SESSION['user_display_preference'] ?? 'name';
-$userRoles = (array)($_SESSION['user_roles'] ?? ['Member']);
-$userGroups = (array)($_SESSION['user_groups'] ?? []);
-$userAvatar = $_SESSION['user_avatar'] ?? '';
 
 // Determine display name based on user's preference ("let the user decide")
 $primaryDisplay = ($userDisplayPref === 'username' && $userUsername !== '') ? $userUsername : $userName;
@@ -44,298 +56,7 @@ $isSecOps = $isSuperAdmin || in_array('SecurityOfficer', $userRoles, true) || in
 $isDeveloper = $isSuperAdmin || in_array('Developer', $userRoles, true) || in_array('Engineering', $userGroups, true);
 ?>
 
-<style>
-/* ── Universal Top Bar Design System (Smooth Light Aesthetics) ── */
-.nexus-topbar {
-    position: sticky;
-    top: 0;
-    z-index: 999;
-    background: rgba(255, 255, 255, 0.92);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border-bottom: 1px solid #e2e8f0;
-    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04), 0 1px 2px -1px rgba(0, 0, 0, 0.02);
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    color: #0f172a;
-    transition: all 0.2s ease;
-}
-
-.nexus-topbar-inner {
-    max-width: 1400px;
-    margin: 0 auto;
-    padding: 0.75rem 1.5rem;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 1.5rem;
-}
-
-/* Left Brand & Logo */
-.nexus-brand {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    text-decoration: none;
-    color: #0f172a;
-}
-
-.nexus-logo-icon {
-    width: 36px;
-    height: 36px;
-    border-radius: 10px;
-    background: linear-gradient(135deg, #0284c7 0%, #2563eb 50%, #4f46e5 100%);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #ffffff;
-    box-shadow: 0 4px 10px rgba(37, 99, 235, 0.25);
-    flex-shrink: 0;
-}
-
-.nexus-brand-text {
-    display: flex;
-    flex-direction: column;
-}
-
-.nexus-brand-title {
-    font-size: 1.15rem;
-    font-weight: 800;
-    letter-spacing: -0.02em;
-    color: #0f172a;
-    line-height: 1.2;
-}
-
-.nexus-brand-badge {
-    font-size: 0.68rem;
-    font-weight: 600;
-    color: #0284c7;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-}
-
-/* Right Side Controls */
-.nexus-topbar-right {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-}
-
-/* Logged Out State: Login Button */
-.nexus-btn-login {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    background: #0284c7;
-    color: #ffffff !0important;
-    text-decoration: none !important;
-    font-size: 0.875rem;
-    font-weight: 600;
-    padding: 0.5rem 1.25rem;
-    border-radius: 9999px;
-    box-shadow: 0 2px 8px rgba(2, 132, 199, 0.25);
-    transition: all 0.2s ease;
-    border: none;
-}
-
-.nexus-btn-login:hover {
-    background: #0369a1;
-    box-shadow: 0 4px 12px rgba(2, 132, 199, 0.35);
-    transform: translateY(-1px);
-}
-
-/* Logged In State: User Menu Dropdown Container */
-.nexus-user-menu {
-    position: relative;
-}
-
-.nexus-user-trigger {
-    display: flex;
-    align-items: center;
-    gap: 0.65rem;
-    background: #ffffff;
-    border: 1px solid #e2e8f0;
-    padding: 0.35rem 0.85rem 0.35rem 0.45rem;
-    border-radius: 9999px;
-    cursor: pointer;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-    transition: all 0.2s ease;
-    user-select: none;
-}
-
-.nexus-user-trigger:hover,
-.nexus-user-trigger.active {
-    background: #f8fafc;
-    border-color: #cbd5e1;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
-}
-
-.nexus-avatar {
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, #0284c7, #3b82f6);
-    color: #ffffff;
-    font-weight: 700;
-    font-size: 0.8rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    border: 2px solid #ffffff;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-}
-
-.nexus-trigger-info {
-    display: flex;
-    flex-direction: column;
-    text-align: left;
-}
-
-.nexus-trigger-name {
-    font-size: 0.825rem;
-    font-weight: 700;
-    color: #0f172a;
-    line-height: 1.1;
-    max-width: 140px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.nexus-trigger-chevron {
-    color: #94a3b8;
-    transition: transform 0.2s ease;
-}
-
-.nexus-user-trigger.active .nexus-trigger-chevron {
-    transform: rotate(180deg);
-}
-
-/* Dropdown Card */
-.nexus-dropdown {
-    display: none;
-    position: absolute;
-    right: 0;
-    top: calc(100% + 8px);
-    width: 300px;
-    background: #ffffff;
-    border: 1px solid #e2e8f0;
-    border-radius: 16px;
-    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.04);
-    padding: 0.5rem;
-    z-index: 1000;
-    animation: nexusFadeIn 0.15s ease-out;
-}
-
-.nexus-dropdown.show {
-    display: block;
-}
-
-@keyframes nexusFadeIn {
-    from { opacity: 0; transform: translateY(-6px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
-/* Dropdown Header */
-.nexus-dropdown-header {
-    padding: 0.75rem 0.85rem;
-    background: #f8fafc;
-    border-radius: 12px;
-    margin-bottom: 0.4rem;
-}
-
-.nexus-dropdown-title {
-    font-size: 0.95rem;
-    font-weight: 800;
-    color: #0f172a;
-    line-height: 1.2;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-}
-
-.nexus-dropdown-sub {
-    font-size: 0.72rem;
-    font-weight: 600;
-    color: #64748b;
-    margin-top: 3px;
-    line-height: 1.3;
-}
-
-.nexus-role-pill {
-    display: inline-block;
-    background: #e0f2fe;
-    color: #0369a1;
-    font-size: 0.65rem;
-    font-weight: 700;
-    padding: 2px 6px;
-    border-radius: 4px;
-    letter-spacing: 0.03em;
-}
-
-/* Menu Sections */
-.nexus-dropdown-section {
-    padding: 0.35rem 0;
-}
-
-.nexus-section-label {
-    font-size: 0.65rem;
-    font-weight: 700;
-    color: #94a3b8;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    padding: 0.35rem 0.85rem 0.2rem;
-}
-
-.nexus-menu-item {
-    display: flex;
-    align-items: center;
-    gap: 0.65rem;
-    padding: 0.5rem 0.85rem;
-    border-radius: 8px;
-    color: #334155;
-    text-decoration: none !important;
-    font-size: 0.825rem;
-    font-weight: 500;
-    transition: all 0.15s ease;
-}
-
-.nexus-menu-item:hover {
-    background: #f1f5f9;
-    color: #0284c7;
-}
-
-.nexus-menu-icon {
-    width: 16px;
-    height: 16px;
-    color: #64748b;
-    flex-shrink: 0;
-}
-
-.nexus-menu-item:hover .nexus-menu-icon {
-    color: #0284c7;
-}
-
-.nexus-divider {
-    height: 1px;
-    background: #f1f5f9;
-    margin: 0.35rem 0;
-}
-
-/* Logout Button */
-.nexus-menu-logout {
-    color: #e11d48 !important;
-}
-
-.nexus-menu-logout:hover {
-    background: #ffe4e6 !important;
-    color: #be123c !important;
-}
-
-.nexus-menu-logout:hover .nexus-menu-icon {
-    color: #be123c !important;
-}
-</style>
+<link rel="stylesheet" href="<?= htmlspecialchars($appBase) ?>/css/theme.css">
 
 <header class="nexus-topbar">
     <div class="nexus-topbar-inner">
@@ -509,3 +230,4 @@ $isDeveloper = $isSuperAdmin || in_array('Developer', $userRoles, true) || in_ar
     });
 })();
 </script>
+

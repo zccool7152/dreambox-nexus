@@ -255,3 +255,4 @@ class AccountController
         return Response::redirect(Request::getAppBase() . '/account/');
     }
 }
+
