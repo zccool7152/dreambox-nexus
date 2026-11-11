@@ -441,11 +441,19 @@ class AuthController
 
     public function handleOAuthCallback(Request $request, string $provider): Response
     {
+        $error = $request->getString('error', '');
+        if ($error !== '') {
+            $errorDesc = $request->getString('error_description', $error);
+            $this->session->flash('auth_error', 'OAuth authorization was cancelled or declined: ' . $errorDesc);
+            return Response::redirect(Request::getAppBase() . '/auth/login/');
+        }
+
         $code = $request->getString('code', '');
         $state = $request->getString('state', '');
 
         if (!$this->oauth->validateState($state)) {
-            $this->session->flash('auth_error', 'Invalid OAuth state parameter (CSRF detected).');
+            error_log("[OAuth Debug] State mismatch on {$provider} callback. Inbound state: '{$state}', Session state: '" . ($this->session->get('oauth_state') ?? 'NULL') . "'");
+            $this->session->flash('auth_error', 'Invalid OAuth state parameter (CSRF detected). Please try again.');
             return Response::redirect(Request::getAppBase() . '/auth/login/');
         }
 

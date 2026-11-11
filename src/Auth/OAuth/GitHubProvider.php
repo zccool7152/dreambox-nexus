@@ -74,7 +74,9 @@ class GitHubProvider implements OAuthProviderInterface
         );
 
         if ($tokenRes['status'] !== 200) {
-            throw new RuntimeException("GitHub OAuth token exchange failed with status {$tokenRes['status']}.");
+            $errBody = json_decode($tokenRes['body'], true);
+            $errDesc = $errBody['error_description'] ?? $errBody['error'] ?? $tokenRes['body'];
+            throw new RuntimeException("GitHub OAuth token exchange failed with status {$tokenRes['status']}: {$errDesc}");
         }
 
         $tokenData = json_decode($tokenRes['body'], true);

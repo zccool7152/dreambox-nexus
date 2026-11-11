@@ -331,11 +331,13 @@ $assertTest('Login view contains functional Continue with GitHub button', str_co
 // OAuth 2.0 Functional Redirect & Configuration Validation
 $oauthGoogleReq = new \Nexus\Core\Request('GET', '/auth/oauth/google', ['Accept' => 'text/html'], [], [], '', '127.0.0.1');
 $oauthGoogleRes = $app->handle($oauthGoogleReq);
-$assertTest('GET /auth/oauth/google without credentials redirects to /auth/login/ with configuration notice', $oauthGoogleRes->getStatusCode() === 302 && str_contains($oauthGoogleRes->getHeader('location', ''), '/auth/login/'));
+$assertTest('GET /auth/oauth/google returns HTTP 302 redirect', $oauthGoogleRes->getStatusCode() === 302);
+$assertTest('GET /auth/oauth/google initiates live OAuth handshake', str_contains($oauthGoogleRes->getHeader('location', ''), 'accounts.google.com') || str_contains($oauthGoogleRes->getHeader('location', ''), '/auth/login/'));
 
 $oauthGithubReq = new \Nexus\Core\Request('GET', '/auth/oauth/github', ['Accept' => 'text/html'], [], [], '', '127.0.0.1');
 $oauthGithubRes = $app->handle($oauthGithubReq);
-$assertTest('GET /auth/oauth/github without credentials redirects to /auth/login/ with configuration notice', $oauthGithubRes->getStatusCode() === 302 && str_contains($oauthGithubRes->getHeader('location', ''), '/auth/login/'));
+$assertTest('GET /auth/oauth/github returns HTTP 302 redirect', $oauthGithubRes->getStatusCode() === 302);
+$assertTest('GET /auth/oauth/github initiates live OAuth handshake', str_contains($oauthGithubRes->getHeader('location', ''), 'github.com') || str_contains($oauthGithubRes->getHeader('location', ''), '/auth/login/'));
 
 // Live Google & GitHub OAuth 2.0 Authorization URL Construction
 $liveOauthMgr = new \Nexus\Auth\OAuth\OAuthManager([

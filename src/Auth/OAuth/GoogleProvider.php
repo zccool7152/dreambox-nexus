@@ -74,7 +74,9 @@ class GoogleProvider implements OAuthProviderInterface
         );
 
         if ($tokenRes['status'] !== 200) {
-            throw new RuntimeException("Google OAuth token exchange failed with status {$tokenRes['status']}.");
+            $errBody = json_decode($tokenRes['body'], true);
+            $errDesc = $errBody['error_description'] ?? $errBody['error'] ?? $tokenRes['body'];
+            throw new RuntimeException("Google OAuth token exchange failed with status {$tokenRes['status']}: {$errDesc}");
         }
 
         $tokenData = json_decode($tokenRes['body'], true);

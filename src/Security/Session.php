@@ -52,13 +52,14 @@ class Session implements SessionHandlerInterface
             @ini_set('session.use_strict_mode', '1');
             @ini_set('session.use_only_cookies', '1');
 
+            $sameSite = (string)\Nexus\Core\Env::get('SESSION_SAME_SITE', 'Lax');
             @session_set_cookie_params([
                 'lifetime' => 0, // Session cookie (dies on browser close)
                 'path' => '/',
                 'domain' => '',
                 'secure' => $this->secureCookie,
                 'httponly' => true,
-                'samesite' => 'Strict',
+                'samesite' => $sameSite,
             ]);
 
             @session_name('nexus_session');
