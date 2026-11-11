@@ -62,6 +62,13 @@ $isDeveloper = $isSuperAdmin || in_array('Developer', $userRoles, true) || in_ar
 <link rel="apple-touch-icon" sizes="180x180" href="<?= htmlspecialchars($appBase) ?>/logos/apple-touch-icon.png">
 <link rel="manifest" href="<?= htmlspecialchars($appBase) ?>/logos/site.webmanifest">
 <link rel="stylesheet" href="<?= htmlspecialchars($appBase) ?>/css/theme.css">
+<script nonce="<?= $nonce ?? '' ?>">
+(function(){
+    var t;
+    try { t = localStorage.getItem('nx-th'); } catch(e){}
+    document.documentElement.dataset.theme = t || 'dark';
+})();
+</script>
 
 <header class="nexus-topbar">
     <div class="nexus-topbar-inner">
@@ -78,6 +85,8 @@ $isDeveloper = $isSuperAdmin || in_array('Developer', $userRoles, true) || in_ar
 
         <!-- Right Side: Login or User Dropdown -->
         <div class="nexus-topbar-right">
+            <!-- Theme Switcher Toggle Button -->
+            <button type="button" class="icon" id="themeToggle" aria-label="Toggle Theme" title="Toggle Light/Dark Theme">◐</button>
             <?php if (!$isLoggedIn): ?>
                 <!-- When Logged Out: Login Action -->
                 <a href="<?= $appBase ?>/auth/login/" class="nexus-btn-login">
@@ -250,6 +259,21 @@ $isDeveloper = $isSuperAdmin || in_array('Developer', $userRoles, true) || in_ar
             closeDropdown();
         }
     });
+})();
+
+// Global Theme Toggle Functionality
+(function() {
+    var themeBtn = document.getElementById('themeToggle');
+    if (themeBtn) {
+        themeBtn.addEventListener('click', function() {
+            var curr = document.documentElement.dataset.theme;
+            var next = curr === 'light' ? 'dark' : 'light';
+            document.documentElement.dataset.theme = next;
+            try {
+                localStorage.setItem('nx-th', next);
+            } catch (err) {}
+        });
+    }
 })();
 </script>
 

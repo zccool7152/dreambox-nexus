@@ -36,7 +36,7 @@ $router->get('/compliance', function (Request $req) use ($app) {
     return $controller->index($req);
 }, [], 'compliance.index');
 
-$router->get('/docs/openapi.yaml', function (Request $req) use ($app) {
+$docsHandler = function (Request $req) use ($app) {
     $file = $app->getBasePath() . '/docs/openapi.yaml';
     if (!file_exists($file)) {
         return Response::error('OpenAPI specification not found.', [], 404, [], $req->getTraceId());
@@ -47,7 +47,7 @@ $router->get('/docs/openapi.yaml', function (Request $req) use ($app) {
     $format = $req->getString('format');
     $wantsYaml = str_contains($accept, 'text/yaml') || str_contains($accept, 'application/x-yaml') || $format === 'yaml';
 
-    if (!$wantsYaml && str_contains($accept, 'text/html')) {
+    if (!$wantsYaml && (str_contains($accept, 'text/html') || $req->getPath() === '/docs' || empty($accept))) {
         /** @var Database $db */
         $db = $app->getContainer()->make(Database::class);
         $session = new \Nexus\Security\Session($db);
@@ -70,7 +70,10 @@ $router->get('/docs/openapi.yaml', function (Request $req) use ($app) {
         'Content-Type' => 'text/yaml; charset=utf-8',
         'Access-Control-Allow-Origin' => '*',
     ]);
-}, [], 'docs.openapi');
+};
+
+$router->get('/docs', $docsHandler, [], 'docs.index');
+$router->get('/docs/openapi.yaml', $docsHandler, [], 'docs.openapi');
 
 // ── Security & CSRF ──────────────────────────────────────────────────────────
 $router->get('/api/v1/security/csrf-token', function (Request $req) use ($app) {

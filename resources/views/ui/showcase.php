@@ -22,7 +22,7 @@ $traceId = $traceId ?? '';
     <link rel="manifest" href="<?= htmlspecialchars($appBase) ?>/logos/site.webmanifest">
     <link rel="stylesheet" href="<?= htmlspecialchars($appBase) ?>/css/theme.css">
 </head>
-<body class="bg-light">
+<body>
 
     <!-- Universal Top Navigation Bar -->
     <?php include dirname(__DIR__) . '/partials/topbar.php'; ?>

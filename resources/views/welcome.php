@@ -102,7 +102,7 @@ $user = $user ?? $currentUser ?? null;
     </main>
 
     <footer>
-        Dreambox Nexus Core v0.1 Alpha • Zero-Guessing Security Invariant • Built for Extreme Reliability
+        Dreambox Nexus Core v0.1 Alpha • Security First Framework • No External Dependencies
     </footer>
 </body>
 </html>
