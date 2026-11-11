@@ -93,8 +93,7 @@ class HttpClient
         $error = curl_error($ch);
         $errno = curl_errno($ch);
         $statusCode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
-
-        curl_close($ch);
+        unset($ch);
 
         if ($errno !== 0) {
             throw new RuntimeException("HTTP request failed: [{$errno}] {$error}");

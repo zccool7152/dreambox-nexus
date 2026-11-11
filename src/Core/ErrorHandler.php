@@ -35,6 +35,14 @@ class ErrorHandler
             return false;
         }
 
+        // Handle deprecation notices gracefully without halting execution
+        if ($level === E_DEPRECATED || $level === E_USER_DEPRECATED) {
+            if (self::$logger !== null) {
+                self::$logger->warning("Deprecated: {$message}", ['file' => $file, 'line' => $line]);
+            }
+            return true;
+        }
+
         throw new ErrorException($message, 0, $level, $file, $line);
     }
 
