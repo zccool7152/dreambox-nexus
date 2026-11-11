@@ -472,7 +472,7 @@ foreach ($rdi as $file) {
         $allViewFiles[] = $file->getPathname();
     }
 }
-$assertTest('Total view templates discovered equals 14', count($allViewFiles) === 14);
+$assertTest('Total view templates discovered equals 15', count($allViewFiles) === 15);
 
 $viewsMissingTheme = [];
 $viewsMissingTopbar = [];
@@ -489,9 +489,26 @@ foreach ($allViewFiles as $vPath) {
         $viewsWithInlineStyle[] = basename($vPath);
     }
 }
-$assertTest('All 14 view templates link to centralized theme.css', empty($viewsMissingTheme));
-$assertTest('All 14 view templates embed universal topbar.php', empty($viewsMissingTopbar));
+$assertTest('All 15 view templates link to centralized theme.css', empty($viewsMissingTheme));
+$assertTest('All 15 view templates embed universal topbar.php', empty($viewsMissingTopbar));
 $assertTest('Zero view templates contain legacy inline <style> tags', empty($viewsWithInlineStyle));
+
+// Nexus UI Component Framework & Kitchen Sink Suite
+$assertTest('Physical bridge /ui/index.php exists', file_exists($baseDir . '/ui/index.php'));
+$assertTest('Public bridge /public/ui/index.php exists', file_exists($baseDir . '/public/ui/index.php'));
+$openApiContent = file_get_contents($baseDir . '/docs/openapi.yaml');
+$assertTest('OpenAPI specification documents /ui endpoint', str_contains($openApiContent, '/ui:'));
+
+$uiReq = new \Nexus\Core\Request('GET', '/ui', ['accept' => 'text/html'], [], [], '', '127.0.0.1');
+$uiRes = $app->handle($uiReq);
+$assertTest('GET /ui returns HTTP 200', $uiRes->getStatusCode() === 200);
+$assertTest('GET /ui renders Nexus UI Framework showcase content', str_contains($uiRes->getContent(), 'Nexus UI Framework') && str_contains($uiRes->getContent(), '12-Column Responsive Grid'));
+$assertTest('GET /ui renders interactive modal component markup', str_contains($uiRes->getContent(), 'id="demoModal"'));
+$assertTest('GET /ui renders interactive offcanvas drawer markup', str_contains($uiRes->getContent(), 'id="demoDrawer"'));
+
+$frameworkReq = new \Nexus\Core\Request('GET', '/framework', [], [], [], '', '127.0.0.1');
+$frameworkRes = $app->handle($frameworkReq);
+$assertTest('GET /framework redirects to /ui/', $frameworkRes->getStatusCode() === 302 && str_contains($frameworkRes->getHeader('location', ''), '/ui/'));
 
 // Test GET / as guest
 $guestHomeReq = new \Nexus\Core\Request('GET', '/', ['accept' => 'text/html'], [], [], '', '127.0.0.1');

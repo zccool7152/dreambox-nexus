@@ -75,6 +75,19 @@ components:
           example: The requested resource could not be processed.
 
 paths:
+  /ui:
+    get:
+      summary: Nexus UI Component Framework & Interactive Showcase
+      description: Returns the Bootstrap-grade, zero-dependency kitchen sink component library, design system documentation, and live interactive UI playground.
+      responses:
+        '200':
+          description: Interactive UI component library and framework documentation.
+          content:
+            text/html:
+              schema:
+                type: string
+                description: Complete Bootstrap-style interactive component showcase and code reference.
+
   /compliance:
     get:
       summary: Compliance Matrix & Regulatory Verification

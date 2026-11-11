@@ -362,6 +362,29 @@ $router->post('/api/v1/gdpr/erase', function (Request $req) use ($app) {
     return Response::json(['erased' => true], 'Right to be forgotten completed (data shredded).', 200, [], $req->getTraceId());
 }, [], 'gdpr.erase');
 
+// ── Nexus UI Component Framework & Interactive Showcase ──────────────────────
+$router->get('/ui', function (Request $req) use ($app): Response {
+    /** @var Database $db */
+    $db = $app->getContainer()->make(Database::class);
+    $session = new \Nexus\Security\Session($db);
+    $hasher = new \Nexus\Crypto\Hasher();
+    $auth = new \Nexus\Auth\Auth($session, $hasher, $db);
+    $user = $auth->user($req);
+
+    $view = new View($app->getBasePath() . '/resources/views');
+    $html = $view->render('ui.showcase', [
+        'user' => $user,
+        'currentUser' => $user,
+        'appBase' => Request::getAppBase(),
+        'traceId' => $req->getTraceId(),
+    ]);
+    return Response::html($html);
+}, [], 'ui.showcase');
+
+$router->get('/framework', function (Request $req) use ($app): Response {
+    return Response::redirect(Request::getAppBase() . '/ui/');
+}, [], 'framework.redirect');
+
 // ── Public Gateway ────────────────────────────────────────────────────────────
 $router->get('/', function (Request $req) use ($app): Response {
     /** @var Database $db */
