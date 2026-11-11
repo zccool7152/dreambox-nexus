@@ -236,6 +236,40 @@ if ($mongoAlive) {
     $assertTest('MongoDB localhost connection authenticates and pings alive', $mongoAlive);
 }
 
+// NoSQL Input Sanitization & Operator Whitelisting
+$cleanFilter = \Nexus\Database\Database::sanitizeMongoFilter(['user_id' => 'usr_001', 'attempts' => ['$gte' => 3]]);
+$assertTest('Database::sanitizeMongoFilter allows safe criteria and whitelisted operators', isset($cleanFilter['user_id'], $cleanFilter['attempts']['$gte']));
+
+$rejectedOperator = false;
+try {
+    \Nexus\Database\Database::sanitizeMongoFilter(['user_id' => 'usr_001', '$where' => 'this.secret == "abc"']);
+} catch (\InvalidArgumentException $e) {
+    $rejectedOperator = str_contains($e->getMessage(), 'Disallowed MongoDB operator');
+}
+$assertTest('Database::sanitizeMongoFilter blocks malicious NoSQL operator injection ($where)', $rejectedOperator);
+
+// Audit Log Immutability Enforcements (HIPAA §164.312 & PCI-DSS Req 10.2)
+$updateBlocked = false;
+try {
+    $mongoDb->mongoUpdate('audit_logs', ['id' => 1], ['$set' => ['action' => 'FORGED']]);
+} catch (\RuntimeException $e) {
+    $updateBlocked = str_contains($e->getMessage(), 'strictly append-only');
+}
+$assertTest('Audit log immutability blocks mongoUpdate operations on audit_logs collection', $updateBlocked);
+
+$deleteBlocked = false;
+try {
+    $mongoDb->mongoDelete('audit_logs', ['id' => 1]);
+} catch (\RuntimeException $e) {
+    $deleteBlocked = str_contains($e->getMessage(), 'strictly append-only');
+}
+$assertTest('Audit log immutability blocks mongoDelete operations on audit_logs collection', $deleteBlocked);
+
+// Database Driver Alignment (.env vs .env.example)
+$envExampleContent = (string)file_get_contents($baseDir . '/.env.example');
+$assertTest('.env.example template specifies DB_CONNECTION=mongodb', str_contains($envExampleContent, 'DB_CONNECTION=mongodb'));
+$assertTest('.env.example contains MONGO_HOST and MONGO_DATABASE parameters', str_contains($envExampleContent, 'MONGO_HOST=') && str_contains($envExampleContent, 'MONGO_DATABASE='));
+
 // ── Test 12: Regulatory Compliance Matrix Subsystem ─────────────────────────
 echo "\n\033[1;37m[12] Regulatory Compliance Matrix Subsystem\033[0m\n";
 $compVerifier = new \Nexus\Compliance\ComplianceVerifier($mongoDb, $baseDir . '/storage');
@@ -315,6 +349,32 @@ $oauthState = $oauthMgr->generateState();
 $assertTest('OAuthManager generates high-entropy CSRF state token', strlen($oauthState) === 32);
 $assertTest('OAuthManager validates correct CSRF state', $oauthMgr->validateState($oauthState));
 $assertTest('OAuthManager invalidates state after first use (replay defense)', !$oauthMgr->validateState($oauthState));
+
+// Dynamic OAuth Redirect URI Resolution
+$authConfig = require $baseDir . '/config/auth.php';
+$googleRedirect = $authConfig['oauth']['google']['redirect_uri'] ?? '';
+$githubRedirect = $authConfig['oauth']['github']['redirect_uri'] ?? '';
+$assertTest('config/auth.php dynamically resolves Google OAuth redirect URI', str_contains($googleRedirect, '/auth/google/callback/'));
+$assertTest('config/auth.php dynamically resolves GitHub OAuth redirect URI', str_contains($githubRedirect, '/auth/github/callback/'));
+
+// Transport Security & Session Configuration (HIPAA §164.312)
+$_SERVER['HTTPS'] = 'on';
+$assertTest('Session::isSecureConnection returns true under direct HTTPS', \Nexus\Security\Session::isSecureConnection());
+unset($_SERVER['HTTPS']);
+
+$_SERVER['HTTP_X_FORWARDED_PROTO'] = 'https';
+$assertTest('Session::isSecureConnection returns true under X-Forwarded-Proto https', \Nexus\Security\Session::isSecureConnection());
+unset($_SERVER['HTTP_X_FORWARDED_PROTO']);
+
+$_SERVER['SERVER_PORT'] = 443;
+$assertTest('Session::isSecureConnection returns true under port 443', \Nexus\Security\Session::isSecureConnection());
+unset($_SERVER['SERVER_PORT']);
+
+$plainSession = new \Nexus\Security\Session(null, 15, false);
+$assertTest('Session instance respects explicit secureCookie parameter', !$plainSession->isSecureCookie());
+
+$secureSession = new \Nexus\Security\Session(null, 15, true);
+$assertTest('Session instance enforces secureCookie when true', $secureSession->isSecureCookie());
 
 // 7. Route & View Dispatches
 $loginReq = new \Nexus\Core\Request('GET', '/auth/login', ['Accept' => 'text/html'], [], [], '', '127.0.0.1');

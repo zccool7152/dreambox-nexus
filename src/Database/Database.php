@@ -121,6 +121,15 @@ class Database
      */
     public function query(string $sql, array $params = []): PDOStatement
     {
+        $upper = strtoupper(trim($sql));
+        if (str_contains($upper, 'AUDIT_LOGS')) {
+            $tokens = preg_split('/\s+/', $upper);
+            $action = $tokens[0] ?? '';
+            if (in_array($action, ['UPDATE', 'DELETE', 'DROP', 'TRUNCATE', 'ALTER'], true)) {
+                throw new \RuntimeException("Compliance Violation: Table 'audit_logs' is strictly append-only (PCI-DSS Req 10.2 & HIPAA §164.312 immutable). Modifications and deletions are prohibited.");
+            }
+        }
+
         $stmt = $this->getPdo()->prepare($sql);
         $stmt->execute($params);
         return $stmt;
@@ -356,8 +365,52 @@ class Database
         return (string)$id;
     }
 
+    /**
+     * Sanitize and validate MongoDB query filter criteria.
+     * Prevents NoSQL operator injection and unauthorized selector mutation.
+     */
+    public static function sanitizeMongoFilter(array $filter): array
+    {
+        $sanitized = [];
+        $allowedOperators = ['$gt', '$gte', '$lt', '$lte', '$in', '$nin', '$ne', '$eq', '$exists', '$regex', '$set', '$unset', '$inc', '$sort', '$and', '$or', '$nor'];
+
+        foreach ($filter as $key => $value) {
+            if (is_string($key) && str_starts_with($key, '$')) {
+                if (!in_array($key, $allowedOperators, true)) {
+                    throw new \InvalidArgumentException("Disallowed MongoDB operator: '{$key}'.");
+                }
+            }
+
+            if (is_array($value)) {
+                $sub = [];
+                foreach ($value as $k => $v) {
+                    if (is_string($k) && str_starts_with($k, '$')) {
+                        if (!in_array($k, $allowedOperators, true)) {
+                            throw new \InvalidArgumentException("Disallowed MongoDB operator: '{$k}'.");
+                        }
+                    }
+                    if (is_array($v)) {
+                        $sub[$k] = self::sanitizeMongoFilter($v);
+                    } elseif (is_scalar($v) || $v === null || is_object($v)) {
+                        $sub[$k] = $v;
+                    } else {
+                        throw new \InvalidArgumentException("Invalid criterion type for key '{$key}.{$k}'.");
+                    }
+                }
+                $sanitized[$key] = $sub;
+            } elseif (is_scalar($value) || $value === null || is_object($value)) {
+                $sanitized[$key] = $value;
+            } else {
+                throw new \InvalidArgumentException("Invalid criterion type for key '{$key}'.");
+            }
+        }
+
+        return $sanitized;
+    }
+
     public function mongoFind(string $collection, array $filter = [], array $options = []): array
     {
+        $filter = self::sanitizeMongoFilter($filter);
         $manager = $this->getMongoManager();
         $db = $this->config['database'] ?? 'dreambox_nexus';
         $queryClass = '\\MongoDB\\Driver\\Query';
@@ -372,6 +425,7 @@ class Database
 
     public function mongoCount(string $collection, array $filter = []): int
     {
+        $filter = self::sanitizeMongoFilter($filter);
         $res = $this->mongoCommand(['count' => $collection, 'query' => (object)$filter]);
         return (int)($res[0]->n ?? 0);
     }
@@ -385,6 +439,11 @@ class Database
 
     public function mongoUpdate(string $collection, array $filter, array $newObj, array $updateOptions = []): int
     {
+        if (strtolower(trim($collection)) === 'audit_logs') {
+            throw new \RuntimeException("Compliance Violation: Collection 'audit_logs' is strictly append-only (PCI-DSS & HIPAA immutable). Modifications are prohibited.");
+        }
+        $filter = self::sanitizeMongoFilter($filter);
+        $newObj = self::sanitizeMongoFilter($newObj);
         $manager = $this->getMongoManager();
         $db = $this->config['database'] ?? 'dreambox_nexus';
         $bulkClass = '\\MongoDB\\Driver\\BulkWrite';
@@ -396,6 +455,10 @@ class Database
 
     public function mongoDelete(string $collection, array $filter = []): int
     {
+        if (strtolower(trim($collection)) === 'audit_logs') {
+            throw new \RuntimeException("Compliance Violation: Collection 'audit_logs' is strictly append-only (PCI-DSS & HIPAA immutable). Deletions are prohibited.");
+        }
+        $filter = self::sanitizeMongoFilter($filter);
         $manager = $this->getMongoManager();
         $db = $this->config['database'] ?? 'dreambox_nexus';
         $bulkClass = '\\MongoDB\\Driver\\BulkWrite';

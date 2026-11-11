@@ -19,11 +19,58 @@ class Session implements SessionHandlerInterface
     private int $idleTimeoutSeconds;
     private bool $secureCookie;
 
-    public function __construct(?Database $db = null, int $idleTimeoutMinutes = 15, bool $secureCookie = false)
+    /**
+     * Dynamically evaluate whether the incoming request or deployment is secure.
+     * Enforces secure cookies under TLS/HTTPS, reverse proxy SSL headers, or production mode.
+     */
+    public static function isSecureConnection(): bool
+    {
+        // 1. Explicit environment configuration override
+        $configured = \Nexus\Core\Env::get('SESSION_SECURE_COOKIE');
+        if ($configured !== null && $configured !== '') {
+            $val = filter_var($configured, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+            if ($val === true) {
+                return true;
+            }
+        }
+
+        // 2. Direct HTTPS scheme
+        if (!empty($_SERVER['HTTPS']) && strtolower((string)$_SERVER['HTTPS']) !== 'off') {
+            return true;
+        }
+
+        // 3. Port 443
+        if (isset($_SERVER['SERVER_PORT']) && (int)$_SERVER['SERVER_PORT'] === 443) {
+            return true;
+        }
+
+        // 4. Reverse Proxy TLS headers
+        if (!empty($_SERVER['HTTP_X_FORWARDED_PROTO']) && strtolower((string)$_SERVER['HTTP_X_FORWARDED_PROTO']) === 'https') {
+            return true;
+        }
+        if (!empty($_SERVER['HTTP_X_FORWARDED_SSL']) && strtolower((string)$_SERVER['HTTP_X_FORWARDED_SSL']) === 'on') {
+            return true;
+        }
+
+        // 5. Production environment enforcement
+        if (\Nexus\Core\Env::get('APP_ENV') === 'production') {
+            return true;
+        }
+
+        return false;
+    }
+
+    public function __construct(?Database $db = null, ?int $idleTimeoutMinutes = null, ?bool $secureCookie = null)
     {
         $this->db = $db;
-        $this->idleTimeoutSeconds = $idleTimeoutMinutes * 60;
-        $this->secureCookie = $secureCookie;
+        $timeout = $idleTimeoutMinutes ?? (int)\Nexus\Core\Env::get('SESSION_LIFETIME', 15);
+        $this->idleTimeoutSeconds = $timeout * 60;
+        $this->secureCookie = $secureCookie ?? self::isSecureConnection();
+    }
+
+    public function isSecureCookie(): bool
+    {
+        return $this->secureCookie;
     }
 
     private function isDbActive(): bool
