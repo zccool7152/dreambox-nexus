@@ -180,31 +180,31 @@ $traceId = $traceId ?? '';
                                 </div>
                             </div>
                             <div class="col-6 col-md-3">
-                                <div class="p-3 rounded shadow-sm" style="background: #16a34a;">
+                                <div class="p-3 rounded bg-success shadow-sm">
                                     <div class="fw-bold">Success</div>
                                     <div class="small opacity-75">#16a34a</div>
                                 </div>
                             </div>
                             <div class="col-6 col-md-3">
-                                <div class="p-3 rounded shadow-sm" style="background: #dc2626;">
+                                <div class="p-3 rounded bg-danger shadow-sm">
                                     <div class="fw-bold">Danger</div>
                                     <div class="small opacity-75">#dc2626</div>
                                 </div>
                             </div>
                             <div class="col-6 col-md-3">
-                                <div class="p-3 rounded shadow-sm" style="background: #ea580c;">
+                                <div class="p-3 rounded bg-warning shadow-sm">
                                     <div class="fw-bold">Warning</div>
                                     <div class="small opacity-75">#ea580c</div>
                                 </div>
                             </div>
                             <div class="col-6 col-md-3">
-                                <div class="p-3 rounded shadow-sm" style="background: #0284c7;">
+                                <div class="p-3 rounded bg-cyan shadow-sm">
                                     <div class="fw-bold">Cyan / Info</div>
                                     <div class="small opacity-75">#0284c7</div>
                                 </div>
                             </div>
                             <div class="col-6 col-md-3">
-                                <div class="p-3 rounded shadow-sm" style="background: #7c3aed;">
+                                <div class="p-3 rounded bg-purple shadow-sm">
                                     <div class="fw-bold">Purple</div>
                                     <div class="small opacity-75">#7c3aed</div>
                                 </div>
@@ -216,7 +216,7 @@ $traceId = $traceId ?? '';
                                 </div>
                             </div>
                             <div class="col-6 col-md-3">
-                                <div class="p-3 rounded shadow-sm text-dark border" style="background: #f8fafc;">
+                                <div class="p-3 rounded shadow-sm text-dark border bg-light">
                                     <div class="fw-bold">Canvas / Light</div>
                                     <div class="small text-muted">#f8fafc</div>
                                 </div>
@@ -851,7 +851,7 @@ $traceId = $traceId ?? '';
                                 <span id="progress-text">65%</span>
                             </div>
                             <div class="progress mb-3">
-                                <div id="demo-bar" class="progress-bar progress-bar-striped progress-bar-animated" style="width: 65%;"></div>
+                                <div id="demo-bar" class="progress-bar progress-bar-striped progress-bar-animated w-75"></div>
                             </div>
                             <div class="d-flex gap-2">
                                 <button type="button" class="btn btn-secondary btn-sm" id="btnStepProgress">Simulate Step (+15%)</button>
@@ -880,7 +880,7 @@ $traceId = $traceId ?? '';
                         </div>
                         <pre class="code-snippet" id="code-progress">&lt;!-- Progress Bar --&gt;
 &lt;div class="progress"&gt;
-  &lt;div class="progress-bar progress-bar-striped progress-bar-animated" style="width: 75%;"&gt;&lt;/div&gt;
+  &lt;div class="progress-bar progress-bar-striped progress-bar-animated w-75"&gt;&lt;/div&gt;
 &lt;/div&gt;
 
 &lt;!-- Spinners --&gt;
@@ -1143,3 +1143,4 @@ $traceId = $traceId ?? '';
     </script>
 </body>
 </html>
+

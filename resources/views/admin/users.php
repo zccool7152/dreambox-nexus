@@ -13,8 +13,8 @@
             <div class="brand-area">
                 <span class="brand-badge">CORE v0.1 ALPHA</span>
                 <div>
-                    <h1 style="font-size:1.15rem;letter-spacing:0.05em;">CIA Triad // IAM Management Console</h1>
-                    <span style="font-size:0.7rem;color:var(--text-muted);">Confidentiality // Integrity // Availability</span>
+                    <h1 class="h4 mb-1">CIA Triad // IAM Management Console</h1>
+                    <span class="small text-muted">Confidentiality // Integrity // Availability</span>
                 </div>
             </div>
 
@@ -33,7 +33,7 @@
             <a href="<?= $appBase ?>/compliance/" class="nav-link">⚖️ Compliance Matrix</a>
             <a href="<?= $appBase ?>/health/" class="nav-link">💖 Health Probe</a>
             <a href="<?= $appBase ?>/nexus/monitor/" class="nav-link">🔒 SecOps Cockpit</a>
-            <a href="<?= $appBase ?>/auth/logout/" class="nav-link" style="color:var(--neon-rose);margin-left:auto;">🚪 Logout</a>
+            <a href="<?= $appBase ?>/auth/logout/" class="nav-link text-danger ms-auto">🚪 Logout</a>
         </nav>
 
         <?php if (!empty($error)): ?>
@@ -45,8 +45,8 @@
 
         <div class="section-header">
             <div>
-                <h2 style="font-size:1rem;margin-bottom:0.2rem;">Identity Directory & Governance</h2>
-                <span style="font-size:0.72rem;color:var(--text-muted);"><?= count($users) ?> registered identities under active policy governance</span>
+                <h2 class="h5 mb-1">Identity Directory & Governance</h2>
+                <span class="small text-muted"><?= count($users) ?> registered identities under active policy governance</span>
             </div>
             <button class="btn-action btn-primary" id="btnOpenModal">
                 + Provision Identity
@@ -70,8 +70,8 @@
                     <?php foreach ($users as $u): ?>
                         <tr>
                             <td>
-                                <div style="font-weight:600;color:var(--text-main);"><?= htmlspecialchars($u['name']) ?></div>
-                                <div style="font-size:0.68rem;color:var(--text-muted);"><?= htmlspecialchars($u['email']) ?></div>
+                                <div class="fw-semibold text-dark"><?= htmlspecialchars($u['name']) ?></div>
+                                <div class="small text-muted"><?= htmlspecialchars($u['email']) ?></div>
                             </td>
                             <td>
                                 <span class="badge badge-provider"><?= strtoupper($u['auth_provider']) ?></span>
@@ -84,10 +84,10 @@
                             <td>
                                 <?php if (!empty($u['groups'])): ?>
                                     <?php foreach ((array)$u['groups'] as $g): ?>
-                                        <span class="badge" style="background:rgba(79,172,254,0.15);color:var(--neon-blue);"><?= htmlspecialchars($g) ?></span>
+                                        <span class="badge badge-info"><?= htmlspecialchars($g) ?></span>
                                     <?php endforeach; ?>
                                 <?php else: ?>
-                                    <span style="color:var(--text-muted);font-size:0.68rem;">--</span>
+                                    <span class="small text-muted">--</span>
                                 <?php endif; ?>
                             </td>
                             <td>
@@ -105,7 +105,7 @@
                                 <?php endif; ?>
                             </td>
                             <td>
-                                <form method="POST" action="<?= $appBase ?>/admin/users/" style="display:inline;">
+                                <form method="POST" action="<?= $appBase ?>/admin/users/" class="d-inline">
                                     <input type="hidden" name="csrf_token" value="<?= $csrfToken ?>">
                                     <input type="hidden" name="_action" value="update">
                                     <input type="hidden" name="user_id" value="<?= htmlspecialchars($u['id']) ?>">
@@ -115,7 +115,7 @@
                                     </button>
                                 </form>
                                 <?php if ($u['is_2fa_enabled']): ?>
-                                    <form method="POST" action="<?= $appBase ?>/admin/users/" style="display:inline;">
+                                    <form method="POST" action="<?= $appBase ?>/admin/users/" class="d-inline">
                                         <input type="hidden" name="csrf_token" value="<?= $csrfToken ?>">
                                         <input type="hidden" name="_action" value="update">
                                         <input type="hidden" name="user_id" value="<?= htmlspecialchars($u['id']) ?>">
@@ -126,11 +126,11 @@
                                     </form>
                                 <?php endif; ?>
                                 <?php if ($u['id'] !== $currentUser['id']): ?>
-                                    <form method="POST" action="<?= $appBase ?>/admin/users/" style="display:inline;" onsubmit="return confirm('Permanently revoke this identity?');">
+                                    <form method="POST" action="<?= $appBase ?>/admin/users/" class="d-inline" onsubmit="return confirm('Permanently revoke this identity?');">
                                         <input type="hidden" name="csrf_token" value="<?= $csrfToken ?>">
                                         <input type="hidden" name="_action" value="delete">
                                         <input type="hidden" name="user_id" value="<?= htmlspecialchars($u['id']) ?>">
-                                        <button type="submit" class="btn-table" style="color:var(--neon-rose);">Delete</button>
+                                        <button type="submit" class="btn-table text-danger">Delete</button>
                                     </form>
                                 <?php endif; ?>
                             </td>
@@ -144,7 +144,7 @@
     <!-- Provision Identity Modal -->
     <div id="provisionModal" class="modal">
         <div class="modal-content">
-            <h3 style="font-size:1.1rem;margin-bottom:1rem;color:var(--neon-cyan);">+ Provision Identity</h3>
+            <h3 class="h5 mb-3 text-cyan">+ Provision Identity</h3>
             <form method="POST" action="<?= $appBase ?>/admin/users/">
                 <input type="hidden" name="csrf_token" value="<?= $csrfToken ?>">
                 <input type="hidden" name="_action" value="create">
@@ -155,7 +155,7 @@
                 <input type="email" id="email" name="email" class="form-input" placeholder="alex@company.com" required>
 
                 <label for="role">Assigned Role</label>
-                <select id="role" name="role" class="form-input" style="background:#090e17;">
+                <select id="role" name="role" class="form-input">
                     <?php foreach ($roles as $rName => $rMeta): ?>
                         <option value="<?= htmlspecialchars($rName) ?>"><?= htmlspecialchars($rName) ?> (<?= htmlspecialchars($rMeta['description']) ?>)</option>
                     <?php endforeach; ?>
@@ -164,9 +164,9 @@
                 <label for="password">Initial Password</label>
                 <input type="password" id="password" name="password" class="form-input" placeholder="Enter secure initial password" required autocomplete="new-password">
 
-                <div style="display:flex;gap:0.5rem;margin-top:1rem;">
-                    <button type="submit" class="btn-action btn-primary" style="flex:1;">Provision</button>
-                    <button type="button" class="btn-action btn-table" id="btnCloseModal" style="flex:1;">Cancel</button>
+                <div class="d-flex gap-2 mt-3">
+                    <button type="submit" class="btn-action btn-primary flex-grow-1">Provision</button>
+                    <button type="button" class="btn-action btn-table flex-grow-1" id="btnCloseModal">Cancel</button>
                 </div>
             </form>
         </div>
@@ -174,8 +174,8 @@
 
     <script nonce="<?= $nonce ?? '' ?>">
         const modal = document.getElementById('provisionModal');
-        document.getElementById('btnOpenModal').addEventListener('click', () => modal.style.display = 'flex');
-        document.getElementById('btnCloseModal').addEventListener('click', () => modal.style.display = 'none');
+        document.getElementById('btnOpenModal').addEventListener('click', () => modal.classList.add('show'));
+        document.getElementById('btnCloseModal').addEventListener('click', () => modal.classList.remove('show'));
     </script>
 </body>
 </html>

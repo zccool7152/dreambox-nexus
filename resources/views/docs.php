@@ -107,8 +107,8 @@ $appBase = $appBase ?? \Nexus\Core\Request::getAppBase();
 
         <div class="yaml-box">
             <div class="yaml-header">
-                <span style="font-family: var(--font-mono); font-size: 0.85rem; color: var(--accent-cyan);">Raw Contract Preview</span>
-                <span style="font-size: 0.75rem; color: var(--text-secondary); font-family: var(--font-mono);">openapi.yaml (14.4 KB)</span>
+                <span class="small text-cyan">Raw Contract Preview</span>
+                <span class="small text-muted">openapi.yaml (14.4 KB)</span>
             </div>
             <pre><code><?= htmlspecialchars($rawYaml ?? '', ENT_QUOTES, 'UTF-8') ?></code></pre>
         </div>

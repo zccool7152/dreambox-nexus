@@ -101,7 +101,7 @@ $initStorageBreakdown = 'Logs: ' . ($vitals['storage_formatted']['logs'] ?? '0 B
         </div>
 
         <div class="data-table-wrapper">
-            <div style="padding: 16px; font-weight: 700; font-size: 0.9rem; border-bottom: 1px solid var(--border-glass);">
+            <div class="p-3 fw-bold border-bottom">
                 Browser CSP Violations Log
             </div>
             <table id="tbl-csp">
@@ -114,7 +114,7 @@ $initStorageBreakdown = 'Logs: ' . ($vitals['storage_formatted']['logs'] ?? '0 B
                     </tr>
                 </thead>
                 <tbody>
-                    <tr><td colspan="4" style="text-align: center; color: var(--text-secondary);">No active CSP violation reports detected.</td></tr>
+                    <tr><td colspan="4" class="text-center text-muted">No active CSP violation reports detected.</td></tr>
                 </tbody>
             </table>
         </div>
@@ -187,7 +187,7 @@ $initStorageBreakdown = 'Logs: ' . ($vitals['storage_formatted']['logs'] ?? '0 B
         </div>
 
         <div class="data-table-wrapper">
-            <div style="padding: 16px; font-weight: 700; font-size: 0.9rem; border-bottom: 1px solid var(--border-glass);">
+            <div class="p-3 fw-bold border-bottom">
                 Failed Background Jobs (Dead-Letter Queue)
             </div>
             <table id="tbl-failed-jobs">
@@ -207,7 +207,7 @@ $initStorageBreakdown = 'Logs: ' . ($vitals['storage_formatted']['logs'] ?? '0 B
 
     <!-- 6. Audit Hash-Chain Tab -->
     <div id="pane-audit" class="tab-pane">
-        <div class="card" style="margin-bottom: 20px;">
+        <div class="card mb-3">
             <div class="card-header">
                 <span>Cryptographic Hash-Chain Verification Status</span>
                 <span class="badge badge-success" id="val-audit-chain-badge">VERIFIED</span>
@@ -382,13 +382,13 @@ $initStorageBreakdown = 'Logs: ' . ($vitals['storage_formatted']['logs'] ?? '0 B
                                 <td>#${j.id}</td>
                                 <td>${j.queue}</td>
                                 <td>${j.failed_at}</td>
-                                <td style="max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${j.exception}</td>
+                                <td class="table-cell-truncate">${j.exception}</td>
                                 <td><button class="btn" onclick="retryJob(${j.id})">Retry</button></td>
                             `;
                             tbody.appendChild(tr);
                         });
                     } else {
-                        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--text-secondary);">Dead-letter queue is clear. No failed jobs.</td></tr>';
+                        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Dead-letter queue is clear. No failed jobs.</td></tr>';
                     }
                 }
             }
@@ -412,7 +412,7 @@ $initStorageBreakdown = 'Logs: ' . ($vitals['storage_formatted']['logs'] ?? '0 B
                             <td>${l.resource}</td>
                             <td>${l.user_id || 'SYSTEM'}</td>
                             <td>${l.ip_address}</td>
-                            <td style="font-size: 0.7rem; color: var(--accent-cyan);">${(l.hash || '').substring(0, 16)}...</td>
+                            <td class="small text-cyan">${(l.hash || '').substring(0, 16)}...</td>
                             <td>${l.created_at}</td>
                         `;
                         tbody.appendChild(tr);

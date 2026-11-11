@@ -61,7 +61,7 @@ if ($initials === '') $initials = 'U';
                 </div>
             </div>
             <div>
-                <a href="<?= $appBase ?>/auth/2fa/setup/" class="btn-primary" style="width: auto; padding: 0.5rem 1rem; font-size: 0.8rem; background: #ffffff; color: var(--primary); border: 1px solid var(--border-light); box-shadow: none;">
+                <a href="<?= $appBase ?>/auth/2fa/setup/" class="btn btn-outline-primary btn-sm">
                     <?= !empty($user['is_2fa_enabled']) ? 'Manage 2FA' : 'Enable 2FA' ?>
                 </a>
             </div>
@@ -97,7 +97,7 @@ if ($initials === '') $initials = 'U';
 
                     <div class="form-group">
                         <label class="form-label">Display Preference in Top Bar</label>
-                        <span class="input-hint" style="margin-bottom:0.4rem;">Choose whether your Full Name or Username appears in the top navigation bar.</span>
+                        <span class="input-hint mb-2">Choose whether your Full Name or Username appears in the top navigation bar.</span>
                         <div class="radio-card-grid">
                             <label class="radio-card <?= ($user['display_preference'] ?? 'name') === 'name' ? 'selected' : '' ?>" id="cardPrefName">
                                 <input type="radio" name="display_preference" value="name" <?= ($user['display_preference'] ?? 'name') === 'name' ? 'checked' : '' ?>>
@@ -156,7 +156,7 @@ if ($initials === '') $initials = 'U';
                         <input type="password" id="inputConfirmPass" name="new_password_confirmation" class="form-input" placeholder="••••••••••••" minlength="8" required autocomplete="new-password">
                     </div>
 
-                    <button type="submit" class="btn-primary" style="background:#0f172a;">
+                    <button type="submit" class="btn btn-dark">
                         <span>Update Password</span>
                     </button>
                 </form>

@@ -12,8 +12,8 @@
         <header class="admin-header">
             <div>
                 <span class="brand-badge">CORE v0.1 ALPHA</span>
-                <h1 style="font-size:1.15rem;margin-top:0.3rem;">Organizational Identity Groups</h1>
-                <span style="font-size:0.7rem;color:var(--text-muted);">Relationship-Based Access Control (ReBAC) & Role Inheritance</span>
+                <h1 class="h4 mt-1 mb-0">Organizational Identity Groups</h1>
+                <span class="small text-muted">Relationship-Based Access Control (ReBAC) & Role Inheritance</span>
             </div>
             <div>
                 <span class="badge-role">Active Identity: <?= htmlspecialchars($currentUser['email']) ?></span>
@@ -28,38 +28,38 @@
             <a href="<?= $appBase ?>/compliance/" class="nav-link">⚖️ Compliance Matrix</a>
             <a href="<?= $appBase ?>/health/" class="nav-link">💖 Health Probe</a>
             <a href="<?= $appBase ?>/nexus/monitor/" class="nav-link">🔒 SecOps Cockpit</a>
-            <a href="<?= $appBase ?>/auth/logout/" class="nav-link" style="color:var(--neon-rose);margin-left:auto;">🚪 Logout</a>
+            <a href="<?= $appBase ?>/auth/logout/" class="nav-link text-danger ms-auto">🚪 Logout</a>
         </nav>
 
         <div class="grid-groups">
             <?php foreach ($groups as $gName => $gMeta): ?>
                 <div class="group-card">
-                    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.6rem;">
-                        <h3 style="font-size:1rem;color:var(--neon-cyan);"><?= htmlspecialchars($gName) ?></h3>
-                        <span style="font-size:0.65rem;color:var(--text-muted);">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <h3 class="h5 text-cyan mb-0"><?= htmlspecialchars($gName) ?></h3>
+                        <span class="small text-muted">
                             <?= count((array)($gMeta['members'] ?? [])) ?> Members
                         </span>
                     </div>
 
-                    <p style="font-size:0.75rem;color:var(--text-muted);margin-bottom:1rem;line-height:1.4;">
+                    <p class="small text-muted mb-3">
                         <?= htmlspecialchars($gMeta['description'] ?? '') ?>
                     </p>
 
-                    <div style="margin-bottom:0.8rem;">
-                        <span style="font-size:0.68rem;text-transform:uppercase;color:var(--text-muted);letter-spacing:0.05em;display:block;margin-bottom:0.3rem;">Inherited Roles:</span>
+                    <div class="mb-2">
+                        <span class="small text-muted text-uppercase d-block mb-1">Inherited Roles:</span>
                         <?php foreach ((array)($gMeta['roles'] ?? []) as $r): ?>
                             <span class="badge-role"><?= htmlspecialchars($r) ?></span>
                         <?php endforeach; ?>
                     </div>
 
                     <div>
-                        <span style="font-size:0.68rem;text-transform:uppercase;color:var(--text-muted);letter-spacing:0.05em;display:block;margin-bottom:0.3rem;">Group Members:</span>
+                        <span class="small text-muted text-uppercase d-block mb-1">Group Members:</span>
                         <?php if (!empty($gMeta['members'])): ?>
                             <?php foreach ((array)$gMeta['members'] as $m): ?>
                                 <span class="badge-member"><?= htmlspecialchars($m) ?></span>
                             <?php endforeach; ?>
                         <?php else: ?>
-                            <span style="font-size:0.7rem;color:var(--text-muted);">No assigned members</span>
+                            <span class="small text-muted">No assigned members</span>
                         <?php endif; ?>
                     </div>
                 </div>

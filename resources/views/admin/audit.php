@@ -12,8 +12,8 @@
         <header class="admin-header">
             <div>
                 <span class="brand-badge">CORE v0.1 ALPHA</span>
-                <h1 style="font-size:1.15rem;margin-top:0.3rem;">Cryptographic Audit Trail</h1>
-                <span style="font-size:0.7rem;color:var(--text-muted);">Integrity Triad // SHA-256 Hash-Chained Forensic Ledger</span>
+                <h1 class="h4 mt-1 mb-0">Cryptographic Audit Trail</h1>
+                <span class="small text-muted">Integrity Triad // SHA-256 Hash-Chained Forensic Ledger</span>
             </div>
             <div>
                 <span class="badge-verified">✔ CHAIN INTEGRITY INTACT</span>
@@ -28,7 +28,7 @@
             <a href="<?= $appBase ?>/compliance/" class="nav-link">⚖️ Compliance Matrix</a>
             <a href="<?= $appBase ?>/health/" class="nav-link">💖 Health Probe</a>
             <a href="<?= $appBase ?>/nexus/monitor/" class="nav-link">🔒 SecOps Cockpit</a>
-            <a href="<?= $appBase ?>/auth/logout/" class="nav-link" style="color:var(--neon-rose);margin-left:auto;">🚪 Logout</a>
+            <a href="<?= $appBase ?>/auth/logout/" class="nav-link text-danger ms-auto">🚪 Logout</a>
         </nav>
 
         <div class="table-card">
@@ -47,19 +47,19 @@
                 <tbody>
                     <?php foreach ($logs as $l): ?>
                         <tr>
-                            <td style="color:var(--text-muted);white-space:nowrap;">
+                            <td class="text-muted text-nowrap">
                                 <?= htmlspecialchars((string)($l['created_at'] ?? '')) ?>
                             </td>
                             <td>
-                                <strong style="color:var(--text-main);"><?= htmlspecialchars((string)($l['user_id'] ?? 'system')) ?></strong>
+                                <strong class="text-dark"><?= htmlspecialchars((string)($l['user_id'] ?? 'system')) ?></strong>
                             </td>
                             <td>
-                                <span style="color:var(--neon-cyan);font-weight:600;"><?= htmlspecialchars((string)($l['action'] ?? '')) ?></span>
+                                <span class="text-cyan fw-semibold"><?= htmlspecialchars((string)($l['action'] ?? '')) ?></span>
                             </td>
                             <td>
-                                <span style="color:var(--text-muted);"><?= htmlspecialchars((string)($l['resource'] ?? '')) ?></span>
+                                <span class="text-muted"><?= htmlspecialchars((string)($l['resource'] ?? '')) ?></span>
                             </td>
-                            <td style="color:var(--text-muted);">
+                            <td class="text-muted">
                                 <?= htmlspecialchars((string)($l['ip_address'] ?? '')) ?>
                             </td>
                             <td>

@@ -3758,3 +3758,57 @@ tbody tr:hover {
     opacity: 1;
     transform: translateY(0);
 }
+
+/* ── Additional Framework Semantic Utilities & Helpers ── */
+.bg-success { background-color: var(--color-success) !important; color: #ffffff !important; }
+.bg-danger  { background-color: var(--color-danger) !important; color: #ffffff !important; }
+.bg-warning { background-color: var(--color-warning) !important; color: #ffffff !important; }
+.bg-info, .bg-cyan { background-color: var(--color-cyan) !important; color: #ffffff !important; }
+.bg-purple  { background-color: var(--color-purple) !important; color: #ffffff !important; }
+
+.border-top-0    { border-top: 0 !important; }
+.border-bottom-0 { border-bottom: 0 !important; }
+.border-start-0  { border-left: 0 !important; }
+.border-end-0    { border-right: 0 !important; }
+
+.rounded-top    { border-top-left-radius: var(--radius-md) !important; border-top-right-radius: var(--radius-md) !important; }
+.rounded-bottom { border-bottom-left-radius: var(--radius-md) !important; border-bottom-right-radius: var(--radius-md) !important; }
+
+.opacity-25  { opacity: 0.25 !important; }
+.opacity-50  { opacity: 0.5 !important; }
+.opacity-75  { opacity: 0.75 !important; }
+.opacity-100 { opacity: 1 !important; }
+
+.text-truncate {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.text-nowrap {
+    white-space: nowrap !important;
+}
+
+.nav-item { display: block; }
+.tab-pane-content { animation: fadeIn 0.2s ease; }
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.metric-sub {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    margin-top: 0.25rem;
+}
+
+.table-cell-truncate {
+    max-width: 300px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.table-scope-col {
+    min-width: 240px;
+}

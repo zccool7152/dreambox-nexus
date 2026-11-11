@@ -12,8 +12,8 @@
         <header class="admin-header">
             <div>
                 <span class="brand-badge">CORE v0.1 ALPHA</span>
-                <h1 style="font-size:1.15rem;margin-top:0.3rem;">RBAC Roles & Permissions Matrix</h1>
-                <span style="font-size:0.7rem;color:var(--text-muted);">Declarative Authorization // Least Privilege Enforcement</span>
+                <h1 class="h4 mt-1 mb-0">RBAC Roles & Permissions Matrix</h1>
+                <span class="small text-muted">Declarative Authorization // Least Privilege Enforcement</span>
             </div>
             <div>
                 <span class="badge-role">Active Identity: <?= htmlspecialchars($currentUser['email']) ?></span>
@@ -28,17 +28,17 @@
             <a href="<?= $appBase ?>/compliance/" class="nav-link">⚖️ Compliance Matrix</a>
             <a href="<?= $appBase ?>/health/" class="nav-link">💖 Health Probe</a>
             <a href="<?= $appBase ?>/nexus/monitor/" class="nav-link">🔒 SecOps Cockpit</a>
-            <a href="<?= $appBase ?>/auth/logout/" class="nav-link" style="color:var(--neon-rose);margin-left:auto;">🚪 Logout</a>
+            <a href="<?= $appBase ?>/auth/logout/" class="nav-link text-danger ms-auto">🚪 Logout</a>
         </nav>
 
         <div class="table-card">
             <table>
                 <thead>
                     <tr>
-                        <th style="min-width:240px;">Granular Permission Scope</th>
+                        <th class="table-scope-col">Granular Permission Scope</th>
                         <th>Description</th>
                         <?php foreach ($roles as $rName => $rMeta): ?>
-                            <th style="text-align:center;"><?= htmlspecialchars($rName) ?></th>
+                            <th class="text-center"><?= htmlspecialchars($rName) ?></th>
                         <?php endforeach; ?>
                     </tr>
                 </thead>
@@ -46,16 +46,16 @@
                     <?php foreach ($permissions as $pName => $pDesc): ?>
                         <tr>
                             <td>
-                                <code style="color:var(--neon-cyan);font-weight:600;"><?= htmlspecialchars($pName) ?></code>
+                                <code class="text-cyan fw-semibold"><?= htmlspecialchars($pName) ?></code>
                             </td>
-                            <td style="color:var(--text-muted);font-size:0.73rem;">
+                            <td class="text-muted small">
                                 <?= htmlspecialchars($pDesc) ?>
                             </td>
                             <?php foreach ($roles as $rName => $rMeta): ?>
                                 <?php
                                     $has = in_array('*', $rMeta['permissions'], true) || in_array($pName, $rMeta['permissions'], true);
                                 ?>
-                                <td style="text-align:center;">
+                                <td class="text-center">
                                     <?php if ($has): ?>
                                         <span class="check-yes">✔ GRANTED</span>
                                     <?php else: ?>

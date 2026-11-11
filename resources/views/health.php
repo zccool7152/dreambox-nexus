@@ -38,19 +38,19 @@ $appBase = $appBase ?? \Nexus\Core\Request::getAppBase();
             </div>
             <div class="card">
                 <div class="card-label">Engine & Platform</div>
-                <div class="card-value" style="font-size: 0.95rem;">
+                <div class="card-value">
                     PHP <?= PHP_VERSION ?> // <?= PHP_OS_FAMILY ?>
                 </div>
             </div>
             <div class="card">
                 <div class="card-label">Active Request Trace</div>
-                <div class="card-value" style="font-size: 0.8rem; color: var(--accent-cyan);">
+                <div class="card-value small text-cyan">
                     <?= htmlspecialchars($traceId ?? 'trace-live', ENT_QUOTES, 'UTF-8') ?>
                 </div>
             </div>
             <div class="card">
                 <div class="card-label">Security & Defense Subsystem</div>
-                <div class="card-value" style="font-size: 0.85rem; color: #a78bfa;">
+                <div class="card-value small text-purple">
                     Strict PER-CS // Nonced CSP
                 </div>
             </div>
@@ -59,7 +59,7 @@ $appBase = $appBase ?? \Nexus\Core\Request::getAppBase();
         <div class="json-preview">
             <div class="json-header">
                 <span>Programmatic Output (RFC 7807 Envelope)</span>
-                <a href="?format=json" style="color: var(--accent-cyan); text-decoration: none;">View Raw JSON &rarr;</a>
+                <a href="?format=json" class="text-cyan">View Raw JSON &rarr;</a>
             </div>
             <pre><code>{
   "data": {

@@ -493,6 +493,15 @@ $assertTest('All 15 view templates link to centralized theme.css', empty($viewsM
 $assertTest('All 15 view templates embed universal topbar.php', empty($viewsMissingTopbar));
 $assertTest('Zero view templates contain legacy inline <style> tags', empty($viewsWithInlineStyle));
 
+$viewsWithInlineAttributes = [];
+foreach ($allViewFiles as $vPath) {
+    $vContent = (string)file_get_contents($vPath);
+    if (preg_match('/style=[\"\']/', $vContent)) {
+        $viewsWithInlineAttributes[] = basename($vPath);
+    }
+}
+$assertTest('Zero view templates contain inline style="..." attributes (100% Nexus UI conformance)', empty($viewsWithInlineAttributes));
+
 // Nexus UI Component Framework & Kitchen Sink Suite
 $assertTest('Physical bridge /ui/index.php exists', file_exists($baseDir . '/ui/index.php'));
 $assertTest('Public bridge /public/ui/index.php exists', file_exists($baseDir . '/public/ui/index.php'));

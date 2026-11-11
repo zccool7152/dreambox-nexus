@@ -17,7 +17,7 @@
 
         <div id="alertBox" class="alert alert-error"></div>
         <?php if (!empty($error)): ?>
-            <div class="alert alert-error" style="display:block;"><?= htmlspecialchars($error) ?></div>
+            <div class="alert alert-error d-block"><?= htmlspecialchars($error) ?></div>
         <?php endif; ?>
 
         <!-- OAuth 2.0 Identity Providers -->

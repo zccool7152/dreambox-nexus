@@ -46,14 +46,14 @@
     <!-- Recovery Codes Modal -->
     <div id="recoveryModal" class="recovery-modal">
         <div class="recovery-content">
-            <h2 style="color:var(--neon-emerald);font-size:1.2rem;margin-bottom:0.5rem;">🎉 2FA Activated</h2>
-            <p style="font-size:0.75rem;color:var(--text-muted);line-height:1.5;">
+            <h2 class="h4 text-success mb-2">🎉 2FA Activated</h2>
+            <p class="small text-muted mb-3">
                 Save these emergency recovery codes in a secure location. Each code can be used once if you lose access to Google Authenticator:
             </p>
 
             <div id="recoveryGrid" class="recovery-grid"></div>
 
-            <button id="btnProceedAdmin" class="btn-submit" style="background:var(--neon-emerald);color:#06090e;">
+            <button id="btnProceedAdmin" class="btn btn-success w-100">
                 I Have Saved My Codes → Enter Admin
             </button>
         </div>

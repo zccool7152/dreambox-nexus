@@ -34,22 +34,22 @@ $totalControls = $summary['total_evaluated_controls'] ?? 24;
         <div class="scorecard-grid">
             <div class="score-card">
                 <div class="score-label">Compliance Score</div>
-                <div class="score-value" style="color: var(--accent-green);"><?= $score ?>%</div>
+                <div class="score-value text-success"><?= $score ?>%</div>
                 <div class="score-sub">Full regulatory posture</div>
             </div>
             <div class="score-card">
                 <div class="score-label">Audit Status</div>
-                <div class="score-value" style="color: var(--accent-cyan); font-size: 1.5rem; line-height: 2rem;"><?= htmlspecialchars($status) ?></div>
+                <div class="score-value text-cyan"><?= htmlspecialchars($status) ?></div>
                 <div class="score-sub">Production verified</div>
             </div>
             <div class="score-card">
                 <div class="score-label">Active Mandates</div>
-                <div class="score-value" style="color: var(--accent-purple);"><?= $totalControls ?></div>
+                <div class="score-value text-purple"><?= $totalControls ?></div>
                 <div class="score-sub">Controls mapped across 5 frameworks</div>
             </div>
             <div class="score-card">
                 <div class="score-label">Live Verification</div>
-                <div class="score-value" style="color: var(--accent-green);"><?= $passedLive ?> / <?= $totalLive ?></div>
+                <div class="score-value text-success"><?= $passedLive ?> / <?= $totalLive ?></div>
                 <div class="score-sub">10-point automated checks</div>
             </div>
         </div>
@@ -90,7 +90,7 @@ $totalControls = $summary['total_evaluated_controls'] ?? 24;
                     <tbody>
                         <?php foreach ($liveChecks as $key => $check): ?>
                             <tr>
-                                <td style="font-weight: 600; font-family: var(--font-mono); color: var(--text-primary);">
+                                <td class="fw-semibold text-dark">
                                     <?= htmlspecialchars($check['name']) ?>
                                 </td>
                                 <td>
@@ -98,7 +98,7 @@ $totalControls = $summary['total_evaluated_controls'] ?? 24;
                                         <span class="tag-pill"><?= htmlspecialchars($fwTag) ?></span>
                                     <?php endforeach; ?>
                                 </td>
-                                <td style="color: var(--text-secondary); font-size: 0.8rem;">
+                                <td class="text-muted small">
                                     <?= htmlspecialchars($check['details']) ?>
                                 </td>
                                 <td>
@@ -122,7 +122,7 @@ $totalControls = $summary['total_evaluated_controls'] ?? 24;
                     <div class="framework-header">
                         <div>
                             <span class="framework-title"><?= htmlspecialchars($fw['title']) ?></span>
-                            <div style="font-size: 0.8rem; color: var(--accent-cyan); font-family: var(--font-mono); margin-top: 4px;">
+                            <div class="text-cyan small mt-1">
                                 <?= htmlspecialchars($fw['standard']) ?>
                             </div>
                         </div>
@@ -135,11 +135,11 @@ $totalControls = $summary['total_evaluated_controls'] ?? 24;
                     <table>
                         <thead>
                             <tr>
-                                <th style="width: 140px;">Mandate / Article</th>
-                                <th style="width: 220px;">Control Requirement</th>
+                                <th>Mandate / Article</th>
+                                <th>Control Requirement</th>
                                 <th>Framework Implementation Mechanism</th>
                                 <th>Active Subsystem</th>
-                                <th style="width: 160px;">Verification</th>
+                                <th>Verification</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -148,14 +148,14 @@ $totalControls = $summary['total_evaluated_controls'] ?? 24;
                                     <td>
                                         <span class="mandate-tag"><?= htmlspecialchars($control['mandate']) ?></span>
                                     </td>
-                                    <td style="font-weight: 600; color: var(--text-primary);">
+                                    <td class="fw-semibold text-dark">
                                         <?= htmlspecialchars($control['name']) ?>
                                     </td>
-                                    <td style="color: var(--text-secondary); font-size: 0.85rem; line-height: 1.5;">
+                                    <td class="text-muted small">
                                         <?= htmlspecialchars($control['mechanism']) ?>
                                     </td>
                                     <td>
-                                        <code style="font-size: 0.75rem; color: var(--accent-purple); font-family: var(--font-mono); background: rgba(168, 85, 247, 0.1); padding: 2px 6px; border-radius: 4px;">
+                                        <code class="hash-code text-purple">
                                             <?= htmlspecialchars($control['implementation']) ?>
                                         </code>
                                     </td>
@@ -175,17 +175,17 @@ $totalControls = $summary['total_evaluated_controls'] ?? 24;
         <?php endforeach; ?>
 
         <!-- Machine-Readable JSON Export Section -->
-        <div style="margin-top: 32px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
-            <div style="font-size: 0.85rem; color: var(--text-secondary); font-family: var(--font-mono);">
+        <div class="mt-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
+            <div class="text-muted small">
                 RFC 7807 / Machine-Readable Audit Feed:
             </div>
-            <div style="display: flex; gap: 8px;">
+            <div class="d-flex gap-2">
                 <button id="btn-toggle-json" class="btn btn-secondary">👁️ View Raw JSON Audit</button>
                 <a href="<?= $appBase ?>/compliance?format=json" class="btn btn-primary" download="dreambox-compliance-report.json">⬇️ Download JSON Report</a>
             </div>
         </div>
 
-        <div id="json-drawer" style="display: none;">
+        <div id="json-drawer" class="d-none">
             <pre class="json-preview"><?= htmlspecialchars(json_encode($report, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)) ?></pre>
         </div>
     </main>
@@ -215,11 +215,11 @@ $totalControls = $summary['total_evaluated_controls'] ?? 24;
             const drawer = document.getElementById('json-drawer');
             if (btnJson && drawer) {
                 btnJson.addEventListener('click', () => {
-                    if (drawer.style.display === 'none') {
-                        drawer.style.display = 'block';
+                    if (drawer.classList.contains('d-none')) {
+                        drawer.classList.remove('d-none');
                         btnJson.innerText = '✕ Hide Raw JSON Audit';
                     } else {
-                        drawer.style.display = 'none';
+                        drawer.classList.add('d-none');
                         btnJson.innerText = '👁️ View Raw JSON Audit';
                     }
                 });
