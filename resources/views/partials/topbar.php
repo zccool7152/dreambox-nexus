@@ -56,6 +56,11 @@ $isSecOps = $isSuperAdmin || in_array('SecurityOfficer', $userRoles, true) || in
 $isDeveloper = $isSuperAdmin || in_array('Developer', $userRoles, true) || in_array('Engineering', $userGroups, true);
 ?>
 
+<link rel="icon" type="image/x-icon" href="<?= htmlspecialchars($appBase) ?>/favicon.ico">
+<link rel="icon" type="image/png" sizes="32x32" href="<?= htmlspecialchars($appBase) ?>/logos/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="<?= htmlspecialchars($appBase) ?>/logos/favicon-16x16.png">
+<link rel="apple-touch-icon" sizes="180x180" href="<?= htmlspecialchars($appBase) ?>/logos/apple-touch-icon.png">
+<link rel="manifest" href="<?= htmlspecialchars($appBase) ?>/logos/site.webmanifest">
 <link rel="stylesheet" href="<?= htmlspecialchars($appBase) ?>/css/theme.css">
 
 <header class="nexus-topbar">
@@ -63,11 +68,7 @@ $isDeveloper = $isSuperAdmin || in_array('Developer', $userRoles, true) || in_ar
         <!-- Brand / Logo on Left -->
         <a href="<?= $appBase ?>/" class="nexus-brand" title="Dreambox Nexus Application Gateway">
             <div class="nexus-logo-icon">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                    <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
-                    <polyline points="2 17 12 22 22 17"></polyline>
-                    <polyline points="2 12 12 17 22 12"></polyline>
-                </svg>
+                <img src="<?= htmlspecialchars($appBase) ?>/logos/logo-64.png" alt="Dreambox Nexus Logo" class="nexus-brand-img">
             </div>
             <div class="nexus-brand-text">
                 <span class="nexus-brand-title">Dreambox Nexus</span>

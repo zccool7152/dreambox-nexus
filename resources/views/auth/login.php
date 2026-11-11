@@ -4,12 +4,18 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dreambox Nexus // CIA Authentication Hub</title>
+    <link rel="icon" type="image/x-icon" href="<?= htmlspecialchars($appBase) ?>/favicon.ico">
+    <link rel="icon" type="image/png" sizes="32x32" href="<?= htmlspecialchars($appBase) ?>/logos/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="<?= htmlspecialchars($appBase) ?>/logos/favicon-16x16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="<?= htmlspecialchars($appBase) ?>/logos/apple-touch-icon.png">
+    <link rel="manifest" href="<?= htmlspecialchars($appBase) ?>/logos/site.webmanifest">
     <link rel="stylesheet" href="<?= htmlspecialchars($appBase) ?>/css/theme.css">
 </head>
 <body>
     <?php include dirname(__DIR__) . "/partials/topbar.php"; ?>
     <div class="auth-container">
         <div class="auth-header">
+            <img src="<?= htmlspecialchars($appBase) ?>/logos/logo-128.png" alt="Dreambox Nexus" class="auth-brand-logo">
             <span class="brand-badge">CIA IAM GATEWAY v0.1 ALPHA</span>
             <h1>Identity Verification</h1>
             <p>Confidentiality // Integrity // Availability</p>

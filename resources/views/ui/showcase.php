@@ -15,6 +15,11 @@ $traceId = $traceId ?? '';
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Nexus UI // Component Framework & Kitchen Sink</title>
+    <link rel="icon" type="image/x-icon" href="<?= htmlspecialchars($appBase) ?>/favicon.ico">
+    <link rel="icon" type="image/png" sizes="32x32" href="<?= htmlspecialchars($appBase) ?>/logos/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="<?= htmlspecialchars($appBase) ?>/logos/favicon-16x16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="<?= htmlspecialchars($appBase) ?>/logos/apple-touch-icon.png">
+    <link rel="manifest" href="<?= htmlspecialchars($appBase) ?>/logos/site.webmanifest">
     <link rel="stylesheet" href="<?= htmlspecialchars($appBase) ?>/css/theme.css">
 </head>
 <body class="bg-light">
@@ -28,6 +33,7 @@ $traceId = $traceId ?? '';
             <div class="showcase-sidebar-title">Getting Started</div>
             <ul class="showcase-nav-list">
                 <li class="showcase-nav-item"><a href="#overview" class="showcase-nav-link active">Overview & CDN</a></li>
+                <li class="showcase-nav-item"><a href="#branding" class="showcase-nav-link">Brand Assets & Logos</a></li>
                 <li class="showcase-nav-item"><a href="#grid" class="showcase-nav-link">12-Column Grid</a></li>
                 <li class="showcase-nav-item"><a href="#typography" class="showcase-nav-link">Typography</a></li>
                 <li class="showcase-nav-item"><a href="#colors" class="showcase-nav-link">Color Tokens</a></li>
@@ -76,6 +82,55 @@ $traceId = $traceId ?? '';
                         </button>
                     </div>
                     <code id="cdn-code" class="hash-code p-2">&lt;link rel="stylesheet" href="<?= htmlspecialchars($appBase) ?>/css/theme.css"&gt;</code>
+                </div>
+            </section>
+
+            <!-- Brand Assets & Identity Specifications -->
+            <section id="branding" class="showcase-section">
+                <h2 class="showcase-section-title">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="m4.93 4.93 4.24 4.24"></path><path d="m14.83 9.17 4.24-4.24"></path><path d="m14.83 14.83 4.24 4.24"></path><path d="m9.17 14.83-4.24 4.24"></path><circle cx="12" cy="12" r="4"></circle></svg>
+                    Brand Assets & Responsive Identity
+                </h2>
+                <p class="showcase-section-desc">
+                    The Dreambox Nexus identity system is standardized and automatically downsampled from the master 1440px asset into responsive display tiers, platform icons, favicons, and PWA manifests.
+                </p>
+
+                <div class="component-demo">
+                    <div class="demo-preview">
+                        <div class="row g-3">
+                            <div class="col-12 col-md-4">
+                                <div class="card p-3 text-center h-100 bg-white">
+                                    <div class="d-flex align-items-center justify-content-center p-3 mb-2 rounded bg-light">
+                                        <img src="<?= htmlspecialchars($appBase) ?>/logos/logo-128.png" alt="Nexus Brand 128" class="auth-brand-logo mb-0">
+                                    </div>
+                                    <strong class="text-dark small d-block">Auth & Modal Badge</strong>
+                                    <span class="text-muted small">logo-128.png (128×128)</span>
+                                </div>
+                            </div>
+                            <div class="col-12 col-md-4">
+                                <div class="card p-3 text-center h-100 bg-white">
+                                    <div class="d-flex align-items-center justify-content-center p-3 mb-2 rounded bg-light">
+                                        <div class="nexus-logo-icon">
+                                            <img src="<?= htmlspecialchars($appBase) ?>/logos/logo-64.png" alt="Nexus Brand 64" class="nexus-brand-img">
+                                        </div>
+                                    </div>
+                                    <strong class="text-dark small d-block">Topbar & Navigation</strong>
+                                    <span class="text-muted small">logo-64.png (64×64 @2x)</span>
+                                </div>
+                            </div>
+                            <div class="col-12 col-md-4">
+                                <div class="card p-3 text-center h-100 bg-white">
+                                    <div class="d-flex align-items-center justify-content-center gap-3 p-3 mb-2 rounded bg-light">
+                                        <img src="<?= htmlspecialchars($appBase) ?>/logos/favicon-32x32.png" alt="Favicon 32" width="32" height="32">
+                                        <img src="<?= htmlspecialchars($appBase) ?>/logos/favicon-16x16.png" alt="Favicon 16" width="16" height="16">
+                                        <img src="<?= htmlspecialchars($appBase) ?>/logos/apple-touch-icon.png" alt="Apple Touch" width="36" height="36" class="rounded">
+                                    </div>
+                                    <strong class="text-dark small d-block">Favicons & Touch Icons</strong>
+                                    <span class="text-muted small">favicon.ico + PWA manifest</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </section>
 

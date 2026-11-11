@@ -636,6 +636,31 @@ unset($_SESSION['user_id'], $_SESSION['user_email'], $_SESSION['user_name'], $_S
 
 $testUserRepo->delete($accountUser['id']);
 
+// 16. Site Brand Identity & Multi-Resolution Logo Assets
+echo "\n\033[1;35m[16] Site Brand Identity & Multi-Resolution Logo Assets\033[0m\n";
+$logosDir = $baseDir . '/logos';
+$assertTest('Master logo exists in logos/logo.png', file_exists($logosDir . '/logo.png'));
+$assertTest('Generated logo-512.png exists (512x512)', file_exists($logosDir . '/logo-512.png') && getimagesize($logosDir . '/logo-512.png')[0] === 512);
+$assertTest('Generated logo-256.png exists (256x256)', file_exists($logosDir . '/logo-256.png') && getimagesize($logosDir . '/logo-256.png')[0] === 256);
+$assertTest('Generated logo-128.png exists (128x128)', file_exists($logosDir . '/logo-128.png') && getimagesize($logosDir . '/logo-128.png')[0] === 128);
+$assertTest('Generated logo-64.png exists (64x64)', file_exists($logosDir . '/logo-64.png') && getimagesize($logosDir . '/logo-64.png')[0] === 64);
+$assertTest('Generated logo-32.png exists (32x32)', file_exists($logosDir . '/logo-32.png') && getimagesize($logosDir . '/logo-32.png')[0] === 32);
+$assertTest('Generated logo-16.png exists (16x16)', file_exists($logosDir . '/logo-16.png') && getimagesize($logosDir . '/logo-16.png')[0] === 16);
+$assertTest('Multi-resolution favicon.ico exists', file_exists($logosDir . '/favicon.ico'));
+$assertTest('Public root favicon.ico exists in public/favicon.ico', file_exists($baseDir . '/public/favicon.ico'));
+$assertTest('Public asset bridge public/logos symlink exists', file_exists($baseDir . '/public/logos') && is_link($baseDir . '/public/logos'));
+$assertTest('Apple Touch Icon exists (180x180)', file_exists($logosDir . '/apple-touch-icon.png') && getimagesize($logosDir . '/apple-touch-icon.png')[0] === 180);
+$assertTest('Android Chrome PWA icon exists (192x192)', file_exists($logosDir . '/android-chrome-192x192.png') && getimagesize($logosDir . '/android-chrome-192x192.png')[0] === 192);
+$assertTest('Android Chrome PWA icon exists (512x512)', file_exists($logosDir . '/android-chrome-512x512.png') && getimagesize($logosDir . '/android-chrome-512x512.png')[0] === 512);
+$assertTest('Web App Manifest site.webmanifest exists', file_exists($logosDir . '/site.webmanifest'));
+$assertTest('Topbar partial embeds real logo image', str_contains($topbarHtml, 'logos/logo-64.png') || str_contains($topbarHtml, 'logos/logo-32.png'));
+$loginHtml = file_get_contents($baseDir . '/resources/views/auth/login.php');
+$assertTest('Login view embeds brand logo image', str_contains($loginHtml, 'logos/logo-128.png') || str_contains($loginHtml, 'auth-brand-logo'));
+$welcomeHtml = file_get_contents($baseDir . '/resources/views/welcome.php');
+$assertTest('Welcome landing page embeds hero brand logo', str_contains($welcomeHtml, 'logos/logo-256.png') || str_contains($welcomeHtml, 'hero-brand-logo'));
+$showcaseHtml = file_get_contents($baseDir . '/resources/views/ui/showcase.php');
+$assertTest('Showcase view contains brand assets and identity section', str_contains($showcaseHtml, 'id="branding"') && str_contains($showcaseHtml, 'Brand Assets & Responsive Identity'));
+
 // ── Summary ─────────────────────────────────────────────────────────────────
 echo "\n\033[1;36m════════════════════════════════════════════════════════════════\033[0m\n";
 echo "  \033[1;37mTEST SUMMARY:\033[0m \033[0;32m{$passed} Passed\033[0m | \033[0;31m{$failed} Failed\033[0m\n";

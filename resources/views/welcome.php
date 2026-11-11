@@ -8,6 +8,11 @@ $user = $user ?? $currentUser ?? null;
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dreambox Nexus // Security-First Application Gateway</title>
+    <link rel="icon" type="image/x-icon" href="<?= htmlspecialchars($appBase) ?>/favicon.ico">
+    <link rel="icon" type="image/png" sizes="32x32" href="<?= htmlspecialchars($appBase) ?>/logos/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="<?= htmlspecialchars($appBase) ?>/logos/favicon-16x16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="<?= htmlspecialchars($appBase) ?>/logos/apple-touch-icon.png">
+    <link rel="manifest" href="<?= htmlspecialchars($appBase) ?>/logos/site.webmanifest">
     <link rel="stylesheet" href="<?= htmlspecialchars($appBase) ?>/css/theme.css">
 </head>
 <body>
@@ -17,6 +22,9 @@ $user = $user ?? $currentUser ?? null;
 
     <main>
         <div class="hero">
+            <div class="hero-brand-wrap">
+                <img src="<?= htmlspecialchars($appBase) ?>/logos/logo-256.png" alt="Dreambox Nexus Logo" class="hero-brand-logo">
+            </div>
             <div class="hero-pill">
                 <div class="pulse-dot"></div>
                 <span>CIA IAM GATEWAY & OBSERVABILITY HUD</span>
