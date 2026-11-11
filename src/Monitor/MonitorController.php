@@ -218,11 +218,7 @@ class MonitorController
     {
         $auditLogger = new AuditLogger($this->db);
         $chainStatus = $auditLogger->verifyChain();
-        $recentLogs = [];
-
-        if ($this->db->isAlive() && $this->db->isSql()) {
-            $recentLogs = $this->db->fetchAll("SELECT * FROM audit_logs ORDER BY id DESC LIMIT 15");
-        }
+        $recentLogs = $auditLogger->getRecentLogs(15);
 
         $data = [
             'chain_status' => $chainStatus,

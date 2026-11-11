@@ -10,6 +10,7 @@ use Nexus\Auth\UserRepository;
 use Nexus\Core\Request;
 use Nexus\Core\Response;
 use Nexus\Database\Database;
+use Nexus\Events\AuditLogger;
 use Nexus\Security\Csrf;
 use Nexus\View\View;
 
@@ -409,93 +410,30 @@ class AdminController
         ?array $before,
         ?array $after
     ): void {
-        $traceId = $request->getTraceId();
-        $ip = $request->getClientIp();
-        $ua = $request->getUserAgent();
-
-        $lastLog = null;
-        if ($this->db !== null && $this->db->isAlive()) {
-            if ($this->db->getDriver() === 'mongodb') {
-                $docs = $this->db->mongoFind('audit_logs', [], ['sort' => ['created_at' => -1], 'limit' => 1]);
-                $lastLog = $docs[0] ?? null;
-            } else {
-                $lastLog = $this->db->fetch("SELECT hash FROM audit_logs ORDER BY id DESC LIMIT 1");
-            }
-        }
-
-        $prevHash = $lastLog['hash'] ?? str_repeat('0', 64);
-        $payloadString = json_encode(['before' => $before, 'after' => $after]);
-        $hash = hash('sha256', $prevHash . $traceId . $action . $resource . ($resourceId ?? '') . $payloadString . time());
-
-        $entry = [
-            'trace_id' => $traceId,
-            'user_id' => $userId,
-            'action' => $action,
-            'resource' => $resource,
-            'resource_id' => $resourceId,
-            'ip_address' => $ip,
-            'user_agent' => substr($ua, 0, 255),
-            'payload_before' => json_encode($before),
-            'payload_after' => json_encode($after),
-            'previous_hash' => $prevHash,
-            'hash' => $hash,
-            'created_at' => date('Y-m-d H:i:s'),
-        ];
-
-        if ($this->db !== null && $this->db->isAlive()) {
-            if ($this->db->getDriver() === 'mongodb') {
-                $this->db->mongoInsert('audit_logs', $entry);
-            } else {
-                $this->db->execute(
-                    "INSERT INTO audit_logs (trace_id, user_id, action, resource, resource_id, ip_address, user_agent, payload_before, payload_after, previous_hash, hash)
-                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                    [
-                        $entry['trace_id'], $entry['user_id'], $entry['action'], $entry['resource'],
-                        $entry['resource_id'], $entry['ip_address'], $entry['user_agent'],
-                        $entry['payload_before'], $entry['payload_after'], $entry['previous_hash'], $entry['hash']
-                    ]
-                );
-            }
-        }
+        $auditLogger = new AuditLogger($this->db);
+        $auditLogger->log(
+            $request->getTraceId(),
+            $userId,
+            $action,
+            $resource,
+            $resourceId,
+            $request->getClientIp(),
+            $request->getUserAgent(),
+            $before,
+            $after
+        );
     }
 
     private function fetchAuditLogs(int $limit = 50): array
     {
-        if ($this->db !== null && $this->db->isAlive()) {
-            if ($this->db->getDriver() === 'mongodb') {
-                $docs = $this->db->mongoFind('audit_logs', [], ['sort' => ['created_at' => -1], 'limit' => $limit]);
-                return array_map(function($d) {
-                    return (array)$d;
-                }, $docs);
-            } else {
-                return $this->db->fetchAll("SELECT * FROM audit_logs ORDER BY id DESC LIMIT {$limit}");
-            }
-        }
-
-        return [
-            [
-                'id' => 1,
-                'trace_id' => 'c1f7a0b8-init-0001',
-                'user_id' => 'usr_admin_001',
-                'action' => 'SYSTEM_INIT',
-                'resource' => 'iam',
-                'resource_id' => 'root',
-                'ip_address' => '127.0.0.1',
-                'user_agent' => 'Nexus Alpha Runner',
-                'payload_before' => null,
-                'payload_after' => json_encode(['status' => 'CIA Triad Activated']),
-                'previous_hash' => str_repeat('0', 64),
-                'hash' => hash('sha256', str_repeat('0', 64) . 'SYSTEM_INIT'),
-                'created_at' => date('Y-m-d H:i:s'),
-            ]
-        ];
+        $auditLogger = new AuditLogger($this->db);
+        return $auditLogger->getRecentLogs($limit);
     }
 
     private function verifyChain(array $logs): bool
     {
-        if (count($logs) <= 1) {
-            return true;
-        }
-        return true;
+        $auditLogger = new AuditLogger($this->db);
+        $status = $auditLogger->verifyChain();
+        return (bool)($status['intact'] ?? false);
     }
 }

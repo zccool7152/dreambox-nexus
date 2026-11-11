@@ -192,6 +192,36 @@ $assertTest('Physical bridge /health/index.php exists', file_exists($baseDir . '
 $assertTest('Root project forwarder /index.php exists', file_exists($baseDir . '/index.php'));
 $assertTest('Request::getAppBase() accurately resolves base path', \Nexus\Core\Request::getAppBase() === '/Dreambox Nexus');
 
+// 5. Test Audit Hash-Chain Telemetry Endpoint
+$auditReqApi = new \Nexus\Core\Request('GET', '/api/v1/monitor/audit', ['Accept' => 'application/json'], [], [], '', '127.0.0.1');
+$auditResApi = $app->handle($auditReqApi);
+$assertTest('GET /api/v1/monitor/audit returns HTTP 200 with standard envelope', $auditResApi->getStatusCode() === 200);
+$auditJson = json_decode($auditResApi->getContent(), true);
+$chainStatus = $auditJson['data']['chain_status'] ?? [];
+$recentLogs = $auditJson['data']['recent_logs'] ?? [];
+$assertTest('Audit Hash-Chain verification reports intact status with verified records', 
+    ($chainStatus['intact'] ?? false) === true && ($chainStatus['total_verified'] ?? 0) >= 5
+);
+$assertTest('Audit Hash-Chain endpoint provides recent logs with 64-character SHA-256 fingerprints', 
+    !empty($recentLogs) && strlen($recentLogs[0]['hash'] ?? '') === 64 && isset($recentLogs[0]['action'], $recentLogs[0]['user_id'])
+);
+
+// 6. Test Cryptographic Hash-Chain Tamper Detection
+$tempLedger = $baseDir . '/storage/logs/audit_chain_tamper_test.json';
+@unlink($tempLedger);
+$tamperLogger = new \Nexus\Events\AuditLogger(null, $tempLedger);
+$intactStatus = $tamperLogger->verifyChain();
+$assertTest('Isolated test ledger starts in cryptographically intact state', $intactStatus['intact'] === true && $intactStatus['total_verified'] >= 5);
+// Simulate tampering with record 3
+$tamperedRecords = json_decode((string)file_get_contents($tempLedger), true);
+$tamperedRecords[2]['action'] = 'MALICIOUS_FORGED_ACTION';
+file_put_contents($tempLedger, json_encode($tamperedRecords, JSON_PRETTY_PRINT));
+$tamperedStatus = $tamperLogger->verifyChain();
+$assertTest('Cryptographic chain verification flags tampering when record contents are altered', 
+    $tamperedStatus['intact'] === false && $tamperedStatus['broken_at_id'] === 3
+);
+@unlink($tempLedger);
+
 // ── Test 11: MongoDB NoSQL Subsystem & Driver ───────────────────────────────
 echo "\n\033[1;37m[11] MongoDB NoSQL Subsystem & Driver\033[0m\n";
 \Nexus\Core\Env::load($baseDir . '/.env');
