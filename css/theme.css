@@ -1572,18 +1572,21 @@ footer {
     margin-top: 0.35rem;
 }
 
+.divider,
 .oauth-divider {
     display: flex;
     align-items: center;
     gap: 1rem;
     margin: 1.5rem 0;
-    color: var(--text-subtle);
-    font-size: 0.75rem;
+    color: var(--text-muted);
+    font-size: 0.72rem;
     text-transform: uppercase;
     font-weight: 600;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.06em;
 }
 
+.divider::before,
+.divider::after,
 .oauth-divider::before,
 .oauth-divider::after {
     content: '';
@@ -1602,23 +1605,37 @@ footer {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 0.5rem;
-    padding: 0.6rem 1rem;
+    gap: 0.65rem;
+    width: 100%;
+    height: 40px;
+    padding: 0 1rem;
     border: 1px solid var(--border-light);
     border-radius: var(--radius-md);
     background: #ffffff;
-    color: var(--text-main);
-    font-size: 0.825rem;
+    color: var(--text-dark);
+    font-size: 0.82rem;
     font-weight: 600;
     text-decoration: none;
     box-shadow: var(--shadow-sm);
-    transition: all 0.2s ease;
+    transition: var(--transition-base);
+    cursor: pointer;
 }
 
 .btn-oauth:hover {
     background: #f8fafc;
     border-color: #cbd5e1;
     transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
+}
+
+.btn-oauth svg,
+.btn-google svg,
+.btn-github svg {
+    width: 18px !important;
+    height: 18px !important;
+    max-width: 18px !important;
+    max-height: 18px !important;
+    flex-shrink: 0;
 }
 
 .qr-box {
