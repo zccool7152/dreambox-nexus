@@ -69,6 +69,7 @@ class GitHubProvider implements OAuthProviderInterface
             ],
             [
                 'Accept: application/json',
+                'Content-Type: application/json',
                 'User-Agent: Dreambox-Nexus-Core-OAuth-Client',
             ]
         );

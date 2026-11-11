@@ -55,15 +55,19 @@ class HttpClient
         }
 
         $formattedHeaders = [];
+        $hasContentType = false;
         foreach ($headers as $key => $val) {
-            $formattedHeaders[] = is_int($key) ? $val : "{$key}: {$val}";
+            $h = is_int($key) ? $val : "{$key}: {$val}";
+            $formattedHeaders[] = $h;
+            if (stripos(trim($h), 'Content-Type:') === 0) {
+                $hasContentType = true;
+            }
         }
 
         $options = [
             CURLOPT_URL => $url,
             CURLOPT_CUSTOMREQUEST => strtoupper($method),
             CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_HTTPHEADER => $formattedHeaders,
             CURLOPT_TIMEOUT => $this->timeout,
             CURLOPT_CONNECTTIMEOUT => $this->connectTimeout,
             CURLOPT_FOLLOWLOCATION => false, // Prevents open redirect SSRF bypasses
@@ -81,11 +85,23 @@ class HttpClient
                         break;
                     }
                 }
-                $options[CURLOPT_POSTFIELDS] = $isForm ? http_build_query($body) : json_encode($body);
+                if ($isForm) {
+                    $options[CURLOPT_POSTFIELDS] = http_build_query($body);
+                    if (!$hasContentType) {
+                        $formattedHeaders[] = 'Content-Type: application/x-www-form-urlencoded';
+                    }
+                } else {
+                    $options[CURLOPT_POSTFIELDS] = json_encode($body);
+                    if (!$hasContentType) {
+                        $formattedHeaders[] = 'Content-Type: application/json';
+                    }
+                }
             } else {
                 $options[CURLOPT_POSTFIELDS] = $body;
             }
         }
+
+        $options[CURLOPT_HTTPHEADER] = $formattedHeaders;
 
         curl_setopt_array($ch, $options);
 
