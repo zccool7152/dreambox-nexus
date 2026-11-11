@@ -24,13 +24,17 @@ class GoogleProvider implements OAuthProviderInterface
 
     public function isMock(): bool
     {
-        return empty($this->config['client_id']) || !empty($this->config['mock_enabled']);
+        return !empty($this->config['mock_enabled']);
     }
 
     public function getAuthorizationUrl(string $state): string
     {
         if ($this->isMock()) {
             return $this->config['redirect_uri'] . '?code=mock_google_code&state=' . rawurlencode($state);
+        }
+
+        if (empty($this->config['client_id'])) {
+            throw new RuntimeException("Google OAuth Client ID is not configured in .env. Please set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET.");
         }
 
         $params = [
@@ -48,8 +52,12 @@ class GoogleProvider implements OAuthProviderInterface
 
     public function handleCallback(string $code): array
     {
-        if ($this->isMock() && ($code === 'mock_google_code' || empty($this->config['client_id']))) {
+        if ($this->isMock() && $code === 'mock_google_code') {
             return $this->getMockUser();
+        }
+
+        if (empty($this->config['client_id']) || empty($this->config['client_secret'])) {
+            throw new RuntimeException("Google OAuth credentials missing in .env (GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET).");
         }
 
         // 1. Exchange authorization code for access token

@@ -24,13 +24,17 @@ class GitHubProvider implements OAuthProviderInterface
 
     public function isMock(): bool
     {
-        return empty($this->config['client_id']) || !empty($this->config['mock_enabled']);
+        return !empty($this->config['mock_enabled']);
     }
 
     public function getAuthorizationUrl(string $state): string
     {
         if ($this->isMock()) {
             return $this->config['redirect_uri'] . '?code=mock_github_code&state=' . rawurlencode($state);
+        }
+
+        if (empty($this->config['client_id'])) {
+            throw new RuntimeException("GitHub OAuth Client ID is not configured in .env. Please set GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET.");
         }
 
         $params = [
@@ -46,8 +50,12 @@ class GitHubProvider implements OAuthProviderInterface
 
     public function handleCallback(string $code): array
     {
-        if ($this->isMock() && ($code === 'mock_github_code' || empty($this->config['client_id']))) {
+        if ($this->isMock() && $code === 'mock_github_code') {
             return $this->getMockUser();
+        }
+
+        if (empty($this->config['client_id']) || empty($this->config['client_secret'])) {
+            throw new RuntimeException("GitHub OAuth credentials missing in .env (GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET).");
         }
 
         // 1. Exchange code for access token

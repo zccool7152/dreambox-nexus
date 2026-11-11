@@ -428,10 +428,15 @@ class AuthController
 
     public function redirectToOAuth(Request $request, string $provider): Response
     {
-        $state = $this->oauth->generateState();
-        $oauthProvider = $this->oauth->getProvider($provider);
-        $url = $oauthProvider->getAuthorizationUrl($state);
-        return Response::redirect($url);
+        try {
+            $state = $this->oauth->generateState();
+            $oauthProvider = $this->oauth->getProvider($provider);
+            $url = $oauthProvider->getAuthorizationUrl($state);
+            return Response::redirect($url);
+        } catch (\Throwable $e) {
+            $this->session->flash('auth_error', $e->getMessage());
+            return Response::redirect(Request::getAppBase() . '/auth/login/');
+        }
     }
 
     public function handleOAuthCallback(Request $request, string $provider): Response

@@ -31,7 +31,7 @@ return [
             'token_url' => 'https://oauth2.googleapis.com/token',
             'userinfo_url' => 'https://openidconnect.googleapis.com/v1/userinfo',
             'scopes' => ['openid', 'email', 'profile'],
-            'mock_enabled' => (bool)Env::get('AUTH_MOCK_OAUTH', true),
+            'mock_enabled' => (bool)Env::get('AUTH_MOCK_OAUTH', false),
         ],
         'github' => [
             'client_id' => Env::get('GITHUB_CLIENT_ID', ''),
@@ -42,7 +42,7 @@ return [
             'userinfo_url' => 'https://api.github.com/user',
             'emails_url' => 'https://api.github.com/user/emails',
             'scopes' => ['read:user', 'user:email'],
-            'mock_enabled' => (bool)Env::get('AUTH_MOCK_OAUTH', true),
+            'mock_enabled' => (bool)Env::get('AUTH_MOCK_OAUTH', false),
         ],
     ],
 ];

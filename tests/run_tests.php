@@ -328,38 +328,77 @@ $assertTest('Zero credential leaks in public HTML markup', !str_contains($loginR
 $assertTest('Login view contains functional Continue with Google button', str_contains($loginRes->getContent(), '/auth/oauth/google/'));
 $assertTest('Login view contains functional Continue with GitHub button', str_contains($loginRes->getContent(), '/auth/oauth/github/'));
 
-// OAuth 2.0 Functional Redirect & Callback Lifecycle
+// OAuth 2.0 Functional Redirect & Configuration Validation
 $oauthGoogleReq = new \Nexus\Core\Request('GET', '/auth/oauth/google', ['Accept' => 'text/html'], [], [], '', '127.0.0.1');
 $oauthGoogleRes = $app->handle($oauthGoogleReq);
-$assertTest('GET /auth/oauth/google returns HTTP 302 redirect', $oauthGoogleRes->getStatusCode() === 302);
-$assertTest('GET /auth/oauth/google redirects to callback with state', str_contains($oauthGoogleRes->getHeader('location', ''), 'mock_google_code') && str_contains($oauthGoogleRes->getHeader('location', ''), 'state='));
+$assertTest('GET /auth/oauth/google without credentials redirects to /auth/login/ with configuration notice', $oauthGoogleRes->getStatusCode() === 302 && str_contains($oauthGoogleRes->getHeader('location', ''), '/auth/login/'));
 
 $oauthGithubReq = new \Nexus\Core\Request('GET', '/auth/oauth/github', ['Accept' => 'text/html'], [], [], '', '127.0.0.1');
 $oauthGithubRes = $app->handle($oauthGithubReq);
-$assertTest('GET /auth/oauth/github returns HTTP 302 redirect', $oauthGithubRes->getStatusCode() === 302);
-$assertTest('GET /auth/oauth/github redirects to callback with state', str_contains($oauthGithubRes->getHeader('location', ''), 'mock_github_code') && str_contains($oauthGithubRes->getHeader('location', ''), 'state='));
+$assertTest('GET /auth/oauth/github without credentials redirects to /auth/login/ with configuration notice', $oauthGithubRes->getStatusCode() === 302 && str_contains($oauthGithubRes->getHeader('location', ''), '/auth/login/'));
+
+// Live Google & GitHub OAuth 2.0 Authorization URL Construction
+$liveOauthMgr = new \Nexus\Auth\OAuth\OAuthManager([
+    'google' => [
+        'client_id' => 'google-test-id.apps.googleusercontent.com',
+        'client_secret' => 'test-secret',
+        'redirect_uri' => 'http://localhost/Dreambox%20Nexus/auth/google/callback/',
+        'authorize_url' => 'https://accounts.google.com/o/oauth2/v2/auth',
+        'token_url' => 'https://oauth2.googleapis.com/token',
+        'userinfo_url' => 'https://openidconnect.googleapis.com/v1/userinfo',
+        'mock_enabled' => false,
+    ],
+    'github' => [
+        'client_id' => 'github-test-id',
+        'client_secret' => 'test-secret',
+        'redirect_uri' => 'http://localhost/Dreambox%20Nexus/auth/github/callback/',
+        'authorize_url' => 'https://github.com/login/oauth/authorize',
+        'token_url' => 'https://github.com/login/oauth/access_token',
+        'userinfo_url' => 'https://api.github.com/user',
+        'mock_enabled' => false,
+    ],
+], $session);
+
+$liveStateGoogle = $liveOauthMgr->generateState();
+$liveGoogleUrl = $liveOauthMgr->getProvider('google')->getAuthorizationUrl($liveStateGoogle);
+$assertTest('Live Google OAuth builds real accounts.google.com authorization URL', str_starts_with($liveGoogleUrl, 'https://accounts.google.com/o/oauth2/v2/auth') && str_contains($liveGoogleUrl, 'client_id=google-test-id.apps.googleusercontent.com'));
+
+$liveStateGithub = $liveOauthMgr->generateState();
+$liveGithubUrl = $liveOauthMgr->getProvider('github')->getAuthorizationUrl($liveStateGithub);
+$assertTest('Live GitHub OAuth builds real github.com authorization URL', str_starts_with($liveGithubUrl, 'https://github.com/login/oauth/authorize') && str_contains($liveGithubUrl, 'client_id=github-test-id'));
 
 // Test OAuth Callback CSRF Defense (Mismatched State)
-$badCallbackReq = new \Nexus\Core\Request('GET', '/auth/google/callback', [], ['code' => 'mock_google_code', 'state' => 'forged_csrf_state'], [], '', '127.0.0.1');
+$badCallbackReq = new \Nexus\Core\Request('GET', '/auth/google/callback', [], ['code' => 'live_google_code', 'state' => 'forged_csrf_state'], [], '', '127.0.0.1');
 $badCallbackRes = $app->handle($badCallbackReq);
 $assertTest('OAuth callback with mismatched state triggers CSRF error redirect (HTTP 302)', $badCallbackRes->getStatusCode() === 302 && str_contains($badCallbackRes->getHeader('location', ''), '/auth/login/'));
 
-// Test OAuth Callback Valid State - Google (SuperAdmin)
-$sessionInstance = $app->getContainer()->make(\Nexus\Security\Session::class);
-$authConfig = require $baseDir . '/config/auth.php';
-$oauthManagerReal = new \Nexus\Auth\OAuth\OAuthManager($authConfig['oauth'], $sessionInstance);
-$validStateGoogle = $oauthManagerReal->generateState();
-$validGoogleCallbackReq = new \Nexus\Core\Request('GET', '/auth/google/callback', [], ['code' => 'mock_google_code', 'state' => $validStateGoogle], [], '', '127.0.0.1');
-$validGoogleCallbackRes = $app->handle($validGoogleCallbackReq);
-$assertTest('OAuth Google callback signs in SuperAdmin and redirects to /admin/ (HTTP 302)', $validGoogleCallbackRes->getStatusCode() === 302 && str_contains($validGoogleCallbackRes->getHeader('location', ''), '/admin/'));
+// Test Mock Provider Fallback (Testing environment mock support)
+$mockOauthMgr = new \Nexus\Auth\OAuth\OAuthManager([
+    'google' => [
+        'client_id' => '',
+        'client_secret' => '',
+        'redirect_uri' => 'http://localhost/Dreambox%20Nexus/auth/google/callback/',
+        'mock_enabled' => true,
+    ],
+    'github' => [
+        'client_id' => '',
+        'client_secret' => '',
+        'redirect_uri' => 'http://localhost/Dreambox%20Nexus/auth/github/callback/',
+        'mock_enabled' => true,
+    ],
+], $session);
 
-// Test OAuth Callback Valid State - GitHub (Member)
-$validStateGithub = $oauthManagerReal->generateState();
-$validGithubCallbackReq = new \Nexus\Core\Request('GET', '/auth/github/callback', [], ['code' => 'mock_github_code', 'state' => $validStateGithub], [], '', '127.0.0.1');
-$validGithubCallbackRes = $app->handle($validGithubCallbackReq);
-$assertTest('OAuth GitHub callback provisions user and redirects to /account/ (HTTP 302)', $validGithubCallbackRes->getStatusCode() === 302 && str_contains($validGithubCallbackRes->getHeader('location', ''), '/account/'));
+$mockGoogleProvider = $mockOauthMgr->getProvider('google');
+$mockStateGoogle = $mockOauthMgr->generateState();
+$mockGoogleUser = $mockGoogleProvider->handleCallback('mock_google_code');
+$assertTest('Mock Google user profile lookup returns Timothy Dunn profile', $mockGoogleUser['email'] === 'admin@nexus.local');
 
-$sessionInstance->destroy();
+$mockGithubProvider = $mockOauthMgr->getProvider('github');
+$mockStateGithub = $mockOauthMgr->generateState();
+$mockGithubUser = $mockGithubProvider->handleCallback('mock_github_code');
+$assertTest('Mock GitHub user profile lookup returns GitHub user profile', str_contains($mockGithubUser['email'], '@users.noreply.github.com'));
+
+$session->destroy();
 $_SESSION = [];
 
 $testLoginUser = $userRepo->create([

@@ -73,7 +73,18 @@ class HttpClient
         ];
 
         if (in_array(strtoupper($method), ['POST', 'PUT', 'PATCH'], true)) {
-            $options[CURLOPT_POSTFIELDS] = is_array($body) ? json_encode($body) : $body;
+            if (is_array($body)) {
+                $isForm = false;
+                foreach ($formattedHeaders as $h) {
+                    if (stripos($h, 'application/x-www-form-urlencoded') !== false) {
+                        $isForm = true;
+                        break;
+                    }
+                }
+                $options[CURLOPT_POSTFIELDS] = $isForm ? http_build_query($body) : json_encode($body);
+            } else {
+                $options[CURLOPT_POSTFIELDS] = $body;
+            }
         }
 
         curl_setopt_array($ch, $options);
