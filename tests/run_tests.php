@@ -302,6 +302,20 @@ $adminBridges = [
     '/api/v1/auth/login/index.php' => $baseDir . '/api/v1/auth/login/index.php',
     '/api/v1/auth/2fa/setup/index.php' => $baseDir . '/api/v1/auth/2fa/setup/index.php',
     '/api/v1/auth/password/change/index.php' => $baseDir . '/api/v1/auth/password/change/index.php',
+    '/auth/oauth/index.php' => $baseDir . '/auth/oauth/index.php',
+    '/auth/oauth/google/index.php' => $baseDir . '/auth/oauth/google/index.php',
+    '/auth/oauth/github/index.php' => $baseDir . '/auth/oauth/github/index.php',
+    '/auth/google/callback/index.php' => $baseDir . '/auth/google/callback/index.php',
+    '/auth/github/callback/index.php' => $baseDir . '/auth/github/callback/index.php',
+    '/auth/oauth/google/callback/index.php' => $baseDir . '/auth/oauth/google/callback/index.php',
+    '/auth/oauth/github/callback/index.php' => $baseDir . '/auth/oauth/github/callback/index.php',
+    '/public/auth/oauth/index.php' => $baseDir . '/public/auth/oauth/index.php',
+    '/public/auth/oauth/google/index.php' => $baseDir . '/public/auth/oauth/google/index.php',
+    '/public/auth/oauth/github/index.php' => $baseDir . '/public/auth/oauth/github/index.php',
+    '/public/auth/google/callback/index.php' => $baseDir . '/public/auth/google/callback/index.php',
+    '/public/auth/github/callback/index.php' => $baseDir . '/public/auth/github/callback/index.php',
+    '/public/auth/oauth/google/callback/index.php' => $baseDir . '/public/auth/oauth/google/callback/index.php',
+    '/public/auth/oauth/github/callback/index.php' => $baseDir . '/public/auth/oauth/github/callback/index.php',
 ];
 foreach ($adminBridges as $pathName => $fullPath) {
     $assertTest("Physical bridge {$pathName} exists", file_exists($fullPath));
@@ -311,6 +325,42 @@ foreach ($adminBridges as $pathName => $fullPath) {
 $assertTest('Login view contains script with CSP nonce', str_contains($loginRes->getContent(), '<script nonce="') && !str_contains($loginRes->getContent(), '<script>'));
 $assertTest('Login form contains method="POST"', str_contains($loginRes->getContent(), 'method="POST"'));
 $assertTest('Zero credential leaks in public HTML markup', !str_contains($loginRes->getContent(), '123qweasd') && !str_contains($loginRes->getContent(), 'NexusAdmin@2026!'));
+$assertTest('Login view contains functional Continue with Google button', str_contains($loginRes->getContent(), '/auth/oauth/google/'));
+$assertTest('Login view contains functional Continue with GitHub button', str_contains($loginRes->getContent(), '/auth/oauth/github/'));
+
+// OAuth 2.0 Functional Redirect & Callback Lifecycle
+$oauthGoogleReq = new \Nexus\Core\Request('GET', '/auth/oauth/google', ['Accept' => 'text/html'], [], [], '', '127.0.0.1');
+$oauthGoogleRes = $app->handle($oauthGoogleReq);
+$assertTest('GET /auth/oauth/google returns HTTP 302 redirect', $oauthGoogleRes->getStatusCode() === 302);
+$assertTest('GET /auth/oauth/google redirects to callback with state', str_contains($oauthGoogleRes->getHeader('location', ''), 'mock_google_code') && str_contains($oauthGoogleRes->getHeader('location', ''), 'state='));
+
+$oauthGithubReq = new \Nexus\Core\Request('GET', '/auth/oauth/github', ['Accept' => 'text/html'], [], [], '', '127.0.0.1');
+$oauthGithubRes = $app->handle($oauthGithubReq);
+$assertTest('GET /auth/oauth/github returns HTTP 302 redirect', $oauthGithubRes->getStatusCode() === 302);
+$assertTest('GET /auth/oauth/github redirects to callback with state', str_contains($oauthGithubRes->getHeader('location', ''), 'mock_github_code') && str_contains($oauthGithubRes->getHeader('location', ''), 'state='));
+
+// Test OAuth Callback CSRF Defense (Mismatched State)
+$badCallbackReq = new \Nexus\Core\Request('GET', '/auth/google/callback', [], ['code' => 'mock_google_code', 'state' => 'forged_csrf_state'], [], '', '127.0.0.1');
+$badCallbackRes = $app->handle($badCallbackReq);
+$assertTest('OAuth callback with mismatched state triggers CSRF error redirect (HTTP 302)', $badCallbackRes->getStatusCode() === 302 && str_contains($badCallbackRes->getHeader('location', ''), '/auth/login/'));
+
+// Test OAuth Callback Valid State - Google (SuperAdmin)
+$sessionInstance = $app->getContainer()->make(\Nexus\Security\Session::class);
+$authConfig = require $baseDir . '/config/auth.php';
+$oauthManagerReal = new \Nexus\Auth\OAuth\OAuthManager($authConfig['oauth'], $sessionInstance);
+$validStateGoogle = $oauthManagerReal->generateState();
+$validGoogleCallbackReq = new \Nexus\Core\Request('GET', '/auth/google/callback', [], ['code' => 'mock_google_code', 'state' => $validStateGoogle], [], '', '127.0.0.1');
+$validGoogleCallbackRes = $app->handle($validGoogleCallbackReq);
+$assertTest('OAuth Google callback signs in SuperAdmin and redirects to /admin/ (HTTP 302)', $validGoogleCallbackRes->getStatusCode() === 302 && str_contains($validGoogleCallbackRes->getHeader('location', ''), '/admin/'));
+
+// Test OAuth Callback Valid State - GitHub (Member)
+$validStateGithub = $oauthManagerReal->generateState();
+$validGithubCallbackReq = new \Nexus\Core\Request('GET', '/auth/github/callback', [], ['code' => 'mock_github_code', 'state' => $validStateGithub], [], '', '127.0.0.1');
+$validGithubCallbackRes = $app->handle($validGithubCallbackReq);
+$assertTest('OAuth GitHub callback provisions user and redirects to /account/ (HTTP 302)', $validGithubCallbackRes->getStatusCode() === 302 && str_contains($validGithubCallbackRes->getHeader('location', ''), '/account/'));
+
+$sessionInstance->destroy();
+$_SESSION = [];
 
 $testLoginUser = $userRepo->create([
     'email' => 'login_flow_test@example.com',
@@ -507,6 +557,8 @@ $assertTest('Physical bridge /ui/index.php exists', file_exists($baseDir . '/ui/
 $assertTest('Public bridge /public/ui/index.php exists', file_exists($baseDir . '/public/ui/index.php'));
 $openApiContent = file_get_contents($baseDir . '/docs/openapi.yaml');
 $assertTest('OpenAPI specification documents /ui endpoint', str_contains($openApiContent, '/ui:'));
+$assertTest('OpenAPI specification documents /auth/oauth/{provider} endpoint', str_contains($openApiContent, '/auth/oauth/{provider}:'));
+$assertTest('OpenAPI specification documents /auth/oauth/{provider}/callback endpoint', str_contains($openApiContent, '/auth/oauth/{provider}/callback:'));
 
 $uiReq = new \Nexus\Core\Request('GET', '/ui', ['accept' => 'text/html'], [], [], '', '127.0.0.1');
 $uiRes = $app->handle($uiReq);

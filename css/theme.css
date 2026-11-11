@@ -224,6 +224,15 @@ body {
     flex-shrink: 0;
     border: 2px solid #ffffff;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+}
+
+.nexus-avatar-img {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    object-fit: cover;
+    display: block;
 }
 
 .nexus-trigger-info {

@@ -198,16 +198,16 @@ $router->post('/api/v1/auth/password/change', function (Request $req) use ($getA
     return $getAuthController()->changePassword($req);
 }, [], 'auth.change_password');
 
-$router->get('/auth/oauth/{provider}', function (Request $req, array $params) use ($getAuthController) {
-    return $getAuthController()->redirectToOAuth($req, $params['provider']);
+$router->get('/auth/oauth/{provider}', function (Request $req, string $provider) use ($getAuthController) {
+    return $getAuthController()->redirectToOAuth($req, $provider);
 }, [], 'auth.oauth_redirect');
 
-$router->get('/auth/oauth/{provider}/callback', function (Request $req, array $params) use ($getAuthController) {
-    return $getAuthController()->handleOAuthCallback($req, $params['provider']);
+$router->get('/auth/oauth/{provider}/callback', function (Request $req, string $provider) use ($getAuthController) {
+    return $getAuthController()->handleOAuthCallback($req, $provider);
 }, [], 'auth.oauth_callback');
 
-$router->get('/auth/{provider}/callback', function (Request $req, array $params) use ($getAuthController) {
-    return $getAuthController()->handleOAuthCallback($req, $params['provider']);
+$router->get('/auth/{provider}/callback', function (Request $req, string $provider) use ($getAuthController) {
+    return $getAuthController()->handleOAuthCallback($req, $provider);
 }, [], 'auth.oauth_callback_short');
 
 $router->get('/auth/logout', function (Request $req) use ($getAuthController) {
@@ -291,20 +291,20 @@ $router->post('/api/v1/admin/users', function (Request $req) use ($getAdminContr
     return $getAdminController()->createUser($req);
 }, [], 'admin.users_create_api');
 
-$router->post('/admin/users/{id}/update', function (Request $req, array $params) use ($getAdminController) {
-    return $getAdminController()->updateUser($req, $params['id']);
+$router->post('/admin/users/{id}/update', function (Request $req, string $id) use ($getAdminController) {
+    return $getAdminController()->updateUser($req, $id);
 }, [], 'admin.users_update_form');
 
-$router->put('/api/v1/admin/users/{id}', function (Request $req, array $params) use ($getAdminController) {
-    return $getAdminController()->updateUser($req, $params['id']);
+$router->put('/api/v1/admin/users/{id}', function (Request $req, string $id) use ($getAdminController) {
+    return $getAdminController()->updateUser($req, $id);
 }, [], 'admin.users_update_api');
 
-$router->post('/admin/users/{id}/delete', function (Request $req, array $params) use ($getAdminController) {
-    return $getAdminController()->deleteUser($req, $params['id']);
+$router->post('/admin/users/{id}/delete', function (Request $req, string $id) use ($getAdminController) {
+    return $getAdminController()->deleteUser($req, $id);
 }, [], 'admin.users_delete_form');
 
-$router->delete('/api/v1/admin/users/{id}', function (Request $req, array $params) use ($getAdminController) {
-    return $getAdminController()->deleteUser($req, $params['id']);
+$router->delete('/api/v1/admin/users/{id}', function (Request $req, string $id) use ($getAdminController) {
+    return $getAdminController()->deleteUser($req, $id);
 }, [], 'admin.users_delete_api');
 
 $router->get('/admin/roles', function (Request $req) use ($getAdminController) {

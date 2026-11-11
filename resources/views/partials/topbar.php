@@ -91,7 +91,13 @@ $isDeveloper = $isSuperAdmin || in_array('Developer', $userRoles, true) || in_ar
                 <!-- When Logged In: Dynamic User Dropdown -->
                 <div class="nexus-user-menu" id="nexusUserMenu">
                     <div class="nexus-user-trigger" id="nexusUserTrigger" role="button" tabindex="0" aria-haspopup="true" aria-expanded="false" title="User Menu">
-                        <div class="nexus-avatar"><?= htmlspecialchars($initials) ?></div>
+                        <div class="nexus-avatar">
+                            <?php if ($userAvatar !== ''): ?>
+                                <img src="<?= htmlspecialchars($userAvatar) ?>" alt="<?= htmlspecialchars($primaryDisplay) ?>" class="nexus-avatar-img">
+                            <?php else: ?>
+                                <?= htmlspecialchars($initials) ?>
+                            <?php endif; ?>
+                        </div>
                         <div class="nexus-trigger-info">
                             <span class="nexus-trigger-name"><?= htmlspecialchars($primaryDisplay) ?></span>
                         </div>

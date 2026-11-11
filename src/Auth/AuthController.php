@@ -441,7 +441,7 @@ class AuthController
 
         if (!$this->oauth->validateState($state)) {
             $this->session->flash('auth_error', 'Invalid OAuth state parameter (CSRF detected).');
-            return Response::redirect(Request::getAppBase() . '/auth/login');
+            return Response::redirect(Request::getAppBase() . '/auth/login/');
         }
 
         try {
@@ -461,9 +461,13 @@ class AuthController
                     ]);
                     $user = $this->userRepo->findById($user['id']);
                 } else {
+                    $emailParts = explode('@', $profile['email']);
+                    $baseUsername = strtolower(preg_replace('/[^a-zA-Z0-9_]/', '', $emailParts[0] ?? 'user'));
                     $user = $this->userRepo->create([
                         'email' => $profile['email'],
                         'name' => $profile['name'],
+                        'username' => $baseUsername !== '' ? $baseUsername : 'oauth_user',
+                        'display_preference' => 'name',
                         'auth_provider' => $profile['provider'],
                         'provider_id' => $profile['provider_id'],
                         'avatar_url' => $profile['avatar_url'],
@@ -476,7 +480,7 @@ class AuthController
 
             if ($user['status'] === 'suspended') {
                 $this->session->flash('auth_error', 'Your account has been administratively suspended.');
-                return Response::redirect(Request::getAppBase() . '/auth/login');
+                return Response::redirect(Request::getAppBase() . '/auth/login/');
             }
 
             // Sign in directly (OAuth handles external MFA)
@@ -493,7 +497,11 @@ class AuthController
                 $user['groups'] ?? []
             );
 
-            return Response::redirect(Request::getAppBase() . '/admin/');
+            $roles = (array)($user['roles'] ?? ['Member']);
+            $isAdmin = in_array('SuperAdmin', $roles, true) || in_array('Admin', $roles, true) || in_array('SecurityOfficer', $roles, true);
+            $destination = $isAdmin ? '/admin/' : '/account/';
+
+            return Response::redirect(Request::getAppBase() . $destination);
         } catch (\Throwable $e) {
             $this->session->flash('auth_error', 'OAuth authentication failed: ' . $e->getMessage());
             return Response::redirect(Request::getAppBase() . '/auth/login/');

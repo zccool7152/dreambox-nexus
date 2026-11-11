@@ -26,7 +26,7 @@ return [
         'google' => [
             'client_id' => Env::get('GOOGLE_CLIENT_ID', ''),
             'client_secret' => Env::get('GOOGLE_CLIENT_SECRET', ''),
-            'redirect_uri' => Env::get('GOOGLE_REDIRECT_URI', 'http://localhost/Dreambox%20Nexus/auth/google/callback'),
+            'redirect_uri' => str_replace(' ', '%20', (string)Env::get('GOOGLE_REDIRECT_URI', 'http://localhost/Dreambox%20Nexus/auth/google/callback/')),
             'authorize_url' => 'https://accounts.google.com/o/oauth2/v2/auth',
             'token_url' => 'https://oauth2.googleapis.com/token',
             'userinfo_url' => 'https://openidconnect.googleapis.com/v1/userinfo',
@@ -36,7 +36,7 @@ return [
         'github' => [
             'client_id' => Env::get('GITHUB_CLIENT_ID', ''),
             'client_secret' => Env::get('GITHUB_CLIENT_SECRET', ''),
-            'redirect_uri' => Env::get('GITHUB_REDIRECT_URI', 'http://localhost/Dreambox%20Nexus/auth/github/callback'),
+            'redirect_uri' => str_replace(' ', '%20', (string)Env::get('GITHUB_REDIRECT_URI', 'http://localhost/Dreambox%20Nexus/auth/github/callback/')),
             'authorize_url' => 'https://github.com/login/oauth/authorize',
             'token_url' => 'https://github.com/login/oauth/access_token',
             'userinfo_url' => 'https://api.github.com/user',
