@@ -265,6 +265,12 @@ try {
 }
 $assertTest('Audit log immutability blocks mongoDelete operations on audit_logs collection', $deleteBlocked);
 
+if ($mongoAlive) {
+    $mongoAuditLogger = new \Nexus\Events\AuditLogger($mongoDb);
+    $mongoAuditStatus = $mongoAuditLogger->verifyChain();
+    $assertTest('MongoDB live audit_logs collection passes cryptographic hash-chain verification', ($mongoAuditStatus['intact'] ?? false) === true && ($mongoAuditStatus['total_verified'] ?? 0) >= 5);
+}
+
 // Database Driver Alignment (.env vs .env.example)
 $envExampleContent = (string)file_get_contents($baseDir . '/.env.example');
 $assertTest('.env.example template specifies DB_CONNECTION=mongodb', str_contains($envExampleContent, 'DB_CONNECTION=mongodb'));

@@ -86,14 +86,17 @@ class AuditLogger
         $jsonBefore = $cleanBefore !== null ? json_encode($cleanBefore, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) : null;
         $jsonAfter = $cleanAfter !== null ? json_encode($cleanAfter, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) : null;
 
+        $effectiveUserId = $userId ?? 'SYSTEM';
+        $effectiveResourceId = $resourceId ?? '';
+
         // 3. Compute Cryptographic SHA-256 Hash
         $currentHash = self::computeHash(
             $previousHash,
             $traceId,
-            (string)$userId,
+            $effectiveUserId,
             $action,
             $resource,
-            (string)$resourceId,
+            $effectiveResourceId,
             $ipAddress,
             $jsonBefore,
             $jsonAfter,
@@ -103,10 +106,10 @@ class AuditLogger
         $entry = [
             'id' => $nextId,
             'trace_id' => $traceId,
-            'user_id' => $userId ?? 'SYSTEM',
+            'user_id' => $effectiveUserId,
             'action' => $action,
             'resource' => $resource,
-            'resource_id' => $resourceId ?? '',
+            'resource_id' => $effectiveResourceId,
             'ip_address' => $ipAddress,
             'user_agent' => substr((string)$userAgent, 0, 255),
             'payload_before' => $jsonBefore,
@@ -277,6 +280,23 @@ class AuditLogger
     {
         $existing = $this->getFileLedger();
         if (!empty($existing)) {
+            // Synchronize database if active but currently empty
+            if ($this->db !== null && $this->db->isAlive()) {
+                $hasDbLogs = false;
+                try {
+                    if ($this->db->getDriver() === 'mongodb') {
+                        $hasDbLogs = $this->db->mongoCount('audit_logs') > 0;
+                    } elseif ($this->db->isSql()) {
+                        $hasDbLogs = !empty($this->db->fetch("SELECT id FROM audit_logs LIMIT 1"));
+                    }
+                } catch (\Throwable) {}
+
+                if (!$hasDbLogs) {
+                    foreach ($existing as $entry) {
+                        $this->persistToDatabase($entry);
+                    }
+                }
+            }
             return;
         }
 
