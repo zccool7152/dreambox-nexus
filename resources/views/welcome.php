@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 $appBase = $appBase ?? \Nexus\Core\Request::getAppBase();
 $user = $user ?? $currentUser ?? null;
+$cssVersion = file_exists(__DIR__ . '/../../css/theme.css') ? (string)filemtime(__DIR__ . '/../../css/theme.css') : (string)time();
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -15,7 +16,7 @@ $user = $user ?? $currentUser ?? null;
     <link rel="icon" type="image/png" sizes="16x16" href="<?= htmlspecialchars($appBase) ?>/logos/favicon-16x16.png">
     <link rel="apple-touch-icon" sizes="180x180" href="<?= htmlspecialchars($appBase) ?>/logos/apple-touch-icon.png">
     <link rel="manifest" href="<?= htmlspecialchars($appBase) ?>/logos/site.webmanifest">
-    <link rel="stylesheet" href="<?= htmlspecialchars($appBase) ?>/css/theme.css">
+    <link rel="stylesheet" href="<?= htmlspecialchars($appBase) ?>/css/theme.css?v=<?= htmlspecialchars($cssVersion) ?>">
 </head>
 <body>
 
@@ -23,491 +24,378 @@ $user = $user ?? $currentUser ?? null;
     <?php include __DIR__ . '/partials/topbar.php'; ?>
 
     <main class="resume-wrapper">
-        <!-- Executive Hero / Profile Card -->
-        <header class="resume-header">
-            <div class="resume-header-info">
-                <div class="resume-eyebrow">
-                    <span class="pulse-dot"></span>
-                    <span>Systems Architect &bull; DevSecOps &bull; Cloud Infrastructure</span>
-                </div>
-                <h1 class="resume-name">Timothy Dunn</h1>
-                <div class="resume-title">
-                    <span>Systems Architect</span>
-                    <span>&bull;</span>
-                    <span class="text-primary">DevSecOps Focused</span>
-                </div>
-                <div class="resume-contact-bar">
-                    <span class="resume-contact-item">
-                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
-                        <span>Kansas City, MO</span>
-                    </span>
-                    <a href="tel:15550192834" class="resume-contact-item" title="Call Timothy Dunn">
-                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
-                        <span>(555) 019-2834</span>
-                    </a>
-                    <a href="mailto:admin@nexus.local" class="resume-contact-item" title="Email Timothy Dunn">
-                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
-                        <span>admin@nexus.local</span>
-                    </a>
+        <!-- 1. Single Top Row: Master Logo, Name, Badges, Contact Info & Action Buttons -->
+        <header class="td-top-row">
+            <div class="td-top-brand">
+                <img src="<?= htmlspecialchars($appBase) ?>/logos/logo.png" alt="Dreambox Nexus Master Logo" class="hero-brand-logo">
+                <div class="td-top-identity">
+                    <h1 class="td-top-name">Timothy Dunn</h1>
+                    <div class="td-top-tags">
+                        <span class="badge badge-primary">Systems Architect</span>
+                        <span class="badge badge-success">DevSecOps focused</span>
+                        <span class="badge badge-info">Kansas City, MO</span>
+                    </div>
                 </div>
             </div>
-            <div class="resume-header-actions">
-                <img src="<?= htmlspecialchars($appBase) ?>/logos/logo.png" alt="Dreambox Nexus Master Logo" class="hero-brand-logo">
-                <div class="resume-header-btn-group">
-                    <a href="mailto:admin@nexus.local" class="btn btn-primary btn-sm">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
-                        <span>Contact Timothy</span>
-                    </a>
-                    <button type="button" class="btn btn-secondary btn-sm" onclick="window.print()">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
-                        <span>Print / Save PDF</span>
-                    </button>
-                </div>
+
+            <div class="td-top-contact">
+                <a href="tel:15550192834" class="td-contact-item" title="Call Timothy Dunn">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+                    <span>(555) 019-2834</span>
+                </a>
+                <a href="mailto:admin@nexus.local" class="td-contact-item" title="Email Timothy Dunn">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+                    <span>admin@nexus.local</span>
+                </a>
+            </div>
+
+            <div class="td-top-actions">
+                <button type="button" class="btn btn-primary btn-sm" data-open="contact">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+                    <span>Contact me</span>
+                </button>
+                <button type="button" class="btn btn-secondary btn-sm" onclick="window.print()">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+                    <span>Print PDF</span>
+                </button>
             </div>
         </header>
 
-        <!-- Executive Stat & Architecture Highlights -->
-        <section class="resume-stat-grid">
-            <div class="resume-stat-card">
-                <div class="resume-stat-label">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>
-                    <span>Architecture</span>
-                </div>
-                <div class="resume-stat-val">Zero-Dependency Core</div>
-                <div class="resume-stat-desc">Custom PHP 8.3/8.5 framework built from first principles without supply-chain vulnerabilities.</div>
-            </div>
-            <div class="resume-stat-card">
-                <div class="resume-stat-label">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
-                    <span>DevSecOps</span>
-                </div>
-                <div class="resume-stat-val">Continuous Assurance</div>
-                <div class="resume-stat-desc">Automated CI/CD pipelines, container scanning, and infrastructure orchestration.</div>
-            </div>
-            <div class="resume-stat-card">
-                <div class="resume-stat-label">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
-                    <span>Governance</span>
-                </div>
-                <div class="resume-stat-val">5 Regulatory Standards</div>
-                <div class="resume-stat-desc">Live runtime compliance for PCI-DSS v4.0, HIPAA §164.312, NIST CSF 2.0, GDPR, &amp; OWASP.</div>
-            </div>
-            <div class="resume-stat-card">
-                <div class="resume-stat-label">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 10v6M2 10l10-5 10 5-10 5z"></path><path d="M6 12v5c3 3 9 3 12 0v-5"></path></svg>
-                    <span>Academics</span>
-                </div>
-                <div class="resume-stat-val">M.S. Cybersecurity</div>
-                <div class="resume-stat-desc">Western Governors University (In Progress) &bull; B.S. IT (Vatterott) &bull; Cisco CCST &amp; CCNA.</div>
+        <!-- 2. Full-Width Professional Summary Directly Under Top Row -->
+        <section id="summary" class="td-summary-section">
+            <div class="callout">
+                <h2><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Professional summary</h2>
+                <p>An experienced Systems Architect specializing in secure, high-performance platforms, automated CI/CD pipelines, and cloud infrastructure. Pursuing an M.S. in Cybersecurity and Information Assurance, with advanced expertise in DevSecOps practices, container security, cloud orchestration, and API orchestration for resilient, enterprise-scale solutions.</p>
             </div>
         </section>
 
-        <!-- Executive Summary Card -->
-        <section class="resume-summary-card">
-            <div class="resume-eyebrow">01 / EXECUTIVE PROFILE</div>
-            <h2 class="resume-section-heading">Professional Summary</h2>
-            <p class="resume-summary-text">
-                As an experienced Systems Architect, I specialize in building secure, high-performance platforms, automated CI/CD pipelines, and cloud infrastructures, integrating AI tools daily to enhance software delivery. Currently pursuing an M.S. in Cybersecurity and Information Assurance, I bring advanced expertise in DevSecOps practices, container security, cloud infrastructure orchestration, and robust API orchestration to deliver resilient, enterprise-scale solutions.
-            </p>
-        </section>
-
-        <!-- Main 2-Column Responsive Layout -->
-        <div class="resume-layout-grid">
-            <!-- Left Column: Core Competencies, Certifications & Education -->
-            <aside class="resume-column">
-                <!-- Technical Skills & Competencies -->
-                <section class="resume-block">
-                    <div class="resume-eyebrow">02 / CORE COMPETENCIES</div>
-                    <h3 class="resume-block-title">Technical Skills</h3>
-
-                    <div class="resume-skill-cat">
-                        <div class="resume-skill-name">
-                            <span class="pulse-dot"></span>
-                            <span>Languages &amp; Runtimes</span>
+        <!-- 3. Two-Column Split Layout Underneath -->
+        <div class="td-two-col">
+            <!-- Left Column: Key Metrics, Technical Skills, Certifications & Education -->
+            <div class="td-col">
+                <!-- Key Metrics -->
+                <section id="metrics">
+                    <h2><svg viewBox="0 0 24 24"><path d="M4 20V10m6 10V4m6 16v-7m4 7H2"/></svg>Key metrics</h2>
+                    <div class="row">
+                        <div class="metric-card c6">
+                            <div class="metric-header"><span>ATS uptime</span><span class="badge badge-primary">ApplicantPro</span></div>
+                            <div class="metric-value">99.9%</div>
+                            <div class="metric-footer">Across recruiting integrations</div>
                         </div>
-                        <p class="resume-skill-desc">Modern language polyglot with focus on high-throughput server backends and clean frontend architectures.</p>
-                        <div class="resume-tag-wrap">
-                            <span class="badge-tech badge-tech-pri">PHP 8.3 / 8.5</span>
-                            <span class="badge-tech">TypeScript</span>
-                            <span class="badge-tech">JavaScript (ES6+)</span>
-                            <span class="badge-tech">Vue.js</span>
-                            <span class="badge-tech">Angular</span>
-                            <span class="badge-tech">C# (.NET)</span>
-                            <span class="badge-tech">SQL</span>
-                            <span class="badge-tech">Bash</span>
+                        <div class="metric-card c6">
+                            <div class="metric-header"><span>Responsiveness</span><span class="badge badge-success">Gain</span></div>
+                            <div class="metric-value">+25%</div>
+                            <div class="metric-footer"><span class="up">&blacktriangle;</span> Skill-testing platform</div>
+                        </div>
+                        <div class="metric-card c6">
+                            <div class="metric-header"><span>Core Architecture</span><span class="badge badge-info">Zero-Dep</span></div>
+                            <div class="metric-value">100%</div>
+                            <div class="metric-footer">Pure PHP 8.5 &amp; MongoDB</div>
+                        </div>
+                        <div class="metric-card c6">
+                            <div class="metric-header"><span>M.S. Cyber</span><span class="badge badge-warning">WGU</span></div>
+                            <div class="metric-value">2027</div>
+                            <div class="metric-footer">Expected March 2027</div>
                         </div>
                     </div>
+                </section>
 
-                    <div class="resume-skill-cat">
-                        <div class="resume-skill-name">
-                            <span class="pulse-dot"></span>
-                            <span>Backend &amp; API Architecture</span>
+                <!-- Technical Skills -->
+                <section id="skills">
+                    <h2><svg viewBox="0 0 24 24"><path d="M8 6l-6 6 6 6M16 6l6 6-6 6"/></svg>Technical skills</h2>
+                    <div class="row">
+                        <div class="card c6">
+                            <div class="card-header">Languages<span class="badge badge-primary">&#9679;</span></div>
+                            <div class="card-body small">PHP 8.3 &bull; 8.5, JavaScript (ES6+, TypeScript, Angular, Vue.js), C# (.NET), SQL (MySQL, SQL Server), Bash</div>
                         </div>
-                        <p class="resume-skill-desc">Enterprise service contracts, token federation, data masking, and automated verification suites.</p>
-                        <div class="resume-tag-wrap">
-                            <span class="badge-tech badge-tech-pri">RESTful APIs</span>
-                            <span class="badge-tech">OAuth 2.0</span>
-                            <span class="badge-tech">OpenAPI 3.0</span>
-                            <span class="badge-tech">JWT</span>
-                            <span class="badge-tech">EDI Transactions</span>
-                            <span class="badge-tech">PHPUnit</span>
-                            <span class="badge-tech">Service Workers</span>
-                            <span class="badge-tech">Agile / Scrum</span>
+                        <div class="card c6">
+                            <div class="card-header">Backend &amp; APIs<span class="badge badge-info">&#9679;</span></div>
+                            <div class="card-body small">RESTful/SOAP API design, OAuth 2.0/JWT, EDI transactions, JSON, DOM scraping, Service Workers, PHPUnit, Agile/Scrum</div>
                         </div>
-                    </div>
-
-                    <div class="resume-skill-cat">
-                        <div class="resume-skill-name">
-                            <span class="pulse-dot"></span>
-                            <span>DevSecOps &amp; Cloud Infrastructure</span>
+                        <div class="card c6">
+                            <div class="card-header">AI &amp; Agentic Systems<span class="badge badge-purple">&#9679;</span></div>
+                            <div class="card-body small">LLM orchestration, prompt engineering, agentic workflows (Gemini), vector DB / context pipelines, API integrations</div>
                         </div>
-                        <p class="resume-skill-desc">Automated release engineering, vulnerability scanning, and infrastructure orchestration.</p>
-                        <div class="resume-tag-wrap">
-                            <span class="badge-tech badge-tech-pri">DevSecOps</span>
-                            <span class="badge-tech">Docker</span>
-                            <span class="badge-tech">CI/CD Pipelines</span>
-                            <span class="badge-tech">Trivy / Clair</span>
-                            <span class="badge-tech">GCP</span>
-                            <span class="badge-tech">Linux Hardening</span>
-                            <span class="badge-tech">IaC</span>
-                            <span class="badge-tech">Vagrant / SSH</span>
+                        <div class="card c6">
+                            <div class="card-header">DevSecOps &amp; Cloud<span class="badge badge-success">&#9679;</span></div>
+                            <div class="card-body small">Infrastructure as Code, Docker, container scanning (Trivy/Clair), CI/CD (GitHub Actions, GitLab CI), GCP, Linux, Python, SSH</div>
                         </div>
-                    </div>
-
-                    <div class="resume-skill-cat">
-                        <div class="resume-skill-name">
-                            <span class="pulse-dot"></span>
-                            <span>AI &amp; Agentic Systems</span>
+                        <div class="card c6">
+                            <div class="card-header">Networking &amp; Support<span class="badge badge-warning">&#9679;</span></div>
+                            <div class="card-body small">Cisco networking and automation, enterprise networking solutions, routing &amp; switching, IT support operations</div>
                         </div>
-                        <p class="resume-skill-desc">Applied AI orchestration and agentic tool integrations accelerating software delivery.</p>
-                        <div class="resume-tag-wrap">
-                            <span class="badge-tech badge-tech-pri">LLM Orchestration</span>
-                            <span class="badge-tech">Agentic Systems</span>
-                            <span class="badge-tech">Prompt Engineering</span>
-                            <span class="badge-tech">Vector Pipelines</span>
-                        </div>
-                    </div>
-
-                    <div class="resume-skill-cat">
-                        <div class="resume-skill-name">
-                            <span class="pulse-dot"></span>
-                            <span>Networking &amp; Support</span>
-                        </div>
-                        <p class="resume-skill-desc">Network topologies, enterprise packet routing, switching, and automated diagnostics.</p>
-                        <div class="resume-tag-wrap">
-                            <span class="badge-tech">Cisco CCST</span>
-                            <span class="badge-tech">CCNA Automation</span>
-                            <span class="badge-tech">Enterprise Routing</span>
-                            <span class="badge-tech">IT Support</span>
-                        </div>
-                    </div>
-
-                    <div class="resume-skill-cat">
-                        <div class="resume-skill-name">
-                            <span class="pulse-dot"></span>
-                            <span>Hardware &amp; Systems</span>
-                        </div>
-                        <p class="resume-skill-desc">Systems administration, hardware lifecycle management, and physical safety standards.</p>
-                        <div class="resume-tag-wrap">
-                            <span class="badge-tech">System Hardening</span>
-                            <span class="badge-tech">Server Lifecycle</span>
-                            <span class="badge-tech">NFPA 70E Safety</span>
-                            <span class="badge-tech">OSHA 10</span>
+                        <div class="card c6">
+                            <div class="card-header">Hardware &amp; Systems<span class="badge badge-secondary">&#9679;</span></div>
+                            <div class="card-body small">Systems administration, OS hardening, hardware lifecycle management, server configuration, electrical safety (NFPA 70E)</div>
                         </div>
                     </div>
                 </section>
 
                 <!-- Certifications & Training -->
-                <section class="resume-block">
-                    <div class="resume-eyebrow">03 / CREDENTIALS</div>
-                    <h3 class="resume-block-title">Certifications &amp; Training</h3>
-                    <div class="resume-cert-list">
-                        <div class="resume-cert-card">
-                            <div class="resume-cert-title">Google AI Professional</div>
-                            <div class="resume-cert-meta">
-                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 14 14"></polyline></svg>
-                                <span>Completed May 2026</span>
-                            </div>
-                        </div>
-                        <div class="resume-cert-card">
-                            <div class="resume-cert-title">Google IT Support</div>
-                            <div class="resume-cert-meta">
-                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 14 14"></polyline></svg>
-                                <span>Completed September 2026</span>
-                            </div>
-                        </div>
-                        <div class="resume-cert-card">
-                            <div class="resume-cert-title">Cisco Certified Support Technician (CCST) - Networking (100-150)</div>
-                            <div class="resume-cert-meta">
-                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 14 14"></polyline></svg>
-                                <span>Completed July 2026</span>
-                            </div>
-                        </div>
-                        <div class="resume-cert-card">
-                            <div class="resume-cert-title">Cisco Certified Network Associate (CCNA) - Automation (200-301)</div>
-                            <div class="resume-cert-meta">
-                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 14 14"></polyline></svg>
-                                <span>Expected Completion: February 2027</span>
-                            </div>
-                        </div>
-                        <div class="resume-cert-card">
-                            <div class="resume-cert-title">OSHA 10 &bull; NFPA 70E Safety</div>
-                            <div class="resume-cert-meta">
-                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 14 14"></polyline></svg>
-                                <span>Completed August 2026</span>
-                            </div>
-                        </div>
+                <section id="certs">
+                    <h2><svg viewBox="0 0 24 24"><circle cx="12" cy="9" r="6"/><path d="M8 14l-2 8 6-3 6 3-2-8"/></svg>Certifications &amp; training</h2>
+                    <div class="table-responsive">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Credential</th>
+                                    <th>Issuer</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><b>Google AI Professional</b></td>
+                                    <td>Google</td>
+                                    <td><span class="badge badge-success">Completed May 2026</span></td>
+                                </tr>
+                                <tr>
+                                    <td><b>Google IT Support</b></td>
+                                    <td>Google</td>
+                                    <td><span class="badge badge-success">Completed Sept 2026</span></td>
+                                </tr>
+                                <tr>
+                                    <td><b>CCST Networking (100-150)</b></td>
+                                    <td>Cisco</td>
+                                    <td><span class="badge badge-success">Completed July 2026</span></td>
+                                </tr>
+                                <tr>
+                                    <td><b>OSHA 10, NFPA 70E</b></td>
+                                    <td>Safety Training</td>
+                                    <td><span class="badge badge-success">Completed Aug 2026</span></td>
+                                </tr>
+                                <tr>
+                                    <td><b>CCNA Automation (200-301)</b></td>
+                                    <td>Cisco</td>
+                                    <td><span class="badge badge-warning">Expected Feb 2027</span></td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
                 </section>
 
                 <!-- Education -->
-                <section class="resume-block">
-                    <div class="resume-eyebrow">04 / ACADEMICS</div>
-                    <h3 class="resume-block-title">Education</h3>
-                    <div class="resume-edu-list">
-                        <div class="resume-edu-card">
-                            <div class="resume-edu-degree">M.S. in Cybersecurity &amp; Information Assurance</div>
-                            <div class="resume-edu-school">Western Governors University (In Progress, Expected March 2027)</div>
+                <section id="education">
+                    <h2><svg viewBox="0 0 24 24"><path d="M2 9l10-5 10 5-10 5z"/><path d="M6 11v5c3 2 9 2 12 0v-5"/></svg>Education</h2>
+                    <div class="row">
+                        <div class="card c6">
+                            <div class="card-header">M.S. Cybersecurity &amp; Info Assurance <span class="badge badge-warning">In progress</span></div>
+                            <div class="card-body">
+                                <div><b>Western Governors University</b></div>
+                                <div class="text-muted small mt-6">Expected completion: March 2027</div>
+                            </div>
                         </div>
-                        <div class="resume-edu-card">
-                            <div class="resume-edu-degree">Bachelor of Science in Information Technology</div>
-                            <div class="resume-edu-school">Vatterott College, Fenton, MO</div>
+                        <div class="card c6">
+                            <div class="card-header">B.S. Information Technology <span class="badge badge-success">Earned</span></div>
+                            <div class="card-body">
+                                <div><b>Vatterott College</b></div>
+                                <div class="text-muted small mt-6">Fenton, MO</div>
+                            </div>
                         </div>
                     </div>
                 </section>
-            </aside>
+            </div>
 
-            <!-- Right Column: Flagship Architecture & Career Timeline -->
-            <section class="resume-column">
-                <!-- Projects Showcase -->
-                <div class="resume-block">
-                    <div class="resume-eyebrow">05 / ARCHITECTURAL SHOWCASE</div>
-                    <h3 class="resume-block-title">Key Projects &amp; Frameworks</h3>
+            <!-- Right Column: Featured Projects & Professional Experience -->
+            <div class="td-col">
+                <!-- Featured Projects -->
+                <section id="projects">
+                    <h2><svg viewBox="0 0 24 24"><path d="M12 2l9 5v10l-9 5-9-5V7z"/><path d="M12 22V12M3 7l9 5 9-5"/></svg>Featured projects</h2>
 
-                    <!-- Dreambox Nexus Flagship Project -->
-                    <article class="resume-project-card flagship-project">
-                        <div class="resume-exp-top">
-                            <div>
-                                <div class="d-flex align-items-center gap-2 flex-wrap mb-1">
-                                    <span class="resume-exp-company">Dreambox Nexus</span>
-                                    <span class="badge-flagship"><span class="pulse-dot"></span> Flagship Architecture</span>
+                    <!-- Flagship Project 1: Dreambox Nexus -->
+                    <div class="card mb-16">
+                        <div class="card-header">
+                            <div><b>Dreambox Nexus</b> &bull; <span class="text-muted font-normal">Security-First Application Gateway</span></div>
+                            <span class="badge badge-primary">Flagship Architecture</span>
+                        </div>
+                        <div class="card-body">
+                            <p>A resilient, zero-dependency PHP 8.5 &amp; MongoDB application gateway engineered from the ground up for strict enterprise isolation, regulatory compliance, and rapid API telemetry.</p>
+                            <div class="td-project-specs">
+                                <div class="td-spec-item">
+                                    <span class="badge badge-success">Cryptographic Audit</span>
+                                    <span>SHA-256 Merkle hash chain with immutable forward ledger and row integrity tamper detection.</span>
                                 </div>
-                                <div class="resume-exp-role">Systems Architect &amp; Principal Framework Engineer</div>
+                                <div class="td-spec-item">
+                                    <span class="badge badge-info">Compliance Matrix</span>
+                                    <span>Live runtime validation across PCI-DSS v4.0, HIPAA §164.312, NIST CSF 2.0, EU GDPR, and OWASP Top 10.</span>
+                                </div>
+                                <div class="td-spec-item">
+                                    <span class="badge badge-purple">Enterprise IAM</span>
+                                    <span>Argon2id password hashing, RFC 6238 TOTP 2FA, OAuth 2.0 (Google/GitHub), and dynamic RBAC.</span>
+                                </div>
                             </div>
-                            <span class="resume-exp-date">October 2026 &ndash; Present</span>
-                        </div>
-
-                        <div class="resume-tag-wrap mb-3">
-                            <span class="badge-tech badge-tech-pri">PHP 8.3 / 8.5</span>
-                            <span class="badge-tech">Zero Dependencies</span>
-                            <span class="badge-tech">Argon2id</span>
-                            <span class="badge-tech">AES-256-GCM AEAD</span>
-                            <span class="badge-tech">SHA-256 Merkle Chain</span>
-                            <span class="badge-tech">MongoDB NoSQL</span>
-                            <span class="badge-tech">OAuth 2.0 / TOTP 2FA</span>
-                            <span class="badge-tech">PCI-DSS v4.0</span>
-                            <span class="badge-tech">HIPAA §164.312</span>
-                            <span class="badge-tech">NIST CSF 2.0</span>
-                            <span class="badge-tech">OpenAPI 3.0</span>
-                        </div>
-
-                        <p class="resume-project-intro">
-                            A 100% custom, zero-external-dependency PHP 8.3/8.5 enterprise web framework and application gateway engineered from first principles for defense-in-depth security, strict regulatory compliance, and high-performance API orchestration.
-                        </p>
-
-                        <ul class="resume-bullet-list">
-                            <li class="resume-bullet-item"><strong>Zero-Dependency Core Framework:</strong> Engineered a lightweight, high-throughput application gateway eliminating third-party supply chain risks, complete with native autoloader, secure PSR/PER-CS routing pipelines, and timing-safe request handling.</li>
-                            <li class="resume-bullet-item"><strong>Automated Regulatory Compliance Matrix:</strong> Architected a multi-framework regulatory assessment engine covering PCI-DSS v4.0, HIPAA Security Rule (§164.312), NIST CSF 2.0, EU GDPR, and OWASP Top 10 with a 10-point live runtime diagnostic probe suite.</li>
-                            <li class="resume-bullet-item"><strong>Cryptographic Merkle Audit Hash-Chain:</strong> Engineered continuous SHA-256 block-linked forensic logging across database and filesystem ledgers; any row deletion, payload tampering, or out-of-order insertion breaks the Merkle chain and flags immediate SOC alerts.</li>
-                            <li class="resume-bullet-item"><strong>Defense-in-Depth Cryptography:</strong> Implemented AES-256-GCM authenticated encryption (AEAD), Argon2id memory-hard password hashing, timing-safe HMAC CSRF defense, and strict Content Security Policy headers.</li>
-                            <li class="resume-bullet-item"><strong>Enterprise IAM &amp; Identity Federation:</strong> Built complete IAM suite featuring TOTP RFC 6238 two-factor authentication, OAuth 2.0 providers (Google &amp; GitHub), sliding-window rate limiting, and 5-strike account lockout protection.</li>
-                            <li class="resume-bullet-item"><strong>Hybrid Datastore Persistence:</strong> Integrated MongoDB NoSQL document storage with operator-whitelisting injection immunity, resilient fallback ledger synchronization, and strict append-only audit enforcement.</li>
-                            <li class="resume-bullet-item"><strong>Nexus UI Design System:</strong> Developed a responsive, high-contrast light-mode design framework with custom typography, glassmorphism cards, interactive offcanvas navigation, and real-time observability telemetry.</li>
-                        </ul>
-
-                        <div class="project-quick-actions">
-                            <span class="small text-muted fw-bold">Live Platform Portals:</span>
-                            <a href="<?= $appBase ?>/admin/" class="btn btn-secondary btn-sm">
-                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
-                                <span>IAM Console</span>
-                            </a>
-                            <a href="<?= $appBase ?>/compliance/" class="btn btn-secondary btn-sm">
-                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
-                                <span>Compliance Matrix</span>
-                            </a>
-                            <a href="<?= $appBase ?>/nexus/monitor/" class="btn btn-secondary btn-sm">
-                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
-                                <span>SecOps Cockpit</span>
-                            </a>
-                            <a href="<?= $appBase ?>/docs/openapi.yaml?format=html" class="btn btn-secondary btn-sm">
-                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
-                                <span>OpenAPI Contract</span>
-                            </a>
-                            <a href="<?= $appBase ?>/ui/" class="btn btn-secondary btn-sm">
-                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
-                                <span>Nexus UI</span>
-                            </a>
-                        </div>
-                    </article>
-
-                    <!-- Aether Project -->
-                    <article class="resume-project-card">
-                        <div class="resume-exp-top">
-                            <div>
-                                <div class="resume-exp-company mb-1">Aether Project</div>
-                                <div class="resume-exp-role">Architect &amp; Lead Engineer</div>
+                            <div class="td-project-links mt-16">
+                                <a href="<?= $appBase ?>/compliance/" class="btn btn-outline-primary btn-sm">Compliance Matrix</a>
+                                <a href="<?= $appBase ?>/nexus/monitor/" class="btn btn-secondary btn-sm">Architecture Monitor</a>
+                                <a href="<?= $appBase ?>/ui/" class="btn btn-secondary btn-sm">Nexus UI Framework</a>
                             </div>
-                            <span class="resume-exp-date">Full-Stack Enterprise Architecture</span>
                         </div>
+                    </div>
 
-                        <div class="resume-tag-wrap mb-3">
-                            <span class="badge-tech badge-tech-pri">Laravel 11</span>
-                            <span class="badge-tech">Vue 3</span>
-                            <span class="badge-tech">Inertia.js</span>
-                            <span class="badge-tech">Tailwind CSS v4</span>
-                            <span class="badge-tech">Postfix Pipelines</span>
-                            <span class="badge-tech">MariaDB</span>
-                            <span class="badge-tech">AI Agentic Workflows</span>
+                    <!-- Project 2: Aether Project Suite -->
+                    <div class="card">
+                        <div class="card-header">
+                            <div><b>Aether Project</b> &bull; <span class="text-muted font-normal">Mail Admin &amp; Internal Tooling Suite</span></div>
+                            <span class="badge badge-info">L11 &bull; V3</span>
                         </div>
-
-                        <ul class="resume-bullet-list">
-                            <li class="resume-bullet-item"><strong>High-Volume Mail Engine:</strong> Architected a full-stack mail administration platform using Laravel 11, Vue 3, Inertia.js, and Tailwind CSS v4, implementing inbound Postfix transport pipelines, MIME stream parsing into MariaDB, and outbound SMTP relays with automatic thread tracking.</li>
-                            <li class="resume-bullet-item"><strong>Collaborative Technical Wiki:</strong> Developed an integrated enterprise wiki module featuring real-time collaborative documentation, Markdown rendering, and granular access control for internal technical knowledge sharing.</li>
-                            <li class="resume-bullet-item"><strong>Observability &amp; System Cockpit:</strong> Built a real-time system monitor dashboard tracking server health, daemon process states, memory usage, and service availability with instant alerting notifications.</li>
-                            <li class="resume-bullet-item"><strong>Financial Allocation &amp; Budget Engine:</strong> Created a custom personal finance and budget tracking tool to monitor resource allocation, expenditures, and automated financial reporting.</li>
-                            <li class="resume-bullet-item"><strong>AI-Accelerated Software Delivery:</strong> Integrated AI-assisted coding workflows and agentic tooling into daily development, accelerating system feature implementation, custom integration building, and codebase refactoring.</li>
-                        </ul>
-                    </article>
-                </div>
-
-                <!-- Professional Experience Timeline -->
-                <div class="resume-block">
-                    <div class="resume-eyebrow">06 / CAREER TRAJECTORY</div>
-                    <h3 class="resume-block-title">Professional Experience</h3>
-
-                    <!-- Independent 2024-2026 -->
-                    <article class="resume-timeline-entry">
-                        <div class="resume-exp-top">
-                            <div>
-                                <div class="resume-exp-company">Independent</div>
-                                <div class="resume-exp-role">Software Developer &amp; Researcher | Remote</div>
+                        <div class="card-body">
+                            <p class="text-muted">A full-stack mail administration system and internal tooling suite built with Laravel 11, Vue 3, Inertia.js, and Tailwind CSS v4.</p>
+                            <div class="row mt-16">
+                                <div class="card c6">
+                                    <div class="card-header">Mail administration <span class="badge badge-primary">Laravel 11</span></div>
+                                    <div class="card-body small">Inbound Postfix transport pipelines, MIME stream parsing into MariaDB, and outbound SMTP relays with automatic thread tracking.</div>
+                                </div>
+                                <div class="card c6">
+                                    <div class="card-header">Enterprise wiki <span class="badge badge-success">Collaborative</span></div>
+                                    <div class="card-body small">Real-time collaborative documentation with Markdown rendering and granular access control for internal technical knowledge.</div>
+                                </div>
+                                <div class="card c6">
+                                    <div class="card-header">System monitor <span class="badge badge-warning">Alerting</span></div>
+                                    <div class="card-body small">A real-time dashboard tracking server health, daemon process states, memory usage, and service availability with instant alerts.</div>
+                                </div>
+                                <div class="card c6">
+                                    <div class="card-header">Finance tracker <span class="badge badge-secondary">Personal</span></div>
+                                    <div class="card-body small">A custom budget tool that monitors resource allocation and expenditures and automates financial reporting.</div>
+                                </div>
                             </div>
-                            <span class="resume-exp-date">March 2024 &ndash; March 2026</span>
-                        </div>
-                        <div class="resume-tag-wrap mb-2">
-                            <span class="badge-tech">AI Systems</span>
-                            <span class="badge-tech">DevSecOps</span>
-                            <span class="badge-tech">Cybersecurity Research</span>
-                        </div>
-                        <ul class="resume-bullet-list">
-                            <li class="resume-bullet-item">Expanded AI expertise, mastering prompt engineering and integrating agentic AI tools into software delivery pipelines.</li>
-                            <li class="resume-bullet-item">Pursued M.S. in Cybersecurity and Information Assurance to reinforce DevSecOps, zero-trust patterns, and platform security skills.</li>
-                        </ul>
-                    </article>
-
-                    <!-- ApplicantPro -->
-                    <article class="resume-timeline-entry">
-                        <div class="resume-exp-top">
-                            <div>
-                                <div class="resume-exp-company">ApplicantPro</div>
-                                <div class="resume-exp-role">Software Engineer | Remote</div>
+                            <div class="code mt-16">
+                                <header><span>AI-assisted workflow</span><button type="button" data-copy="aether">Copy</button></header>
+                                <pre id="aether"><span class="k">workflow</span>: agentic tooling in daily development&#10;<span class="k">outcomes</span>: <span class="s">faster feature delivery</span>, <span class="s">custom integrations</span>, <span class="s">codebase refactoring</span></pre>
                             </div>
-                            <span class="resume-exp-date">Nov 2021 &ndash; March 2024</span>
                         </div>
-                        <div class="resume-tag-wrap mb-2">
-                            <span class="badge-tech badge-tech-pri">RESTful APIs</span>
-                            <span class="badge-tech">Service Workers (MV3)</span>
-                            <span class="badge-tech">JavaScript</span>
-                            <span class="badge-tech">Cloud-Native</span>
-                        </div>
-                        <ul class="resume-bullet-list">
-                            <li class="resume-bullet-item">Developed high-availability ATS connectors with RESTful endpoints, achieving 99.9% uptime across third-party recruiting platform integrations.</li>
-                            <li class="resume-bullet-item">Designed a cloud-native skill-testing platform leveraging modern JavaScript frameworks, accelerating system responsiveness by 25%.</li>
-                            <li class="resume-bullet-item">Migrated core extension suites to Manifest V3 using Service Workers and background scripts, fortifying cross-browser reliability and performance.</li>
-                        </ul>
-                    </article>
+                    </div>
+                </section>
 
-                    <!-- Independent -->
-                    <article class="resume-timeline-entry">
-                        <div class="resume-exp-top">
-                            <div>
-                                <div class="resume-exp-company">Independent</div>
-                                <div class="resume-exp-role">Software Engineer | Remote</div>
+                <!-- Professional Experience -->
+                <section id="experience">
+                    <h2><svg viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V4h6v3"/></svg>Professional experience</h2>
+                    <div class="card">
+                        <div class="card-body">
+                            <ul class="nav-tabs" role="tablist">
+                                <li><button class="nav-link active" role="tab" data-tab="t0">Independent R&amp;D</button></li>
+                                <li><button class="nav-link" role="tab" data-tab="t1">ApplicantPro</button></li>
+                                <li><button class="nav-link" role="tab" data-tab="t2">Independent Engineer</button></li>
+                                <li><button class="nav-link" role="tab" data-tab="t3">Dreambox Services</button></li>
+                            </ul>
+                            <div class="pane active" id="t0">
+                                <h3>Software Developer &amp; Researcher</h3>
+                                <div class="text-muted small">Independent &bull; Remote &bull; March 2024 &ndash; March 2026</div>
+                                <ul>
+                                    <li>Expanded AI expertise by mastering prompt engineering and integrating AI tools into software delivery.</li>
+                                    <li>Pursued an M.S. in Cybersecurity and Information Assurance to reinforce DevSecOps and platform security skills.</li>
+                                </ul>
                             </div>
-                            <span class="resume-exp-date">Consulting &amp; Systems</span>
-                        </div>
-                        <div class="resume-tag-wrap mb-2">
-                            <span class="badge-tech">Laravel</span>
-                            <span class="badge-tech">Vue.js</span>
-                            <span class="badge-tech">MySQL</span>
-                            <span class="badge-tech">PHP 8.x</span>
-                            <span class="badge-tech">Hardware Integration</span>
-                        </div>
-                        <ul class="resume-bullet-list">
-                            <li class="resume-bullet-item">Delivered custom web applications using Laravel, Vue.js, and MySQL for SME clients through end-to-end technical leadership and consulting.</li>
-                            <li class="resume-bullet-item">Modernized legacy PHP systems to version 8.x and hardened infrastructure against security vulnerabilities during key organizational technology shifts.</li>
-                            <li class="resume-bullet-item">Integrated custom software interfaces with precision hardware and industrial laser systems to enable seamless real-time operational control.</li>
-                        </ul>
-                    </article>
-
-                    <!-- Dreambox Services -->
-                    <article class="resume-timeline-entry">
-                        <div class="resume-exp-top">
-                            <div>
-                                <div class="resume-exp-company">Dreambox Services</div>
-                                <div class="resume-exp-role">Software Engineer | Remote</div>
+                            <div class="pane" id="t1">
+                                <h3>Software Engineer</h3>
+                                <div class="text-muted small">ApplicantPro &bull; Remote &bull; Nov 2021 &ndash; March 2024</div>
+                                <ul>
+                                    <li>Developed high-availability ATS connectors with RESTful endpoints, achieving 99.9% uptime across third-party recruiting platform integrations.</li>
+                                    <li>Designed a cloud-native skill-testing platform on modern JavaScript frameworks, accelerating system responsiveness by 25%.</li>
+                                    <li>Migrated core extension suites to Manifest V3 using Service Workers and background scripts, strengthening cross-browser reliability and performance.</li>
+                                </ul>
                             </div>
-                            <span class="resume-exp-date">Enterprise Engineering</span>
+                            <div class="pane" id="t2">
+                                <h3>Software Engineer</h3>
+                                <div class="text-muted small">Independent &bull; Remote</div>
+                                <ul>
+                                    <li>Delivered custom web applications using Laravel, Vue.js, and MySQL for SME clients through end-to-end technical leadership and consulting.</li>
+                                    <li>Modernized legacy PHP systems to version 8.x and hardened infrastructure against security vulnerabilities during key organizational technology shifts.</li>
+                                    <li>Integrated custom software interfaces with precision hardware and industrial laser systems for seamless real-time operational control.</li>
+                                </ul>
+                            </div>
+                            <div class="pane" id="t3">
+                                <h3>Software Engineer</h3>
+                                <div class="text-muted small">Dreambox Services &bull; Remote</div>
+                                <ul>
+                                    <li>Orchestrated the architectural migration of core systems to modular ASP.NET, establishing enterprise-grade scalability and maintainability.</li>
+                                    <li>Established code review workflows and automated unit testing standards with PHPUnit to raise software quality across releases.</li>
+                                    <li>Optimized backend algorithms and SQL query execution paths, lowering infrastructure overhead and speeding up report generation.</li>
+                                </ul>
+                            </div>
                         </div>
-                        <div class="resume-tag-wrap mb-2">
-                            <span class="badge-tech">ASP.NET</span>
-                            <span class="badge-tech">PHPUnit</span>
-                            <span class="badge-tech">SQL Optimization</span>
-                            <span class="badge-tech">CI/CD Standards</span>
-                        </div>
-                        <ul class="resume-bullet-list">
-                            <li class="resume-bullet-item">Orchestrated the architectural migration of core systems to modular ASP.NET, establishing enterprise-grade scalability and maintainability.</li>
-                            <li class="resume-bullet-item">Established rigorous code review workflows and automated unit testing standards using PHPUnit to elevate software quality across releases.</li>
-                            <li class="resume-bullet-item">Optimized backend algorithms and SQL query execution paths, lowering infrastructure overhead and dramatically improving report generation speeds.</li>
-                        </ul>
-                    </article>
-                </div>
-            </section>
+                    </div>
+                </section>
+            </div>
         </div>
 
-        <!-- Platform Application Gateway Quick Dock -->
-        <nav class="resume-nav-dock">
-            <div>
-                <span class="brand-badge">DREAMBOX NEXUS PLATFORM GATEWAY</span>
-                <div class="small text-muted mt-1">Direct access to security, telemetry, and governance subsystems:</div>
-            </div>
-            <div class="resume-nav-links">
-                <a href="<?= $appBase ?>/admin/" class="btn btn-secondary btn-sm">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
-                    <span>IAM Console</span>
-                </a>
-                <a href="<?= $appBase ?>/nexus/monitor/" class="btn btn-secondary btn-sm">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
-                    <span>SecOps Cockpit</span>
-                </a>
-                <a href="<?= $appBase ?>/compliance/" class="btn btn-secondary btn-sm">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
-                    <span>Compliance</span>
-                </a>
-                <a href="<?= $appBase ?>/ui/" class="btn btn-secondary btn-sm">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
-                    <span>Nexus UI</span>
-                </a>
-                <a href="<?= $appBase ?>/docs/openapi.yaml?format=html" class="btn btn-secondary btn-sm">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
-                    <span>OpenAPI</span>
-                </a>
-            </div>
-        </nav>
+        <footer class="td-footer">
+            &copy; <?= date('Y') ?> Timothy Dunn &bull; Systems Architect &bull; Built with Nexus UI components: zero dependencies, custom CSS.
+        </footer>
     </main>
 
-    <footer>
-        Timothy Dunn &bull; Systems Architect &amp; DevSecOps Focused &bull; Powered by Dreambox Nexus Core v0.1 Alpha
-    </footer>
+    <!-- Contact Modal -->
+    <div class="bd" id="contact" role="dialog" aria-modal="true" aria-label="Contact Timothy">
+        <div class="modal-content">
+            <div class="modal-header">
+                <b>Contact Timothy Dunn</b>
+                <button type="button" class="btn-close" data-close aria-label="Close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <a href="mailto:admin@nexus.local">admin@nexus.local</a>
+                <a href="tel:+15550192834">(555) 019-2834</a>
+                <span class="text-muted">Kansas City, MO</span>
+            </div>
+            <div class="modal-footer">
+                <span class="small text-muted">Press Esc to close</span>
+                <button type="button" class="btn btn-secondary btn-sm" data-close>Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    (function(){
+        // Interactive Tab Switching
+        document.querySelectorAll("[data-tab]").forEach(function(b){
+            b.addEventListener("click", function(){
+                document.querySelectorAll(".nav-link").forEach(function(x){ x.classList.remove("active"); });
+                document.querySelectorAll(".pane").forEach(function(x){ x.classList.remove("active"); });
+                b.classList.add("active");
+                var target = document.getElementById(b.dataset.tab);
+                if (target) { target.classList.add("active"); }
+            });
+        });
+
+        // Modal Open / Close Handlers
+        function openModal(id) {
+            var el = document.getElementById(id);
+            if (el) { el.classList.add("open"); }
+        }
+        function closeAllModals() {
+            document.querySelectorAll(".bd.open").forEach(function(x){ x.classList.remove("open"); });
+        }
+        document.querySelectorAll("[data-open]").forEach(function(b){
+            b.addEventListener("click", function(){ openModal(b.dataset.open); });
+        });
+        document.querySelectorAll("[data-close]").forEach(function(b){
+            b.addEventListener("click", closeAllModals);
+        });
+        var contactModal = document.getElementById("contact");
+        if (contactModal) {
+            contactModal.addEventListener("click", function(e){
+                if (e.target === this) { closeAllModals(); }
+            });
+        }
+        document.addEventListener("keydown", function(e){
+            if (e.key === "Escape") { closeAllModals(); }
+        });
+
+        // Copy Code Snippet
+        document.querySelectorAll("[data-copy]").forEach(function(b){
+            b.addEventListener("click", function(){
+                var target = document.getElementById(b.dataset.copy);
+                if (!target) return;
+                var text = target.textContent;
+                try {
+                    navigator.clipboard.writeText(text).then(function(){
+                        b.textContent = "Copied!";
+                        setTimeout(function(){ b.textContent = "Copy"; }, 2000);
+                    });
+                } catch(e) {
+                    b.textContent = "Select to copy";
+                }
+            });
+        });
+    })();
+    </script>
 </body>
 </html>
