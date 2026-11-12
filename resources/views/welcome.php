@@ -23,10 +23,13 @@ $user = $user ?? $currentUser ?? null;
     <?php include __DIR__ . '/partials/topbar.php'; ?>
 
     <main class="resume-wrapper">
-        <!-- Resume Header / Profile Card -->
+        <!-- Executive Hero / Profile Card -->
         <header class="resume-header">
             <div class="resume-header-info">
-                <div class="brand-badge mb-2">SYSTEMS ARCHITECT &bull; DEVSECOPS SPECIALIST</div>
+                <div class="resume-eyebrow">
+                    <span class="pulse-dot"></span>
+                    <span>Systems Architect &bull; DevSecOps &bull; Cloud Infrastructure</span>
+                </div>
                 <h1 class="resume-name">Timothy Dunn</h1>
                 <div class="resume-title">
                     <span>Systems Architect</span>
@@ -36,21 +39,21 @@ $user = $user ?? $currentUser ?? null;
                 <div class="resume-contact-bar">
                     <span class="resume-contact-item">
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
-                        Kansas City, MO
+                        <span>Kansas City, MO</span>
                     </span>
                     <a href="tel:15550192834" class="resume-contact-item" title="Call Timothy Dunn">
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
-                        (555) 019-2834
+                        <span>(555) 019-2834</span>
                     </a>
                     <a href="mailto:admin@nexus.local" class="resume-contact-item" title="Email Timothy Dunn">
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
-                        admin@nexus.local
+                        <span>admin@nexus.local</span>
                     </a>
                 </div>
             </div>
             <div class="resume-header-actions">
                 <img src="<?= htmlspecialchars($appBase) ?>/logos/logo.png" alt="Dreambox Nexus Master Logo" class="hero-brand-logo">
-                <div class="d-flex flex-column gap-2">
+                <div class="resume-header-btn-group">
                     <a href="mailto:admin@nexus.local" class="btn btn-primary btn-sm">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
                         <span>Contact Timothy</span>
@@ -63,36 +66,46 @@ $user = $user ?? $currentUser ?? null;
             </div>
         </header>
 
-        <!-- Executive Stat Highlights -->
+        <!-- Executive Stat & Architecture Highlights -->
         <section class="resume-stat-grid">
             <div class="resume-stat-card">
-                <div class="resume-stat-label">Architecture</div>
+                <div class="resume-stat-label">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>
+                    <span>Architecture</span>
+                </div>
                 <div class="resume-stat-val">Zero-Dependency Core</div>
-                <div class="resume-stat-desc">Custom PHP 8.3/8.5 framework built without bloated supply-chain libraries.</div>
+                <div class="resume-stat-desc">Custom PHP 8.3/8.5 framework built from first principles without supply-chain vulnerabilities.</div>
             </div>
             <div class="resume-stat-card">
-                <div class="resume-stat-label">DevSecOps</div>
+                <div class="resume-stat-label">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+                    <span>DevSecOps</span>
+                </div>
                 <div class="resume-stat-val">Continuous Assurance</div>
-                <div class="resume-stat-desc">CI/CD pipelines, container scanning, and infrastructure as code orchestration.</div>
+                <div class="resume-stat-desc">Automated CI/CD pipelines, container scanning, and infrastructure orchestration.</div>
             </div>
             <div class="resume-stat-card">
-                <div class="resume-stat-label">Governance</div>
+                <div class="resume-stat-label">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                    <span>Governance</span>
+                </div>
                 <div class="resume-stat-val">5 Regulatory Standards</div>
-                <div class="resume-stat-desc">Live automated compliance for PCI-DSS v4.0, HIPAA, NIST CSF 2.0, GDPR, &amp; OWASP.</div>
+                <div class="resume-stat-desc">Live runtime compliance for PCI-DSS v4.0, HIPAA §164.312, NIST CSF 2.0, GDPR, &amp; OWASP.</div>
             </div>
             <div class="resume-stat-card">
-                <div class="resume-stat-label">Academic &amp; Training</div>
+                <div class="resume-stat-label">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 10v6M2 10l10-5 10 5-10 5z"></path><path d="M6 12v5c3 3 9 3 12 0v-5"></path></svg>
+                    <span>Academics</span>
+                </div>
                 <div class="resume-stat-val">M.S. Cybersecurity</div>
-                <div class="resume-stat-desc">WGU (In Progress) &bull; B.S. IT (Vatterott) &bull; Cisco CCST &amp; CCNA Automation.</div>
+                <div class="resume-stat-desc">Western Governors University (In Progress) &bull; B.S. IT (Vatterott) &bull; Cisco CCST &amp; CCNA.</div>
             </div>
         </section>
 
-        <!-- Professional Summary -->
+        <!-- Executive Summary Card -->
         <section class="resume-summary-card">
-            <h2 class="resume-section-heading">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
-                Professional Summary
-            </h2>
+            <div class="resume-eyebrow">01 / EXECUTIVE PROFILE</div>
+            <h2 class="resume-section-heading">Professional Summary</h2>
             <p class="resume-summary-text">
                 As an experienced Systems Architect, I specialize in building secure, high-performance platforms, automated CI/CD pipelines, and cloud infrastructures, integrating AI tools daily to enhance software delivery. Currently pursuing an M.S. in Cybersecurity and Information Assurance, I bring advanced expertise in DevSecOps practices, container security, cloud infrastructure orchestration, and robust API orchestration to deliver resilient, enterprise-scale solutions.
             </p>
@@ -100,26 +113,25 @@ $user = $user ?? $currentUser ?? null;
 
         <!-- Main 2-Column Responsive Layout -->
         <div class="resume-layout-grid">
-            <!-- Left Column: Skills, Certifications & Education -->
+            <!-- Left Column: Core Competencies, Certifications & Education -->
             <aside class="resume-column">
-                <!-- Technical Skills -->
+                <!-- Technical Skills & Competencies -->
                 <section class="resume-block">
-                    <h2 class="resume-section-heading">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>
-                        Technical Skills
-                    </h2>
+                    <div class="resume-eyebrow">02 / CORE COMPETENCIES</div>
+                    <h3 class="resume-block-title">Technical Skills</h3>
 
                     <div class="resume-skill-cat">
                         <div class="resume-skill-name">
                             <span class="pulse-dot"></span>
-                            <span>Languages</span>
+                            <span>Languages &amp; Runtimes</span>
                         </div>
-                        <p class="resume-skill-desc">PHP 8.3/8.5, JavaScript (ES6+, TypeScript, Angular, Vue.js), C# (.NET), SQL (MySQL, SQL Server), Bash.</p>
+                        <p class="resume-skill-desc">Modern language polyglot with focus on high-throughput server backends and clean frontend architectures.</p>
                         <div class="resume-tag-wrap">
-                            <span class="badge-tech badge-tech-pri">PHP 8.3+</span>
+                            <span class="badge-tech badge-tech-pri">PHP 8.3 / 8.5</span>
                             <span class="badge-tech">TypeScript</span>
-                            <span class="badge-tech">JavaScript</span>
+                            <span class="badge-tech">JavaScript (ES6+)</span>
                             <span class="badge-tech">Vue.js</span>
+                            <span class="badge-tech">Angular</span>
                             <span class="badge-tech">C# (.NET)</span>
                             <span class="badge-tech">SQL</span>
                             <span class="badge-tech">Bash</span>
@@ -129,14 +141,15 @@ $user = $user ?? $currentUser ?? null;
                     <div class="resume-skill-cat">
                         <div class="resume-skill-name">
                             <span class="pulse-dot"></span>
-                            <span>Backend &amp; APIs</span>
+                            <span>Backend &amp; API Architecture</span>
                         </div>
-                        <p class="resume-skill-desc">RESTful/SOAP API Design, OAuth 2.0/JWT, EDI Transactions, JSON, DOM Scraping, Service Workers, PHPUnit Testing, Mocking/Stubbing, Agile/Scrum.</p>
+                        <p class="resume-skill-desc">Enterprise service contracts, token federation, data masking, and automated verification suites.</p>
                         <div class="resume-tag-wrap">
                             <span class="badge-tech badge-tech-pri">RESTful APIs</span>
                             <span class="badge-tech">OAuth 2.0</span>
+                            <span class="badge-tech">OpenAPI 3.0</span>
                             <span class="badge-tech">JWT</span>
-                            <span class="badge-tech">EDI</span>
+                            <span class="badge-tech">EDI Transactions</span>
                             <span class="badge-tech">PHPUnit</span>
                             <span class="badge-tech">Service Workers</span>
                             <span class="badge-tech">Agile / Scrum</span>
@@ -146,9 +159,27 @@ $user = $user ?? $currentUser ?? null;
                     <div class="resume-skill-cat">
                         <div class="resume-skill-name">
                             <span class="pulse-dot"></span>
+                            <span>DevSecOps &amp; Cloud Infrastructure</span>
+                        </div>
+                        <p class="resume-skill-desc">Automated release engineering, vulnerability scanning, and infrastructure orchestration.</p>
+                        <div class="resume-tag-wrap">
+                            <span class="badge-tech badge-tech-pri">DevSecOps</span>
+                            <span class="badge-tech">Docker</span>
+                            <span class="badge-tech">CI/CD Pipelines</span>
+                            <span class="badge-tech">Trivy / Clair</span>
+                            <span class="badge-tech">GCP</span>
+                            <span class="badge-tech">Linux Hardening</span>
+                            <span class="badge-tech">IaC</span>
+                            <span class="badge-tech">Vagrant / SSH</span>
+                        </div>
+                    </div>
+
+                    <div class="resume-skill-cat">
+                        <div class="resume-skill-name">
+                            <span class="pulse-dot"></span>
                             <span>AI &amp; Agentic Systems</span>
                         </div>
-                        <p class="resume-skill-desc">LLM Orchestration, Prompt Engineering, Agentic Workflows (Gemini), Vector DB / Context Pipelines, API Integrations.</p>
+                        <p class="resume-skill-desc">Applied AI orchestration and agentic tool integrations accelerating software delivery.</p>
                         <div class="resume-tag-wrap">
                             <span class="badge-tech badge-tech-pri">LLM Orchestration</span>
                             <span class="badge-tech">Agentic Systems</span>
@@ -160,30 +191,14 @@ $user = $user ?? $currentUser ?? null;
                     <div class="resume-skill-cat">
                         <div class="resume-skill-name">
                             <span class="pulse-dot"></span>
-                            <span>DevSecOps &amp; Cloud Infrastructure</span>
-                        </div>
-                        <p class="resume-skill-desc">Infrastructure as Code (IaC), Docker, Container Security Scanning (Trivy/Clair), CI/CD (GitHub Actions, GitLab CI), GCP, Linux (Ubuntu, Debian, Mint), Python-based Automation, Network Security, Vagrant, SSH.</p>
-                        <div class="resume-tag-wrap">
-                            <span class="badge-tech badge-tech-pri">DevSecOps</span>
-                            <span class="badge-tech">Docker</span>
-                            <span class="badge-tech">CI/CD Pipelines</span>
-                            <span class="badge-tech">Trivy / Clair</span>
-                            <span class="badge-tech">GCP</span>
-                            <span class="badge-tech">Linux Security</span>
-                            <span class="badge-tech">IaC</span>
-                        </div>
-                    </div>
-
-                    <div class="resume-skill-cat">
-                        <div class="resume-skill-name">
-                            <span class="pulse-dot"></span>
                             <span>Networking &amp; Support</span>
                         </div>
-                        <p class="resume-skill-desc">Cisco Networking &amp; Automation, Enterprise Networking Solutions, IT Support.</p>
+                        <p class="resume-skill-desc">Network topologies, enterprise packet routing, switching, and automated diagnostics.</p>
                         <div class="resume-tag-wrap">
                             <span class="badge-tech">Cisco CCST</span>
                             <span class="badge-tech">CCNA Automation</span>
-                            <span class="badge-tech">Network Architecture</span>
+                            <span class="badge-tech">Enterprise Routing</span>
+                            <span class="badge-tech">IT Support</span>
                         </div>
                     </div>
 
@@ -192,57 +207,69 @@ $user = $user ?? $currentUser ?? null;
                             <span class="pulse-dot"></span>
                             <span>Hardware &amp; Systems</span>
                         </div>
-                        <p class="resume-skill-desc">Systems Administration (User/Group Mgmt, System Hardening), Hardware Lifecycle Management (Custom PC Building, Server Configuration, Upgrades), Maintenance of Complex Computer-Based Systems, Electrical Safety (NFPA 70E).</p>
+                        <p class="resume-skill-desc">Systems administration, hardware lifecycle management, and physical safety standards.</p>
                         <div class="resume-tag-wrap">
                             <span class="badge-tech">System Hardening</span>
                             <span class="badge-tech">Server Lifecycle</span>
                             <span class="badge-tech">NFPA 70E Safety</span>
+                            <span class="badge-tech">OSHA 10</span>
                         </div>
                     </div>
                 </section>
 
                 <!-- Certifications & Training -->
                 <section class="resume-block">
-                    <h2 class="resume-section-heading">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="7"></circle><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"></polyline></svg>
-                        Certifications &amp; Training
-                    </h2>
+                    <div class="resume-eyebrow">03 / CREDENTIALS</div>
+                    <h3 class="resume-block-title">Certifications &amp; Training</h3>
                     <div class="resume-cert-list">
-                        <div class="resume-cert-item">
+                        <div class="resume-cert-card">
                             <div class="resume-cert-title">Google AI Professional</div>
-                            <div class="resume-cert-meta">Completed May 2026</div>
+                            <div class="resume-cert-meta">
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 14 14"></polyline></svg>
+                                <span>Completed May 2026</span>
+                            </div>
                         </div>
-                        <div class="resume-cert-item">
+                        <div class="resume-cert-card">
                             <div class="resume-cert-title">Google IT Support</div>
-                            <div class="resume-cert-meta">Completed September 2026</div>
+                            <div class="resume-cert-meta">
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 14 14"></polyline></svg>
+                                <span>Completed September 2026</span>
+                            </div>
                         </div>
-                        <div class="resume-cert-item">
+                        <div class="resume-cert-card">
                             <div class="resume-cert-title">Cisco Certified Support Technician (CCST) - Networking (100-150)</div>
-                            <div class="resume-cert-meta">Completed July 2026</div>
+                            <div class="resume-cert-meta">
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 14 14"></polyline></svg>
+                                <span>Completed July 2026</span>
+                            </div>
                         </div>
-                        <div class="resume-cert-item">
+                        <div class="resume-cert-card">
                             <div class="resume-cert-title">Cisco Certified Network Associate (CCNA) - Automation (200-301)</div>
-                            <div class="resume-cert-meta">Expected Completion: February 2027</div>
+                            <div class="resume-cert-meta">
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 14 14"></polyline></svg>
+                                <span>Expected Completion: February 2027</span>
+                            </div>
                         </div>
-                        <div class="resume-cert-item">
-                            <div class="resume-cert-title">OSHA 10, NFPA 70E</div>
-                            <div class="resume-cert-meta">Completed August 2026</div>
+                        <div class="resume-cert-card">
+                            <div class="resume-cert-title">OSHA 10 &bull; NFPA 70E Safety</div>
+                            <div class="resume-cert-meta">
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 14 14"></polyline></svg>
+                                <span>Completed August 2026</span>
+                            </div>
                         </div>
                     </div>
                 </section>
 
                 <!-- Education -->
                 <section class="resume-block">
-                    <h2 class="resume-section-heading">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 10v6M2 10l10-5 10 5-10 5z"></path><path d="M6 12v5c3 3 9 3 12 0v-5"></path></svg>
-                        Education
-                    </h2>
+                    <div class="resume-eyebrow">04 / ACADEMICS</div>
+                    <h3 class="resume-block-title">Education</h3>
                     <div class="resume-edu-list">
-                        <div class="resume-edu-item">
-                            <div class="resume-edu-degree">M.S. in Cybersecurity and Information Assurance</div>
-                            <div class="resume-edu-school">Western Governors University (In Progress, Expected Completion: March 2027)</div>
+                        <div class="resume-edu-card">
+                            <div class="resume-edu-degree">M.S. in Cybersecurity &amp; Information Assurance</div>
+                            <div class="resume-edu-school">Western Governors University (In Progress, Expected March 2027)</div>
                         </div>
-                        <div class="resume-edu-item">
+                        <div class="resume-edu-card">
                             <div class="resume-edu-degree">Bachelor of Science in Information Technology</div>
                             <div class="resume-edu-school">Vatterott College, Fenton, MO</div>
                         </div>
@@ -250,14 +277,12 @@ $user = $user ?? $currentUser ?? null;
                 </section>
             </aside>
 
-            <!-- Right Column: Key Projects & Professional Experience -->
+            <!-- Right Column: Flagship Architecture & Career Timeline -->
             <section class="resume-column">
-                <!-- Projects First (Highlighted Architectural Showcase) -->
+                <!-- Projects Showcase -->
                 <div class="resume-block">
-                    <h2 class="resume-section-heading">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
-                        Key Projects &amp; Frameworks
-                    </h2>
+                    <div class="resume-eyebrow">05 / ARCHITECTURAL SHOWCASE</div>
+                    <h3 class="resume-block-title">Key Projects &amp; Frameworks</h3>
 
                     <!-- Dreambox Nexus Flagship Project -->
                     <article class="resume-project-card flagship-project">
@@ -286,9 +311,13 @@ $user = $user ?? $currentUser ?? null;
                             <span class="badge-tech">OpenAPI 3.0</span>
                         </div>
 
+                        <p class="resume-project-intro">
+                            A 100% custom, zero-external-dependency PHP 8.3/8.5 enterprise web framework and application gateway engineered from first principles for defense-in-depth security, strict regulatory compliance, and high-performance API orchestration.
+                        </p>
+
                         <ul class="resume-bullet-list">
-                            <li class="resume-bullet-item"><strong>Zero-Dependency Core Framework:</strong> Engineered a 100% custom, high-throughput PHP 8.3/8.5 application gateway eliminating all third-party supply chain risks, complete with native autoloader, secure PSR/PER-CS routing pipelines, and timing-safe request handling.</li>
-                            <li class="resume-bullet-item"><strong>Automated Regulatory Compliance Matrix:</strong> Architected a multi-framework regulatory assessment engine covering PCI-DSS v4.0, HIPAA Security Rule (§164.312), NIST CSF 2.0, EU GDPR, and OWASP Top 10 with a 10-point live runtime diagnostic probe engine.</li>
+                            <li class="resume-bullet-item"><strong>Zero-Dependency Core Framework:</strong> Engineered a lightweight, high-throughput application gateway eliminating third-party supply chain risks, complete with native autoloader, secure PSR/PER-CS routing pipelines, and timing-safe request handling.</li>
+                            <li class="resume-bullet-item"><strong>Automated Regulatory Compliance Matrix:</strong> Architected a multi-framework regulatory assessment engine covering PCI-DSS v4.0, HIPAA Security Rule (§164.312), NIST CSF 2.0, EU GDPR, and OWASP Top 10 with a 10-point live runtime diagnostic probe suite.</li>
                             <li class="resume-bullet-item"><strong>Cryptographic Merkle Audit Hash-Chain:</strong> Engineered continuous SHA-256 block-linked forensic logging across database and filesystem ledgers; any row deletion, payload tampering, or out-of-order insertion breaks the Merkle chain and flags immediate SOC alerts.</li>
                             <li class="resume-bullet-item"><strong>Defense-in-Depth Cryptography:</strong> Implemented AES-256-GCM authenticated encryption (AEAD), Argon2id memory-hard password hashing, timing-safe HMAC CSRF defense, and strict Content Security Policy headers.</li>
                             <li class="resume-bullet-item"><strong>Enterprise IAM &amp; Identity Federation:</strong> Built complete IAM suite featuring TOTP RFC 6238 two-factor authentication, OAuth 2.0 providers (Google &amp; GitHub), sliding-window rate limiting, and 5-strike account lockout protection.</li>
@@ -297,7 +326,7 @@ $user = $user ?? $currentUser ?? null;
                         </ul>
 
                         <div class="project-quick-actions">
-                            <span class="small text-muted fw-bold">Live Platform Gateways:</span>
+                            <span class="small text-muted fw-bold">Live Platform Portals:</span>
                             <a href="<?= $appBase ?>/admin/" class="btn btn-secondary btn-sm">
                                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
                                 <span>IAM Console</span>
@@ -351,12 +380,10 @@ $user = $user ?? $currentUser ?? null;
                     </article>
                 </div>
 
-                <!-- Professional Experience -->
+                <!-- Professional Experience Timeline -->
                 <div class="resume-block">
-                    <h2 class="resume-section-heading">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg>
-                        Professional Experience
-                    </h2>
+                    <div class="resume-eyebrow">06 / CAREER TRAJECTORY</div>
+                    <h3 class="resume-block-title">Professional Experience</h3>
 
                     <!-- Independent 2024-2026 -->
                     <article class="resume-timeline-entry">
