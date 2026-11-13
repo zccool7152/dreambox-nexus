@@ -3,77 +3,124 @@ declare(strict_types=1);
 
 /**
  * Dreambox Nexus: Universal UI Component Framework & Interactive Showcase
- * Complete Bootstrap-grade kitchen sink and documentation system.
+ * Executive Light Design System, Kitchen Sink & Documentation
  */
 
 $appBase = $appBase ?? \Nexus\Core\Request::getAppBase();
 $traceId = $traceId ?? '';
+$cssVersion = file_exists(__DIR__ . '/../../css/theme.css') ? (string)filemtime(__DIR__ . '/../../css/theme.css') : (string)time();
+$cspNonce = (string)($nonce ?? (\Nexus\Security\Headers::getNonce() ?: ''));
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nexus UI // Component Framework & Kitchen Sink</title>
+    <title>Nexus UI // Component Framework &amp; Executive Light Design System</title>
     <link rel="icon" type="image/x-icon" href="<?= htmlspecialchars($appBase) ?>/favicon.ico">
     <link rel="icon" type="image/png" sizes="32x32" href="<?= htmlspecialchars($appBase) ?>/logos/favicon-32x32.png">
     <link rel="icon" type="image/png" sizes="16x16" href="<?= htmlspecialchars($appBase) ?>/logos/favicon-16x16.png">
     <link rel="apple-touch-icon" sizes="180x180" href="<?= htmlspecialchars($appBase) ?>/logos/apple-touch-icon.png">
     <link rel="manifest" href="<?= htmlspecialchars($appBase) ?>/logos/site.webmanifest">
-    <link rel="stylesheet" href="<?= htmlspecialchars($appBase) ?>/css/theme.css">
+    <link rel="stylesheet" href="<?= htmlspecialchars($appBase) ?>/css/theme.css?v=<?= htmlspecialchars($cssVersion) ?>">
 </head>
 <body>
 
-    <!-- Universal Top Navigation Bar -->
+    <!-- Universal Light-Theme Navigation Top Bar -->
     <?php include dirname(__DIR__) . '/partials/topbar.php'; ?>
 
     <div class="showcase-wrapper">
         <!-- Sticky Documentation Sidebar -->
-        <aside class="showcase-sidebar">
+        <aside class="showcase-sidebar" aria-label="Framework Sections">
             <div class="showcase-sidebar-title">Getting Started</div>
             <ul class="showcase-nav-list">
-                <li class="showcase-nav-item"><a href="#overview" class="showcase-nav-link active">Overview & CDN</a></li>
-                <li class="showcase-nav-item"><a href="#branding" class="showcase-nav-link">Brand Assets & Logos</a></li>
+                <li class="showcase-nav-item"><a href="#overview" class="showcase-nav-link active">Overview &amp; Quick Start</a></li>
+                <li class="showcase-nav-item"><a href="#branding" class="showcase-nav-link">Brand Assets &amp; Logos</a></li>
+                <li class="showcase-nav-item"><a href="#executive" class="showcase-nav-link">Executive Patterns</a></li>
                 <li class="showcase-nav-item"><a href="#grid" class="showcase-nav-link">12-Column Grid</a></li>
                 <li class="showcase-nav-item"><a href="#typography" class="showcase-nav-link">Typography</a></li>
-                <li class="showcase-nav-item"><a href="#colors" class="showcase-nav-link">Color Tokens</a></li>
+                <li class="showcase-nav-item"><a href="#colors" class="showcase-nav-link">Light Color Tokens</a></li>
             </ul>
 
             <div class="showcase-sidebar-title">Components</div>
             <ul class="showcase-nav-list">
-                <li class="showcase-nav-item"><a href="#buttons" class="showcase-nav-link">Buttons & Groups</a></li>
-                <li class="showcase-nav-item"><a href="#forms" class="showcase-nav-link">Form Controls & Validation</a></li>
-                <li class="showcase-nav-item"><a href="#cards" class="showcase-nav-link">Cards & Stat Metrics</a></li>
-                <li class="showcase-nav-item"><a href="#navigation" class="showcase-nav-link">Navs, Tabs & Breadcrumbs</a></li>
-                <li class="showcase-nav-item"><a href="#tables" class="showcase-nav-link">Tables & Data Grids</a></li>
-                <li class="showcase-nav-item"><a href="#alerts" class="showcase-nav-link">Alerts, Badges & Callouts</a></li>
-                <li class="showcase-nav-item"><a href="#modals" class="showcase-nav-link">Modals & Offcanvas</a></li>
-                <li class="showcase-nav-item"><a href="#progress" class="showcase-nav-link">Progress & Spinners</a></li>
+                <li class="showcase-nav-item"><a href="#buttons" class="showcase-nav-link">Buttons &amp; Groups</a></li>
+                <li class="showcase-nav-item"><a href="#forms" class="showcase-nav-link">Form Controls &amp; Validation</a></li>
+                <li class="showcase-nav-item"><a href="#cards" class="showcase-nav-link">Cards &amp; Stat Metrics</a></li>
+                <li class="showcase-nav-item"><a href="#navigation" class="showcase-nav-link">Navs, Tabs &amp; Breadcrumbs</a></li>
+                <li class="showcase-nav-item"><a href="#tables" class="showcase-nav-link">Tables &amp; Data Grids</a></li>
+                <li class="showcase-nav-item"><a href="#alerts" class="showcase-nav-link">Alerts, Badges &amp; Callouts</a></li>
+                <li class="showcase-nav-item"><a href="#modals" class="showcase-nav-link">Modals &amp; Offcanvas</a></li>
+                <li class="showcase-nav-item"><a href="#progress" class="showcase-nav-link">Progress &amp; Spinners</a></li>
             </ul>
 
             <div class="showcase-sidebar-title">Utilities</div>
             <ul class="showcase-nav-list">
-                <li class="showcase-nav-item"><a href="#utilities" class="showcase-nav-link">Spacing, Flex & Borders</a></li>
+                <li class="showcase-nav-item"><a href="#utilities" class="showcase-nav-link">Spacing, Flex &amp; Shadows</a></li>
             </ul>
         </aside>
 
         <!-- Main Showcase Content -->
         <main class="showcase-content">
 
-            <!-- Hero Section -->
+            <!-- Executive Light-Theme Hero Section -->
             <section id="overview" class="showcase-hero">
-                <div class="d-flex align-items-center gap-2 mb-2">
-                    <span class="badge badge-primary">Nexus UI Core v1.0.0</span>
-                    <span class="badge badge-success">Zero Dependencies</span>
-                    <span class="badge badge-info">100% Custom CSS</span>
+                <div class="showcase-hero-top">
+                    <div class="showcase-hero-identity">
+                        <div class="rx-logo-frame">
+                            <img src="<?= htmlspecialchars($appBase) ?>/logos/logo.png" alt="Dreambox Nexus Logo" class="hero-brand-logo">
+                        </div>
+                        <div>
+                            <div class="rx-eyebrow-pill">
+                                <span class="rx-status-dot" aria-hidden="true"></span>
+                                <span>Light-Theme Design System &bull; v1.1</span>
+                            </div>
+                            <h1 class="display-3 showcase-hero-title mb-1">Nexus UI Framework</h1>
+                            <div class="d-flex flex-wrap align-items-center gap-2 mt-2">
+                                <span class="badge badge-primary">Zero Dependencies</span>
+                                <span class="badge badge-success">Strict Light Mode</span>
+                                <span class="badge badge-info">CSP Nonce Ready</span>
+                                <span class="badge badge-purple">Executive Layout</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="d-flex flex-wrap gap-2">
+                        <a href="#executive" class="rx-btn rx-btn-primary">Explore Executive UI</a>
+                        <a href="<?= htmlspecialchars($appBase) ?>/" class="rx-btn rx-btn-ghost">View Live Resume</a>
+                    </div>
                 </div>
-                <h1 class="display-3 mb-2">Nexus UI Framework</h1>
+
                 <p class="lead mb-4">
-                    A lightweight, high-performance, security-first component library and design system designed for modern full-stack web applications, admin consoles, and telemetry HUDs.
+                    A crisp, luminous, light-theme-only component framework and executive layout system engineered for zero-dependency PHP platforms, security portals, telemetry HUDs, and interactive portfolios.
                 </p>
 
+                <!-- 4-Stat Framework KPI Strip -->
+                <div class="rx-kpi-strip mb-4">
+                    <div class="rx-kpi-item">
+                        <div class="rx-kpi-val">100% Light</div>
+                        <div class="rx-kpi-lbl">Luminous Surface System</div>
+                        <div class="rx-kpi-sub">Soft slate &amp; sky accents</div>
+                    </div>
+                    <div class="rx-kpi-item">
+                        <div class="rx-kpi-val">0 Deps</div>
+                        <div class="rx-kpi-lbl">Pure CSS &amp; Vanilla JS</div>
+                        <div class="rx-kpi-sub">Single cache-busted stylesheet</div>
+                    </div>
+                    <div class="rx-kpi-item">
+                        <div class="rx-kpi-val">15 / 15</div>
+                        <div class="rx-kpi-lbl">Unified Platform Views</div>
+                        <div class="rx-kpi-sub">Zero inline styles allowed</div>
+                    </div>
+                    <div class="rx-kpi-item">
+                        <div class="rx-kpi-val">32 KB</div>
+                        <div class="rx-kpi-lbl">Unified Design Engine</div>
+                        <div class="rx-kpi-sub">Print &amp; responsive baked in</div>
+                    </div>
+                </div>
+
                 <!-- Quick Start CDN Box -->
-                <div class="card p-3 mb-4 bg-white">
+                <div class="showcase-quickbar">
                     <div class="d-flex justify-content-between align-items-center mb-2">
                         <strong class="text-dark small text-uppercase">Quick Start (Single Centralized Stylesheet)</strong>
                         <button type="button" class="btn-copy-code" data-target="#cdn-code">
@@ -103,8 +150,8 @@ $traceId = $traceId ?? '';
                                     <div class="d-flex align-items-center justify-content-center p-3 mb-2 rounded bg-light">
                                         <img src="<?= htmlspecialchars($appBase) ?>/logos/logo-128.png" alt="Nexus Brand 128" class="auth-brand-logo mb-0">
                                     </div>
-                                    <strong class="text-dark small d-block">Auth & Modal Badge</strong>
-                                    <span class="text-muted small">logo-128.png (128×128)</span>
+                                    <strong class="text-dark small d-block">Auth &amp; Modal Badge</strong>
+                                    <span class="text-muted small">logo-128.png (128&times;128)</span>
                                 </div>
                             </div>
                             <div class="col-12 col-md-4">
@@ -114,8 +161,8 @@ $traceId = $traceId ?? '';
                                             <img src="<?= htmlspecialchars($appBase) ?>/logos/logo-64.png" alt="Nexus Brand 64" class="nexus-brand-img">
                                         </div>
                                     </div>
-                                    <strong class="text-dark small d-block">Topbar & Navigation</strong>
-                                    <span class="text-muted small">logo-64.png (64×64 @2x)</span>
+                                    <strong class="text-dark small d-block">Topbar &amp; Navigation</strong>
+                                    <span class="text-muted small">logo-64.png (64&times;64 @2x)</span>
                                 </div>
                             </div>
                             <div class="col-12 col-md-4">
@@ -125,11 +172,147 @@ $traceId = $traceId ?? '';
                                         <img src="<?= htmlspecialchars($appBase) ?>/logos/favicon-16x16.png" alt="Favicon 16" width="16" height="16">
                                         <img src="<?= htmlspecialchars($appBase) ?>/logos/apple-touch-icon.png" alt="Apple Touch" width="36" height="36" class="rounded">
                                     </div>
-                                    <strong class="text-dark small d-block">Favicons & Touch Icons</strong>
+                                    <strong class="text-dark small d-block">Favicons &amp; Touch Icons</strong>
                                     <span class="text-muted small">favicon.ico + PWA manifest</span>
                                 </div>
                             </div>
                         </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- NEW: Executive Resume & Timeline Patterns -->
+            <section id="executive" class="showcase-section">
+                <h2 class="showcase-section-title">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="9" y1="4" x2="9" y2="20"/><line x1="13" y1="9" x2="18" y2="9"/><line x1="13" y1="13" x2="18" y2="13"/></svg>
+                    Executive Resume &amp; Timeline Patterns
+                </h2>
+                <p class="showcase-section-desc">
+                    High-clarity light-theme architectural patterns powering the executive resume view: radiant light header caps, contact pill strips, KPI ribbons, tinted sidebar panels, interactive skill matrices, and career timelines (<code class="small">.rx-*</code>).
+                </p>
+
+                <div class="component-demo">
+                    <div class="demo-preview">
+                        <div class="rx-sheet">
+                            <!-- Executive Light Header Sample -->
+                            <div class="rx-header">
+                                <div class="rx-header-top">
+                                    <div class="rx-identity-block">
+                                        <div class="rx-logo-frame">
+                                            <img src="<?= htmlspecialchars($appBase) ?>/logos/logo-128.png" alt="Executive Identity Mark" class="hero-brand-logo">
+                                        </div>
+                                        <div class="rx-identity-text">
+                                            <div class="rx-eyebrow-pill">
+                                                <span class="rx-status-dot" aria-hidden="true"></span>
+                                                <span>Executive Profile Blueprint</span>
+                                            </div>
+                                            <h3 class="rx-name">Alex Mercer</h3>
+                                            <p class="rx-role-line">
+                                                <span class="rx-role-primary">Principal Systems Architect</span>
+                                                <span class="rx-sep" aria-hidden="true">|</span>
+                                                <span class="rx-role-secondary">DevSecOps &amp; Cloud Platform</span>
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div class="rx-header-actions">
+                                        <button type="button" class="rx-btn rx-btn-primary">Primary Action</button>
+                                        <button type="button" class="rx-btn rx-btn-ghost">Secondary</button>
+                                    </div>
+                                </div>
+                                <div class="rx-contact-bar">
+                                    <span class="rx-contact-pill">Kansas City, MO</span>
+                                    <span class="rx-contact-pill">(555) 010-9900</span>
+                                    <span class="rx-contact-pill">architect@dreamboxnexus.local</span>
+                                </div>
+                            </div>
+
+                            <!-- Executive Split Body Sample -->
+                            <div class="rx-body-grid">
+                                <div class="rx-sidebar">
+                                    <div class="rx-skill-group">
+                                        <div class="rx-skill-heading">
+                                            <span class="rx-dot rx-dot-cyan" aria-hidden="true"></span>
+                                            <span>Skill Domain Matrix</span>
+                                        </div>
+                                        <div class="rx-skill-tags">
+                                            <span class="rx-skill-tag">PHP 8.5</span>
+                                            <span class="rx-skill-tag">TypeScript</span>
+                                            <span class="rx-skill-tag">Docker</span>
+                                            <span class="rx-skill-tag">Terraform</span>
+                                            <span class="rx-skill-tag">OAuth 2.0</span>
+                                        </div>
+                                    </div>
+
+                                    <div class="rx-edu-item">
+                                        <div class="rx-edu-head">
+                                            <div class="rx-edu-degree">Credential Highlight</div>
+                                            <span class="badge badge-success">Verified</span>
+                                        </div>
+                                        <div class="rx-edu-school">Architectural Information Security</div>
+                                        <div class="rx-edu-note">Tinted slate-lavender left rail contrast</div>
+                                    </div>
+                                </div>
+
+                                <div class="rx-main">
+                                    <div class="rx-timeline">
+                                        <div class="rx-role">
+                                            <div class="rx-role-marker" aria-hidden="true"></div>
+                                            <div class="rx-role-header">
+                                                <div>
+                                                    <h4 class="rx-company">Platform Engineering Core</h4>
+                                                    <div class="rx-role-title">Lead Architect <span class="rx-role-loc">&bull; Remote</span></div>
+                                                </div>
+                                                <span class="rx-date-badge">2024 &ndash; Present</span>
+                                            </div>
+                                            <ul class="rx-bullets">
+                                                <li>Continuous vertical track (<code class="small">.rx-timeline</code>) with cyan node markers and pill dates.</li>
+                                                <li>Designed for effortless executive scanning and crisp US Letter printing.</li>
+                                            </ul>
+                                        </div>
+                                    </div>
+
+                                    <div class="rx-project-card rx-project-flagship">
+                                        <div class="rx-project-top">
+                                            <div>
+                                                <h4 class="rx-project-name">Flagship Module Card</h4>
+                                                <div class="rx-project-sub">Elevated gradient callout panel</div>
+                                            </div>
+                                            <span class="badge badge-primary">Live Component</span>
+                                        </div>
+                                        <div class="rx-nexus-highlights">
+                                            <div class="rx-highlight-row">
+                                                <span class="badge badge-info">Architecture</span>
+                                                <span>Structured badge + specification row layout for complex deliverables.</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="demo-code-wrapper">
+                        <div class="demo-code-header">
+                            <span>HTML Markup (Executive Light Sheet &amp; Timeline)</span>
+                            <button type="button" class="btn-copy-code" data-target="#code-executive">Copy</button>
+                        </div>
+                        <pre class="code-snippet" id="code-executive">&lt;article class="rx-sheet"&gt;
+  &lt;header class="rx-header"&gt;...&lt;/header&gt;
+  &lt;section class="rx-summary-band"&gt;
+    &lt;div class="rx-kpi-strip"&gt;
+      &lt;div class="rx-kpi-item"&gt;
+        &lt;div class="rx-kpi-val"&gt;99.9%&lt;/div&gt;
+        &lt;div class="rx-kpi-lbl"&gt;Platform Uptime&lt;/div&gt;
+      &lt;/div&gt;
+    &lt;/div&gt;
+  &lt;/section&gt;
+  &lt;div class="rx-body-grid"&gt;
+    &lt;aside class="rx-sidebar"&gt;...&lt;/aside&gt;
+    &lt;div class="rx-main"&gt;
+      &lt;div class="rx-timeline"&gt;&lt;article class="rx-role"&gt;...&lt;/article&gt;&lt;/div&gt;
+    &lt;/div&gt;
+  &lt;/div&gt;
+&lt;/article&gt;</pre>
                     </div>
                 </div>
             </section>
@@ -183,7 +366,7 @@ $traceId = $traceId ?? '';
             <section id="typography" class="showcase-section">
                 <h2 class="showcase-section-title">
                     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 7 4 4 20 4 20 7"></polyline><line x1="9" y1="20" x2="15" y2="20"></line><line x1="12" y1="4" x2="12" y2="20"></line></svg>
-                    Typography & Display Headings
+                    Typography &amp; Display Headings
                 </h2>
                 <p class="showcase-section-desc">
                     Fluid scale typography with high contrast, crisp letter spacing, display classes, lead paragraphs, and text weight utilities.
@@ -199,7 +382,7 @@ $traceId = $traceId ?? '';
                             This is a lead paragraph (<code class="small">.lead</code>). It stands out from standard prose text with an enlarged font size and comfortable line height.
                         </p>
                         <p class="text-muted small">
-                            Subtle muted secondary caption (<code class="small">.text-muted .small</code>) with crisp rendering.
+                            Subtle muted secondary caption (<code class="small">.text-muted .small</code>) with crisp light-mode contrast.
                         </p>
                     </div>
                     <div class="demo-code-wrapper">
@@ -215,65 +398,65 @@ $traceId = $traceId ?? '';
                 </div>
             </section>
 
-            <!-- 3. Color Tokens -->
+            <!-- 3. Color Tokens (Strictly Light Theme) -->
             <section id="colors" class="showcase-section">
                 <h2 class="showcase-section-title">
                     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M12 2a7 7 0 0 1 7 7c0 2.38-1.19 4.47-3 5.74V17a2 2 0 0 1-2 2H10a2 2 0 0 1-2-2v-2.26C6.19 13.47 5 11.38 5 9a7 7 0 0 1 7-7z"></path></svg>
-                    Design Tokens & Palette
+                    Light-Theme Design Tokens &amp; Palette
                 </h2>
                 <p class="showcase-section-desc">
-                    Semantic CSS variables providing predictable color consistency across UI states and light themes.
+                    Luminous light-mode semantic CSS variables providing sharp typographic legibility and predictable surface hierarchy across the entire application.
                 </p>
 
                 <div class="component-demo">
                     <div class="demo-preview">
-                        <div class="row g-3 text-center text-white small">
-                            <div class="col-6 col-md-3">
-                                <div class="p-3 rounded bg-primary shadow-sm">
-                                    <div class="fw-bold">Primary</div>
-                                    <div class="small opacity-75">#2563eb</div>
+                        <div class="row g-3 text-center small">
+                            <div class="col-6 col-md-3 mb-2">
+                                <div class="p-3 rounded bg-primary text-white shadow-sm">
+                                    <div class="fw-bold">Sapphire Primary</div>
+                                    <div class="small opacity-75">#0369a1</div>
                                 </div>
                             </div>
-                            <div class="col-6 col-md-3">
-                                <div class="p-3 rounded bg-success shadow-sm">
-                                    <div class="fw-bold">Success</div>
-                                    <div class="small opacity-75">#16a34a</div>
-                                </div>
-                            </div>
-                            <div class="col-6 col-md-3">
-                                <div class="p-3 rounded bg-danger shadow-sm">
-                                    <div class="fw-bold">Danger</div>
-                                    <div class="small opacity-75">#dc2626</div>
-                                </div>
-                            </div>
-                            <div class="col-6 col-md-3">
-                                <div class="p-3 rounded bg-warning shadow-sm">
-                                    <div class="fw-bold">Warning</div>
-                                    <div class="small opacity-75">#ea580c</div>
-                                </div>
-                            </div>
-                            <div class="col-6 col-md-3">
-                                <div class="p-3 rounded bg-cyan shadow-sm">
-                                    <div class="fw-bold">Cyan / Info</div>
+                            <div class="col-6 col-md-3 mb-2">
+                                <div class="p-3 rounded bg-info text-white shadow-sm">
+                                    <div class="fw-bold">Sky Info</div>
                                     <div class="small opacity-75">#0284c7</div>
                                 </div>
                             </div>
-                            <div class="col-6 col-md-3">
-                                <div class="p-3 rounded bg-purple shadow-sm">
-                                    <div class="fw-bold">Purple</div>
-                                    <div class="small opacity-75">#7c3aed</div>
+                            <div class="col-6 col-md-3 mb-2">
+                                <div class="p-3 rounded bg-success text-white shadow-sm">
+                                    <div class="fw-bold">Emerald Success</div>
+                                    <div class="small opacity-75">#059669</div>
+                                </div>
+                            </div>
+                            <div class="col-6 col-md-3 mb-2">
+                                <div class="p-3 rounded bg-purple text-white shadow-sm">
+                                    <div class="fw-bold">Royal Sapphire</div>
+                                    <div class="small opacity-75">#1d4ed8</div>
                                 </div>
                             </div>
                             <div class="col-6 col-md-3">
-                                <div class="p-3 rounded shadow-sm bg-dark">
-                                    <div class="fw-bold">Slate / Dark</div>
-                                    <div class="small opacity-75">#0f172a</div>
+                                <div class="p-3 rounded bg-warning text-white shadow-sm">
+                                    <div class="fw-bold">Amber Warning</div>
+                                    <div class="small opacity-75">#d97706</div>
                                 </div>
                             </div>
                             <div class="col-6 col-md-3">
-                                <div class="p-3 rounded shadow-sm text-dark border bg-light">
-                                    <div class="fw-bold">Canvas / Light</div>
-                                    <div class="small text-muted">#f8fafc</div>
+                                <div class="p-3 rounded bg-danger text-white shadow-sm">
+                                    <div class="fw-bold">Crimson Alert</div>
+                                    <div class="small opacity-75">#e11d48</div>
+                                </div>
+                            </div>
+                            <div class="col-6 col-md-3">
+                                <div class="p-3 rounded text-dark border bg-light shadow-sm">
+                                    <div class="fw-bold">Sidebar Tint</div>
+                                    <div class="small text-muted">#f3f5fb</div>
+                                </div>
+                            </div>
+                            <div class="col-6 col-md-3">
+                                <div class="p-3 rounded text-dark border bg-white shadow-sm">
+                                    <div class="fw-bold">Elevated Card</div>
+                                    <div class="small text-muted">#ffffff</div>
                                 </div>
                             </div>
                         </div>
@@ -285,26 +468,26 @@ $traceId = $traceId ?? '';
             <section id="buttons" class="showcase-section">
                 <h2 class="showcase-section-title">
                     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="8" width="18" height="8" rx="2"></rect><circle cx="8" cy="12" r="1.5"></circle></svg>
-                    Buttons & Button Groups
+                    Buttons &amp; Button Groups
                 </h2>
                 <p class="showcase-section-desc">
-                    Solid colors, smooth hover lifts, clean outline variants, sizing modifiers (<code class="small">.btn-sm</code>, <code class="small">.btn-lg</code>), and button groups.
+                    Gradient-elevated primary triggers, crisp bordered light secondary buttons, outline variants, sizing modifiers (<code class="small">.btn-sm</code>, <code class="small">.btn-lg</code>), and button groups.
                 </p>
 
                 <div class="component-demo">
                     <div class="demo-preview">
-                        <!-- Solid Variants -->
+                        <!-- Solid & Executive Variants -->
                         <div class="mb-3">
-                            <span class="d-block small text-muted mb-2 text-uppercase fw-semibold">Solid Variants</span>
+                            <span class="d-block small text-muted mb-2 text-uppercase fw-semibold">Executive &amp; Solid Variants</span>
                             <div class="d-flex flex-wrap gap-2">
+                                <button type="button" class="rx-btn rx-btn-primary">Executive Primary</button>
+                                <button type="button" class="rx-btn rx-btn-ghost">Executive Ghost</button>
                                 <button type="button" class="btn btn-primary">Primary</button>
                                 <button type="button" class="btn btn-secondary">Secondary</button>
                                 <button type="button" class="btn btn-success">Success</button>
                                 <button type="button" class="btn btn-danger">Danger</button>
                                 <button type="button" class="btn btn-warning">Warning</button>
                                 <button type="button" class="btn btn-info">Info</button>
-                                <button type="button" class="btn btn-dark">Dark</button>
-                                <button type="button" class="btn btn-light">Light</button>
                             </div>
                         </div>
 
@@ -321,7 +504,7 @@ $traceId = $traceId ?? '';
 
                         <!-- Sizes & Groups -->
                         <div>
-                            <span class="d-block small text-muted mb-2 text-uppercase fw-semibold">Sizes & Groups</span>
+                            <span class="d-block small text-muted mb-2 text-uppercase fw-semibold">Sizes &amp; Groups</span>
                             <div class="d-flex flex-wrap align-items-center gap-3">
                                 <button type="button" class="btn btn-primary btn-sm">Small Button</button>
                                 <button type="button" class="btn btn-primary">Default Size</button>
@@ -340,11 +523,11 @@ $traceId = $traceId ?? '';
                             <span>HTML Markup</span>
                             <button type="button" class="btn-copy-code" data-target="#code-btn">Copy</button>
                         </div>
-                        <pre class="code-snippet" id="code-btn">&lt;!-- Solid & Outline Buttons --&gt;
+                        <pre class="code-snippet" id="code-btn">&lt;!-- Executive &amp; Standard Buttons --&gt;
+&lt;button class="rx-btn rx-btn-primary"&gt;Executive Primary&lt;/button&gt;
+&lt;button class="rx-btn rx-btn-ghost"&gt;Executive Ghost&lt;/button&gt;
 &lt;button class="btn btn-primary"&gt;Primary&lt;/button&gt;
 &lt;button class="btn btn-outline-primary"&gt;Outline&lt;/button&gt;
-&lt;button class="btn btn-primary btn-sm"&gt;Small&lt;/button&gt;
-&lt;button class="btn btn-primary btn-lg"&gt;Large&lt;/button&gt;
 
 &lt;!-- Button Group --&gt;
 &lt;div class="btn-group"&gt;
@@ -360,7 +543,7 @@ $traceId = $traceId ?? '';
             <section id="forms" class="showcase-section">
                 <h2 class="showcase-section-title">
                     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-                    Form Controls & Validation States
+                    Form Controls &amp; Validation States
                 </h2>
                 <p class="showcase-section-desc">
                     Comprehensive input controls, select dropdowns, input groups with addons, checkboxes, radio buttons, switch toggles, and live validation states.
@@ -368,16 +551,16 @@ $traceId = $traceId ?? '';
 
                 <div class="component-demo">
                     <div class="demo-preview">
-                        <form id="demo-form" onsubmit="event.preventDefault();">
+                        <form id="demo-form">
                             <div class="row g-3 mb-3">
                                 <div class="col-12 col-md-6">
                                     <label class="form-label">Full Name</label>
-                                    <input type="text" class="form-control" placeholder="e.g. Timothy Dunn" value="Timothy Dunn">
-                                    <div class="form-text">We'll never share your personal identity without authorization.</div>
+                                    <input type="text" class="form-control" placeholder="e.g. Alex Mercer" value="Alex Mercer">
+                                    <div class="form-text">Clean light focus ring with accessible helper text.</div>
                                 </div>
                                 <div class="col-12 col-md-6">
                                     <label class="form-label">Email Address (Validated)</label>
-                                    <input type="email" class="form-control is-valid" value="user@example.com">
+                                    <input type="email" class="form-control is-valid" value="architect@dreamboxnexus.local">
                                     <div class="valid-feedback">Looks great! RFC 5322 syntax verified.</div>
                                 </div>
                             </div>
@@ -404,7 +587,7 @@ $traceId = $traceId ?? '';
                             <div class="mb-3">
                                 <label class="form-label">Input Group with Addons</label>
                                 <div class="input-group">
-                                    <span class="input-group-text">https://api.domain.com/v1/</span>
+                                    <span class="input-group-text">https://api.dreamboxnexus.local/v1/</span>
                                     <input type="text" class="form-control" placeholder="endpoint">
                                     <button class="btn btn-primary" type="button">Execute</button>
                                 </div>
@@ -436,7 +619,7 @@ $traceId = $traceId ?? '';
                             <span>HTML Markup</span>
                             <button type="button" class="btn-copy-code" data-target="#code-forms">Copy</button>
                         </div>
-                        <pre class="code-snippet" id="code-forms">&lt;!-- Text Input with Label & Form Text --&gt;
+                        <pre class="code-snippet" id="code-forms">&lt;!-- Text Input with Label &amp; Form Text --&gt;
 &lt;div class="mb-3"&gt;
   &lt;label class="form-label"&gt;Email Address&lt;/label&gt;
   &lt;input type="email" class="form-control is-valid" value="user@example.com"&gt;
@@ -462,10 +645,10 @@ $traceId = $traceId ?? '';
             <section id="cards" class="showcase-section">
                 <h2 class="showcase-section-title">
                     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line></svg>
-                    Cards & Stat Metric Widgets
+                    Cards &amp; Stat Metric Widgets
                 </h2>
                 <p class="showcase-section-desc">
-                    Flexible content containers with card headers, footers, and dedicated telemetry stat metric cards featuring real-time delta badges.
+                    Flexible light-mode content containers with structured headers, footers, and top-accented telemetry metric cards.
                 </p>
 
                 <div class="component-demo">
@@ -480,7 +663,7 @@ $traceId = $traceId ?? '';
                                     </div>
                                     <div class="metric-value">128,490</div>
                                     <div class="metric-footer">
-                                        <span class="metric-delta up">▲ 14.2%</span>
+                                        <span class="metric-delta up">&#9650; 14.2%</span>
                                         <span>vs. previous period</span>
                                     </div>
                                 </div>
@@ -493,7 +676,7 @@ $traceId = $traceId ?? '';
                                     </div>
                                     <div class="metric-value">0 Incidents</div>
                                     <div class="metric-footer">
-                                        <span class="metric-delta down">▼ 100%</span>
+                                        <span class="metric-delta down">&#9660; 100%</span>
                                         <span>Clean perimeter</span>
                                     </div>
                                 </div>
@@ -506,7 +689,7 @@ $traceId = $traceId ?? '';
                                     </div>
                                     <div class="metric-value">98.5%</div>
                                     <div class="metric-footer">
-                                        <span class="metric-delta up">▲ 2.1%</span>
+                                        <span class="metric-delta up">&#9650; 2.1%</span>
                                         <span>PCI-DSS / HIPAA compliant</span>
                                     </div>
                                 </div>
@@ -519,14 +702,14 @@ $traceId = $traceId ?? '';
                                 <div class="card">
                                     <div class="card-header">
                                         <strong class="text-dark">Featured Project Architecture</strong>
-                                        <span class="badge badge-cyan">v1.0</span>
+                                        <span class="badge badge-cyan">v1.1</span>
                                     </div>
                                     <div class="card-body">
                                         <h5 class="card-title">Clean Modular Structure</h5>
                                         <p class="card-text text-muted">
-                                            Every view utilizes the centralized <code class="small">theme.css</code> framework with zero external dependencies and deterministic rendering.
+                                            Every view utilizes the centralized <code class="small">theme.css</code> framework with zero external dependencies and deterministic light-mode rendering.
                                         </p>
-                                        <button class="btn btn-primary btn-sm">Explore Blueprint</button>
+                                        <a href="<?= htmlspecialchars($appBase) ?>/compliance/" class="btn btn-primary btn-sm">Explore Blueprint</a>
                                     </div>
                                     <div class="card-footer text-muted small">
                                         Last verified: Just now
@@ -537,16 +720,16 @@ $traceId = $traceId ?? '';
                                 <div class="card">
                                     <div class="card-header">
                                         <strong class="text-dark">Quick Action Card</strong>
-                                        <button class="btn-close" aria-label="Close"></button>
+                                        <button type="button" class="btn-close" aria-label="Close"></button>
                                     </div>
                                     <div class="card-body">
-                                        <h5 class="card-title">Identity & Access Governance</h5>
+                                        <h5 class="card-title">Identity &amp; Access Governance</h5>
                                         <p class="card-text text-muted">
                                             Manage RBAC permissions, identity groups, and audit trails directly through the unified IAM suite.
                                         </p>
                                         <div class="d-flex gap-2">
-                                            <a href="<?= $appBase ?>/admin/users/" class="btn btn-outline-primary btn-sm">Manage Users</a>
-                                            <a href="<?= $appBase ?>/admin/audit/" class="btn btn-secondary btn-sm">Audit Log</a>
+                                            <a href="<?= htmlspecialchars($appBase) ?>/admin/users/" class="btn btn-outline-primary btn-sm">Manage Users</a>
+                                            <a href="<?= htmlspecialchars($appBase) ?>/nexus/monitor/" class="btn btn-secondary btn-sm">Monitor HUD</a>
                                         </div>
                                     </div>
                                 </div>
@@ -566,7 +749,7 @@ $traceId = $traceId ?? '';
   &lt;/div&gt;
   &lt;div class="metric-value"&gt;1,248&lt;/div&gt;
   &lt;div class="metric-footer"&gt;
-    &lt;span class="metric-delta up"&gt;▲ 8.4%&lt;/span&gt;
+    &lt;span class="metric-delta up"&gt;&#9650; 8.4%&lt;/span&gt;
   &lt;/div&gt;
 &lt;/div&gt;
 
@@ -587,7 +770,7 @@ $traceId = $traceId ?? '';
             <section id="navigation" class="showcase-section">
                 <h2 class="showcase-section-title">
                     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>
-                    Navs, Tabs, Breadcrumbs & Pagination
+                    Navs, Tabs, Breadcrumbs &amp; Pagination
                 </h2>
                 <p class="showcase-section-desc">
                     Interactive tabbed navigation with smooth panel switching, breadcrumb trails, and pagination controls.
@@ -600,9 +783,9 @@ $traceId = $traceId ?? '';
                             <span class="d-block small text-muted mb-1 text-uppercase fw-semibold">Breadcrumb Trail</span>
                             <nav aria-label="breadcrumb">
                                 <ol class="breadcrumb">
-                                    <li class="breadcrumb-item"><a href="<?= $appBase ?>/">Home</a></li>
-                                    <li class="breadcrumb-item"><a href="<?= $appBase ?>/ui/">Framework</a></li>
-                                    <li class="breadcrumb-item active" aria-current="page">Kitchen Sink</li>
+                                    <li class="breadcrumb-item"><a href="<?= htmlspecialchars($appBase) ?>/">Home</a></li>
+                                    <li class="breadcrumb-item"><a href="<?= htmlspecialchars($appBase) ?>/ui/">Framework</a></li>
+                                    <li class="breadcrumb-item active" aria-current="page">Executive Light UI</li>
                                 </ol>
                             </nav>
                         </div>
@@ -612,20 +795,20 @@ $traceId = $traceId ?? '';
                             <span class="d-block small text-muted mb-2 text-uppercase fw-semibold">Interactive Nav Tabs (Click to Switch)</span>
                             <ul class="nav nav-tabs" id="demoTabs">
                                 <li class="nav-item">
-                                    <button class="nav-link active" data-tab-target="#tab-pane-1">System Architecture</button>
+                                    <button type="button" class="nav-link active" data-tab-target="#tab-pane-1">System Architecture</button>
                                 </li>
                                 <li class="nav-item">
-                                    <button class="nav-link" data-tab-target="#tab-pane-2">Security Perimeter</button>
+                                    <button type="button" class="nav-link" data-tab-target="#tab-pane-2">Security Perimeter</button>
                                 </li>
                                 <li class="nav-item">
-                                    <button class="nav-link" data-tab-target="#tab-pane-3">API Contract</button>
+                                    <button type="button" class="nav-link" data-tab-target="#tab-pane-3">API Contract</button>
                                 </li>
                             </ul>
                             <div class="p-3 border border-top-0 rounded-bottom bg-white" id="demoTabContent">
                                 <div id="tab-pane-1" class="tab-pane-content">
                                     <h5 class="h5 mb-2">High-Performance Architecture</h5>
                                     <p class="text-muted small mb-0">
-                                        Dreambox Nexus runs on a zero-third-party PHP 8.3 kernel with native Argon2id password hashing, AES-256-GCM AEAD encryption, and MongoDB database driver.
+                                        Dreambox Nexus runs on a zero-third-party PHP kernel with native Argon2id password hashing, AES-256-GCM AEAD encryption, and MongoDB database driver.
                                     </p>
                                 </div>
                                 <div id="tab-pane-2" class="tab-pane-content d-none">
@@ -637,7 +820,7 @@ $traceId = $traceId ?? '';
                                 <div id="tab-pane-3" class="tab-pane-content d-none">
                                     <h5 class="h5 mb-2">Standardized OpenAPI 3.0 Contract</h5>
                                     <p class="text-muted small mb-0">
-                                        Uniform JSON response envelopes ({data, meta, message}) guaranteed across all 35+ API endpoints with ISO 8601 timestamps and UUIDv4 trace IDs.
+                                        Uniform JSON response envelopes ({data, meta, message}) guaranteed across all API endpoints with ISO 8601 timestamps and UUIDv4 trace IDs.
                                     </p>
                                 </div>
                             </div>
@@ -681,10 +864,10 @@ $traceId = $traceId ?? '';
             <section id="tables" class="showcase-section">
                 <h2 class="showcase-section-title">
                     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
-                    Tables & High-Contrast Data Grids
+                    Tables &amp; High-Contrast Data Grids
                 </h2>
                 <p class="showcase-section-desc">
-                    High-density data tables with striped rows, hover highlighting, badges, and responsive horizontal overflow wrapping.
+                    High-density data tables with striped rows, light-sky hover highlighting, badges, and responsive horizontal overflow wrapping.
                 </p>
 
                 <div class="component-demo">
@@ -709,7 +892,7 @@ $traceId = $traceId ?? '';
                                         <td><span class="badge badge-primary">SuperAdmin</span></td>
                                         <td><span class="badge badge-secondary">SecOps</span> <span class="badge badge-secondary">Engineering</span></td>
                                         <td><span class="badge badge-success">Active</span></td>
-                                        <td><button class="btn btn-outline-primary btn-sm">Edit</button></td>
+                                        <td><button type="button" class="btn btn-outline-primary btn-sm">Edit</button></td>
                                     </tr>
                                     <tr>
                                         <td>
@@ -719,7 +902,7 @@ $traceId = $traceId ?? '';
                                         <td><span class="badge badge-info">Auditor</span></td>
                                         <td><span class="badge badge-secondary">Compliance</span></td>
                                         <td><span class="badge badge-success">Active</span></td>
-                                        <td><button class="btn btn-outline-primary btn-sm">Edit</button></td>
+                                        <td><button type="button" class="btn btn-outline-primary btn-sm">Edit</button></td>
                                     </tr>
                                     <tr>
                                         <td>
@@ -729,7 +912,7 @@ $traceId = $traceId ?? '';
                                         <td><span class="badge badge-secondary">Member</span></td>
                                         <td><span class="badge badge-secondary">General</span></td>
                                         <td><span class="badge badge-danger">Suspended</span></td>
-                                        <td><button class="btn btn-outline-danger btn-sm">Reinstate</button></td>
+                                        <td><button type="button" class="btn btn-outline-danger btn-sm">Reinstate</button></td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -764,10 +947,10 @@ $traceId = $traceId ?? '';
             <section id="alerts" class="showcase-section">
                 <h2 class="showcase-section-title">
                     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
-                    Alerts, Badges & Callouts
+                    Alerts, Badges &amp; Callouts
                 </h2>
                 <p class="showcase-section-desc">
-                    Contextual feedback alerts with dismiss triggers, pill badges, and prominent callout note boxes.
+                    Contextual feedback alerts with CSP-safe dismiss triggers, pill badges, and luminous executive callout boxes.
                 </p>
 
                 <div class="component-demo">
@@ -775,19 +958,19 @@ $traceId = $traceId ?? '';
                         <!-- Dismissible Alerts -->
                         <div class="alert alert-primary alert-dismissible" role="alert">
                             <div><strong>Primary Notice:</strong> Application deployed in WSL2 local environment with native Dev Drive acceleration.</div>
-                            <button type="button" class="btn-close" aria-label="Close" onclick="this.parentElement.remove()"></button>
+                            <button type="button" class="btn-close" data-dismiss="alert" aria-label="Close"></button>
                         </div>
                         <div class="alert alert-success alert-dismissible" role="alert">
-                            <div><strong>Success:</strong> Automated test suite passed 126/126 checks with zero regressions.</div>
-                            <button type="button" class="btn-close" aria-label="Close" onclick="this.parentElement.remove()"></button>
+                            <div><strong>Success:</strong> Automated test suite passed all checks with zero regressions.</div>
+                            <button type="button" class="btn-close" data-dismiss="alert" aria-label="Close"></button>
                         </div>
                         <div class="alert alert-warning alert-dismissible" role="alert">
                             <div><strong>Warning:</strong> Argon2id memory cost exceeds default container limit on low-spec VMs.</div>
-                            <button type="button" class="btn-close" aria-label="Close" onclick="this.parentElement.remove()"></button>
+                            <button type="button" class="btn-close" data-dismiss="alert" aria-label="Close"></button>
                         </div>
                         <div class="alert alert-danger alert-dismissible" role="alert">
                             <div><strong>Critical:</strong> Untrusted IP blocked at perimeter boundary by SOC firewall.</div>
-                            <button type="button" class="btn-close" aria-label="Close" onclick="this.parentElement.remove()"></button>
+                            <button type="button" class="btn-close" data-dismiss="alert" aria-label="Close"></button>
                         </div>
 
                         <!-- Callout -->
@@ -800,7 +983,7 @@ $traceId = $traceId ?? '';
 
                         <!-- Badges & Pills -->
                         <div class="mt-3">
-                            <span class="d-block small text-muted mb-2 text-uppercase fw-semibold">Badges & Pill Variants</span>
+                            <span class="d-block small text-muted mb-2 text-uppercase fw-semibold">Badges &amp; Pill Variants</span>
                             <div class="d-flex flex-wrap gap-2">
                                 <span class="badge badge-primary">Primary</span>
                                 <span class="badge badge-secondary">Secondary</span>
@@ -808,8 +991,7 @@ $traceId = $traceId ?? '';
                                 <span class="badge badge-danger">Danger</span>
                                 <span class="badge badge-warning">Warning</span>
                                 <span class="badge badge-info">Info</span>
-                                <span class="badge badge-dark">Dark</span>
-
+                                <span class="badge badge-purple">Purple</span>
                                 <span class="badge badge-pill badge-primary">Pill 10</span>
                                 <span class="badge badge-pill badge-success">Pill Verified</span>
                             </div>
@@ -820,10 +1002,10 @@ $traceId = $traceId ?? '';
                             <span>HTML Markup</span>
                             <button type="button" class="btn-copy-code" data-target="#code-alerts">Copy</button>
                         </div>
-                        <pre class="code-snippet" id="code-alerts">&lt;!-- Alert with Dismiss Button --&gt;
+                        <pre class="code-snippet" id="code-alerts">&lt;!-- Alert with CSP-Safe Dismiss Button --&gt;
 &lt;div class="alert alert-success alert-dismissible" role="alert"&gt;
   &lt;div&gt;&lt;strong&gt;Success!&lt;/strong&gt; Operation completed.&lt;/div&gt;
-  &lt;button type="button" class="btn-close" aria-label="Close" onclick="this.parentElement.remove()"&gt;&lt;/button&gt;
+  &lt;button type="button" class="btn-close" data-dismiss="alert" aria-label="Close"&gt;&lt;/button&gt;
 &lt;/div&gt;
 
 &lt;!-- Callout Box --&gt;
@@ -843,10 +1025,10 @@ $traceId = $traceId ?? '';
             <section id="modals" class="showcase-section">
                 <h2 class="showcase-section-title">
                     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
-                    Modals & Offcanvas Side Drawers
+                    Modals &amp; Offcanvas Side Drawers
                 </h2>
                 <p class="showcase-section-desc">
-                    Fully functional interactive overlays with backdrop blur, smooth slide-ins, and keyboard accessibility (ESC key dismissal).
+                    Fully functional interactive overlays with backdrop blur, single crisp close trigger, smooth slide-ins, and keyboard accessibility (ESC key dismissal).
                 </p>
 
                 <div class="component-demo">
@@ -871,14 +1053,14 @@ $traceId = $traceId ?? '';
     &lt;div class="modal-content"&gt;
       &lt;div class="modal-header"&gt;
         &lt;h5 class="modal-title"&gt;Modal Title&lt;/h5&gt;
-        &lt;button class="btn-close" onclick="closeModal()"&gt;&lt;/button&gt;
+        &lt;button type="button" class="btn-close" aria-label="Close"&gt;&lt;/button&gt;
       &lt;/div&gt;
       &lt;div class="modal-body"&gt;
         Modal content here...
       &lt;/div&gt;
       &lt;div class="modal-footer"&gt;
-        &lt;button class="btn btn-secondary" onclick="closeModal()"&gt;Cancel&lt;/button&gt;
-        &lt;button class="btn btn-primary"&gt;Save Changes&lt;/button&gt;
+        &lt;button type="button" class="btn btn-secondary"&gt;Cancel&lt;/button&gt;
+        &lt;button type="button" class="btn btn-primary"&gt;Save Changes&lt;/button&gt;
       &lt;/div&gt;
     &lt;/div&gt;
   &lt;/div&gt;
@@ -891,7 +1073,7 @@ $traceId = $traceId ?? '';
             <section id="progress" class="showcase-section">
                 <h2 class="showcase-section-title">
                     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="2" x2="12" y2="6"></line><line x1="12" y1="18" x2="12" y2="22"></line><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"></line><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"></line><line x1="2" y1="12" x2="6" y2="12"></line><line x1="18" y1="12" x2="22" y2="12"></line><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"></line><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"></line></svg>
-                    Progress Bars, Spinners & Loading States
+                    Progress Bars, Spinners &amp; Loading States
                 </h2>
                 <p class="showcase-section-desc">
                     Animated striped progress bars, indeterminate spinners, and size modifiers.
@@ -921,7 +1103,7 @@ $traceId = $traceId ?? '';
                                 <div class="spinner-border text-primary" role="status"></div>
                                 <div class="spinner-border spinner-sm text-secondary" role="status"></div>
                                 <div class="spinner-grow text-success" role="status"></div>
-                                <button class="btn btn-primary" disabled>
+                                <button type="button" class="btn btn-primary" disabled>
                                     <span class="spinner-border spinner-sm" role="status"></span>
                                     <span>Processing Action...</span>
                                 </button>
@@ -951,10 +1133,10 @@ $traceId = $traceId ?? '';
             <section id="utilities" class="showcase-section">
                 <h2 class="showcase-section-title">
                     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path></svg>
-                    Utilities: Spacing, Flex, Borders & Shadows
+                    Utilities: Spacing, Flex, Borders &amp; Shadows
                 </h2>
                 <p class="showcase-section-desc">
-                    Standardized utility helpers to quickly build custom layouts without touching custom CSS rules.
+                    Standardized utility helpers to quickly build custom light-theme layouts without touching custom CSS rules.
                 </p>
 
                 <div class="component-demo">
@@ -985,7 +1167,7 @@ $traceId = $traceId ?? '';
                                 <span class="badge badge-primary">Flexbox</span>
                                 <span class="small text-dark fw-medium">.d-flex .justify-content-between .align-items-center</span>
                             </div>
-                            <button class="btn btn-secondary btn-sm">Sample Action</button>
+                            <button type="button" class="btn btn-secondary btn-sm">Sample Action</button>
                         </div>
                     </div>
                 </div>
@@ -1051,13 +1233,25 @@ $traceId = $traceId ?? '';
 
     <!-- Feedback Toast for Clipboard Copying -->
     <div class="nexus-toast" id="nexusToast">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
         <span>HTML snippet copied to clipboard!</span>
     </div>
 
-    <!-- Interactive Vanilla JavaScript -->
-    <script nonce="<?= $nonce ?? '' ?>">
+    <!-- Interactive Vanilla JavaScript (CSP Nonce Protected) -->
+    <script nonce="<?= htmlspecialchars($cspNonce) ?>">
     document.addEventListener('DOMContentLoaded', function() {
+        // 0. Prevent Demo Form Submission & Handle Dismissible Alerts
+        var demoForm = document.getElementById('demo-form');
+        if (demoForm) {
+            demoForm.addEventListener('submit', function(e) { e.preventDefault(); });
+        }
+        document.querySelectorAll('[data-dismiss="alert"]').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var alertBox = this.closest('.alert');
+                if (alertBox) alertBox.remove();
+            });
+        });
+
         // 1. Modal Logic
         const modal = document.getElementById('demoModal');
         const btnLaunchModal = document.getElementById('btnLaunchModal');
@@ -1198,4 +1392,3 @@ $traceId = $traceId ?? '';
     </script>
 </body>
 </html>
-

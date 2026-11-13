@@ -9,13 +9,14 @@ if (class_exists(\Nexus\Core\Env::class) && !\Nexus\Core\Env::isLoaded() && file
 }
 $contactEmail = (string)(\Nexus\Core\Env::get('CONTACT_EMAIL') ?: getenv('CONTACT_EMAIL') ?: 'contact@dreamboxnexus.local');
 $contactPhone = (string)(\Nexus\Core\Env::get('CONTACT_PHONE') ?: getenv('CONTACT_PHONE') ?: '');
+$cspNonce = (string)($nonce ?? (\Nexus\Security\Headers::getNonce() ?: ''));
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Timothy Dunn // Systems Architect &amp; DevSecOps Specialist // Security-First Application Gateway</title>
+    <title>Timothy Dunn // Systems Architect | DevSecOps Focused // Security-First Application Gateway</title>
     <link rel="icon" type="image/x-icon" href="<?= htmlspecialchars($appBase) ?>/favicon.ico">
     <link rel="icon" type="image/png" sizes="32x32" href="<?= htmlspecialchars($appBase) ?>/logos/favicon-32x32.png">
     <link rel="icon" type="image/png" sizes="16x16" href="<?= htmlspecialchars($appBase) ?>/logos/favicon-16x16.png">
@@ -29,313 +30,447 @@ $contactPhone = (string)(\Nexus\Core\Env::get('CONTACT_PHONE') ?: getenv('CONTAC
     <?php include __DIR__ . '/partials/topbar.php'; ?>
 
     <main class="resume-wrapper">
-        <!-- 1. Single Top Row: Master Logo, Name, Badges, Contact Info & Action Buttons -->
-        <header class="td-top-row">
-            <div class="td-top-brand">
-                <img src="<?= htmlspecialchars($appBase) ?>/logos/logo.png" alt="Dreambox Nexus Master Logo" class="hero-brand-logo">
-                <div class="td-top-identity">
-                    <h1 class="td-top-name">Timothy Dunn</h1>
-                    <div class="td-top-tags">
-                        <span class="badge badge-primary">Systems Architect</span>
-                        <span class="badge badge-success">DevSecOps focused</span>
-                        <span class="badge badge-info">Kansas City, MO</span>
+        <article class="rx-sheet">
+
+            <!-- 1. Executive Header Banner: Brand Logo, Identity, Contact Strip & Actions -->
+            <header class="rx-header">
+                <div class="rx-header-top">
+                    <div class="rx-identity-block">
+                        <div class="rx-logo-frame">
+                            <img src="<?= htmlspecialchars($appBase) ?>/logos/logo.png" alt="Dreambox Nexus Master Logo" class="hero-brand-logo">
+                        </div>
+                        <div class="rx-identity-text">
+                            <div class="rx-eyebrow-pill">
+                                <span class="rx-status-dot" aria-hidden="true"></span>
+                                <span>Principal Architecture &amp; Security Profile</span>
+                            </div>
+                            <h1 class="rx-name">Timothy Dunn</h1>
+                            <p class="rx-role-line">
+                                <span class="rx-role-primary">Systems Architect</span>
+                                <span class="rx-sep" aria-hidden="true">|</span>
+                                <span class="rx-role-secondary">DevSecOps Focused</span>
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="rx-header-actions">
+                        <button type="button" class="rx-btn rx-btn-primary" data-open="contact">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                            <span>Contact Me</span>
+                        </button>
+                        <button type="button" class="rx-btn rx-btn-ghost" data-print>
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+                            <span>Print / PDF</span>
+                        </button>
                     </div>
                 </div>
-            </div>
 
-            <div class="td-top-contact">
-                <?php if (!empty($contactPhone)): ?>
-                <a href="tel:<?= htmlspecialchars(preg_replace('/[^0-9+]/', '', $contactPhone)) ?>" class="td-contact-item" title="Call">
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
-                    <span><?= htmlspecialchars($contactPhone) ?></span>
-                </a>
-                <?php endif; ?>
-                <a href="mailto:<?= htmlspecialchars($contactEmail) ?>" class="td-contact-item" title="Email">
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
-                    <span><?= htmlspecialchars($contactEmail) ?></span>
-                </a>
-            </div>
+                <div class="rx-contact-bar">
+                    <span class="rx-contact-pill" title="Location">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                        <span>Kansas City, MO</span>
+                    </span>
+                    <?php if (!empty($contactPhone)): ?>
+                    <a href="tel:<?= htmlspecialchars(preg_replace('/[^0-9+]/', '', $contactPhone)) ?>" class="rx-contact-pill rx-contact-link" title="Phone">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                        <span><?= htmlspecialchars($contactPhone) ?></span>
+                    </a>
+                    <?php endif; ?>
+                    <a href="mailto:<?= htmlspecialchars($contactEmail) ?>" class="rx-contact-pill rx-contact-link" title="Email">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                        <span><?= htmlspecialchars($contactEmail) ?></span>
+                    </a>
+                </div>
+            </header>
 
-            <div class="td-top-actions">
-                <button type="button" class="btn btn-primary btn-sm" data-open="contact">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
-                    <span>Contact me</span>
-                </button>
-                <button type="button" class="btn btn-secondary btn-sm" onclick="window.print()">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
-                    <span>Print PDF</span>
-                </button>
-            </div>
-        </header>
+            <!-- 2. Full-Width Professional Summary & Key Impact Strip -->
+            <section id="summary" class="rx-summary-band" aria-labelledby="heading-summary">
+                <div class="rx-summary-inner">
+                    <h2 id="heading-summary" class="rx-section-title">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+                        <span>Professional Summary</span>
+                    </h2>
+                    <p class="rx-summary-copy">
+                        As an experienced Systems Architect, I specialize in building secure, high-performance platforms, automated CI/CD pipelines, and cloud infrastructures, integrating AI tools daily to enhance software delivery. Currently pursuing an M.S. in Cybersecurity and Information Assurance, I bring advanced expertise in DevSecOps practices, container security, cloud infrastructure orchestration, and robust API orchestration to deliver resilient, enterprise-scale solutions.
+                    </p>
 
-        <!-- 2. Full-Width Professional Summary Directly Under Top Row -->
-        <section id="summary" class="td-summary-section">
-            <div class="callout">
-                <h2><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Professional summary</h2>
-                <p>An experienced Systems Architect specializing in secure, high-performance platforms, automated CI/CD pipelines, and cloud infrastructure. Pursuing an M.S. in Cybersecurity and Information Assurance, with advanced expertise in DevSecOps practices, container security, cloud orchestration, and API orchestration for resilient, enterprise-scale solutions.</p>
-            </div>
-        </section>
-
-        <!-- 3. Two-Column Split Layout Underneath -->
-        <div class="td-two-col">
-            <!-- Left Column: Key Metrics, Technical Skills, Certifications & Education -->
-            <div class="td-col">
-                <!-- Key Metrics -->
-                <section id="metrics">
-                    <h2><svg viewBox="0 0 24 24"><path d="M4 20V10m6 10V4m6 16v-7m4 7H2"/></svg>Key metrics</h2>
-                    <div class="row">
-                        <div class="metric-card c6">
-                            <div class="metric-header"><span>ATS uptime</span><span class="badge badge-primary">ApplicantPro</span></div>
-                            <div class="metric-value">99.9%</div>
-                            <div class="metric-footer">Across recruiting integrations</div>
+                    <div class="rx-kpi-strip">
+                        <div class="rx-kpi-item">
+                            <div class="rx-kpi-val">99.9%</div>
+                            <div class="rx-kpi-lbl">High-Availability ATS Uptime</div>
+                            <div class="rx-kpi-sub">ApplicantPro REST Integrations</div>
                         </div>
-                        <div class="metric-card c6">
-                            <div class="metric-header"><span>Responsiveness</span><span class="badge badge-success">Gain</span></div>
-                            <div class="metric-value">+25%</div>
-                            <div class="metric-footer"><span class="up">&blacktriangle;</span> Skill-testing platform</div>
+                        <div class="rx-kpi-item">
+                            <div class="rx-kpi-val">+25%</div>
+                            <div class="rx-kpi-lbl">Responsiveness Gain</div>
+                            <div class="rx-kpi-sub">Cloud-Native Skill Platform</div>
                         </div>
-                        <div class="metric-card c6">
-                            <div class="metric-header"><span>Core Architecture</span><span class="badge badge-info">Zero-Dep</span></div>
-                            <div class="metric-value">100%</div>
-                            <div class="metric-footer">Pure PHP 8.5 &amp; MongoDB</div>
+                        <div class="rx-kpi-item">
+                            <div class="rx-kpi-val">L11 &bull; V3 &bull; PHP 8.5</div>
+                            <div class="rx-kpi-lbl">Full-Stack &amp; Zero-Dep Core</div>
+                            <div class="rx-kpi-sub">Aether &amp; Dreambox Nexus</div>
                         </div>
-                        <div class="metric-card c6">
-                            <div class="metric-header"><span>M.S. Cyber</span><span class="badge badge-warning">WGU</span></div>
-                            <div class="metric-value">2027</div>
-                            <div class="metric-footer">Expected March 2027</div>
+                        <div class="rx-kpi-item">
+                            <div class="rx-kpi-val">M.S. Cyber</div>
+                            <div class="rx-kpi-lbl">Information Assurance (WGU)</div>
+                            <div class="rx-kpi-sub">Expected Completion Mar 2027</div>
                         </div>
                     </div>
-                </section>
+                </div>
+            </section>
 
-                <!-- Technical Skills -->
-                <section id="skills">
-                    <h2><svg viewBox="0 0 24 24"><path d="M8 6l-6 6 6 6M16 6l6 6-6 6"/></svg>Technical skills</h2>
-                    <div class="row">
-                        <div class="card c6">
-                            <div class="card-header">Languages<span class="badge badge-primary">&#9679;</span></div>
-                            <div class="card-body small">PHP 8.3 &bull; 8.5, JavaScript (ES6+, TypeScript, Angular, Vue.js), C# (.NET), SQL (MySQL, SQL Server), Bash</div>
-                        </div>
-                        <div class="card c6">
-                            <div class="card-header">Backend &amp; APIs<span class="badge badge-info">&#9679;</span></div>
-                            <div class="card-body small">RESTful/SOAP API design, OAuth 2.0/JWT, EDI transactions, JSON, DOM scraping, Service Workers, PHPUnit, Agile/Scrum</div>
-                        </div>
-                        <div class="card c6">
-                            <div class="card-header">AI &amp; Agentic Systems<span class="badge badge-purple">&#9679;</span></div>
-                            <div class="card-body small">LLM orchestration, prompt engineering, agentic workflows (Gemini), vector DB / context pipelines, API integrations</div>
-                        </div>
-                        <div class="card c6">
-                            <div class="card-header">DevSecOps &amp; Cloud<span class="badge badge-success">&#9679;</span></div>
-                            <div class="card-body small">Infrastructure as Code, Docker, container scanning (Trivy/Clair), CI/CD (GitHub Actions, GitLab CI), GCP, Linux, Python, SSH</div>
-                        </div>
-                        <div class="card c6">
-                            <div class="card-header">Networking &amp; Support<span class="badge badge-warning">&#9679;</span></div>
-                            <div class="card-body small">Cisco networking and automation, enterprise networking solutions, routing &amp; switching, IT support operations</div>
-                        </div>
-                        <div class="card c6">
-                            <div class="card-header">Hardware &amp; Systems<span class="badge badge-secondary">&#9679;</span></div>
-                            <div class="card-body small">Systems administration, OS hardening, hardware lifecycle management, server configuration, electrical safety (NFPA 70E)</div>
-                        </div>
-                    </div>
-                </section>
+            <!-- 3. Asymmetric Two-Column Resume Body (38% Sidebar / 62% Main Track) -->
+            <div class="rx-body-grid">
 
-                <!-- Certifications & Training -->
-                <section id="certs">
-                    <h2><svg viewBox="0 0 24 24"><circle cx="12" cy="9" r="6"/><path d="M8 14l-2 8 6-3 6 3-2-8"/></svg>Certifications &amp; training</h2>
-                    <div class="table-responsive">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Credential</th>
-                                    <th>Issuer</th>
-                                    <th>Status</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr>
-                                    <td><b>Google AI Professional</b></td>
-                                    <td>Google</td>
-                                    <td><span class="badge badge-success">Completed May 2026</span></td>
-                                </tr>
-                                <tr>
-                                    <td><b>Google IT Support</b></td>
-                                    <td>Google</td>
-                                    <td><span class="badge badge-success">Completed Sept 2026</span></td>
-                                </tr>
-                                <tr>
-                                    <td><b>CCST Networking (100-150)</b></td>
-                                    <td>Cisco</td>
-                                    <td><span class="badge badge-success">Completed July 2026</span></td>
-                                </tr>
-                                <tr>
-                                    <td><b>OSHA 10, NFPA 70E</b></td>
-                                    <td>Safety Training</td>
-                                    <td><span class="badge badge-success">Completed Aug 2026</span></td>
-                                </tr>
-                                <tr>
-                                    <td><b>CCNA Automation (200-301)</b></td>
-                                    <td>Cisco</td>
-                                    <td><span class="badge badge-warning">Expected Feb 2027</span></td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </section>
+                <!-- Left Sidebar: Technical Skills, Certifications & Training, Education -->
+                <aside class="rx-sidebar" aria-label="Technical Skills, Certifications and Education">
 
-                <!-- Education -->
-                <section id="education">
-                    <h2><svg viewBox="0 0 24 24"><path d="M2 9l10-5 10 5-10 5z"/><path d="M6 11v5c3 2 9 2 12 0v-5"/></svg>Education</h2>
-                    <div class="row">
-                        <div class="card c6">
-                            <div class="card-header">M.S. Cybersecurity &amp; Info Assurance <span class="badge badge-warning">In progress</span></div>
-                            <div class="card-body">
-                                <div><b>Western Governors University</b></div>
-                                <div class="text-muted small mt-6">Expected completion: March 2027</div>
+                    <!-- Technical Skills -->
+                    <section id="skills" class="rx-side-section" aria-labelledby="heading-skills">
+                        <h2 id="heading-skills" class="rx-section-title">
+                            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+                            <span>Technical Skills</span>
+                        </h2>
+
+                        <div class="rx-skill-list">
+                            <div class="rx-skill-group">
+                                <div class="rx-skill-heading">
+                                    <span class="rx-dot rx-dot-cyan" aria-hidden="true"></span>
+                                    <span>Languages</span>
+                                </div>
+                                <div class="rx-skill-tags">
+                                    <span class="rx-skill-tag">PHP 8.3 / 8.5</span>
+                                    <span class="rx-skill-tag">JavaScript (ES6+)</span>
+                                    <span class="rx-skill-tag">TypeScript</span>
+                                    <span class="rx-skill-tag">Angular</span>
+                                    <span class="rx-skill-tag">Vue.js</span>
+                                    <span class="rx-skill-tag">C# (.NET)</span>
+                                    <span class="rx-skill-tag">SQL (MySQL, SQL Server)</span>
+                                    <span class="rx-skill-tag">Bash</span>
+                                </div>
+                            </div>
+
+                            <div class="rx-skill-group">
+                                <div class="rx-skill-heading">
+                                    <span class="rx-dot rx-dot-blue" aria-hidden="true"></span>
+                                    <span>Backend &amp; APIs</span>
+                                </div>
+                                <div class="rx-skill-tags">
+                                    <span class="rx-skill-tag">RESTful / SOAP API Design</span>
+                                    <span class="rx-skill-tag">OAuth 2.0 / JWT</span>
+                                    <span class="rx-skill-tag">EDI Transactions</span>
+                                    <span class="rx-skill-tag">JSON</span>
+                                    <span class="rx-skill-tag">DOM Scraping</span>
+                                    <span class="rx-skill-tag">Service Workers</span>
+                                    <span class="rx-skill-tag">PHPUnit Testing</span>
+                                    <span class="rx-skill-tag">Mocking / Stubbing</span>
+                                    <span class="rx-skill-tag">Agile / Scrum</span>
+                                </div>
+                            </div>
+
+                            <div class="rx-skill-group">
+                                <div class="rx-skill-heading">
+                                    <span class="rx-dot rx-dot-purple" aria-hidden="true"></span>
+                                    <span>AI &amp; Agentic Systems</span>
+                                </div>
+                                <div class="rx-skill-tags">
+                                    <span class="rx-skill-tag">LLM Orchestration</span>
+                                    <span class="rx-skill-tag">Prompt Engineering</span>
+                                    <span class="rx-skill-tag">Agentic Workflows (Gemini)</span>
+                                    <span class="rx-skill-tag">Vector DB / Context Pipelines</span>
+                                    <span class="rx-skill-tag">API Integrations</span>
+                                </div>
+                            </div>
+
+                            <div class="rx-skill-group">
+                                <div class="rx-skill-heading">
+                                    <span class="rx-dot rx-dot-emerald" aria-hidden="true"></span>
+                                    <span>DevSecOps &amp; Cloud Infrastructure</span>
+                                </div>
+                                <div class="rx-skill-tags">
+                                    <span class="rx-skill-tag">Infrastructure as Code (IaC)</span>
+                                    <span class="rx-skill-tag">Docker</span>
+                                    <span class="rx-skill-tag">Container Security (Trivy/Clair)</span>
+                                    <span class="rx-skill-tag">CI/CD (GitHub Actions, GitLab CI)</span>
+                                    <span class="rx-skill-tag">GCP</span>
+                                    <span class="rx-skill-tag">Linux (Ubuntu, Debian, Mint)</span>
+                                    <span class="rx-skill-tag">Python Automation</span>
+                                    <span class="rx-skill-tag">Network Security</span>
+                                    <span class="rx-skill-tag">Vagrant</span>
+                                    <span class="rx-skill-tag">SSH</span>
+                                </div>
+                            </div>
+
+                            <div class="rx-skill-group">
+                                <div class="rx-skill-heading">
+                                    <span class="rx-dot rx-dot-amber" aria-hidden="true"></span>
+                                    <span>Networking &amp; Support</span>
+                                </div>
+                                <div class="rx-skill-tags">
+                                    <span class="rx-skill-tag">Cisco Networking &amp; Automation</span>
+                                    <span class="rx-skill-tag">Enterprise Networking Solutions</span>
+                                    <span class="rx-skill-tag">IT Support</span>
+                                </div>
+                            </div>
+
+                            <div class="rx-skill-group">
+                                <div class="rx-skill-heading">
+                                    <span class="rx-dot rx-dot-slate" aria-hidden="true"></span>
+                                    <span>Hardware &amp; Systems</span>
+                                </div>
+                                <div class="rx-skill-tags">
+                                    <span class="rx-skill-tag">Systems Administration (User/Group Mgmt, System Hardening)</span>
+                                    <span class="rx-skill-tag">Hardware Lifecycle Management</span>
+                                    <span class="rx-skill-tag">Custom PC Building &amp; Server Configuration</span>
+                                    <span class="rx-skill-tag">Complex Computer-Based Systems</span>
+                                    <span class="rx-skill-tag">Electrical Safety (NFPA 70E)</span>
+                                </div>
                             </div>
                         </div>
-                        <div class="card c6">
-                            <div class="card-header">B.S. Information Technology <span class="badge badge-success">Earned</span></div>
-                            <div class="card-body">
-                                <div><b>Vatterott College</b></div>
-                                <div class="text-muted small mt-6">Fenton, MO</div>
+                    </section>
+
+                    <!-- Certifications & Training -->
+                    <section id="certs" class="rx-side-section" aria-labelledby="heading-certs">
+                        <h2 id="heading-certs" class="rx-section-title">
+                            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89L17 22l-5-3-5 3 1.523-9.11"/></svg>
+                            <span>Certifications, Training</span>
+                        </h2>
+
+                        <ul class="rx-cert-list">
+                            <li class="rx-cert-item">
+                                <div class="rx-cert-name">Google AI Professional</div>
+                                <div class="rx-cert-meta">
+                                    <span class="rx-cert-issuer">Google</span>
+                                    <span class="badge badge-success">Completed May 2026</span>
+                                </div>
+                            </li>
+                            <li class="rx-cert-item">
+                                <div class="rx-cert-name">Google IT Support</div>
+                                <div class="rx-cert-meta">
+                                    <span class="rx-cert-issuer">Google</span>
+                                    <span class="badge badge-success">Completed Sept 2026</span>
+                                </div>
+                            </li>
+                            <li class="rx-cert-item">
+                                <div class="rx-cert-name">Cisco Certified Support Technician (CCST) &ndash; Networking (100-150)</div>
+                                <div class="rx-cert-meta">
+                                    <span class="rx-cert-issuer">Cisco</span>
+                                    <span class="badge badge-success">Completed July 2026</span>
+                                </div>
+                            </li>
+                            <li class="rx-cert-item">
+                                <div class="rx-cert-name">Cisco Certified Network Associate (CCNA) &ndash; Automation (200-301)</div>
+                                <div class="rx-cert-meta">
+                                    <span class="rx-cert-issuer">Cisco</span>
+                                    <span class="badge badge-warning">Expected Feb 2027</span>
+                                </div>
+                            </li>
+                            <li class="rx-cert-item">
+                                <div class="rx-cert-name">OSHA 10, NFPA 70E</div>
+                                <div class="rx-cert-meta">
+                                    <span class="rx-cert-issuer">Safety Training</span>
+                                    <span class="badge badge-success">Completed Aug 2026</span>
+                                </div>
+                            </li>
+                        </ul>
+                    </section>
+
+                    <!-- Education -->
+                    <section id="education" class="rx-side-section" aria-labelledby="heading-education">
+                        <h2 id="heading-education" class="rx-section-title">
+                            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
+                            <span>Education</span>
+                        </h2>
+
+                        <div class="rx-edu-list">
+                            <div class="rx-edu-item">
+                                <div class="rx-edu-head">
+                                    <div class="rx-edu-degree">M.S. in Cybersecurity and Information Assurance</div>
+                                    <span class="badge badge-warning">In Progress</span>
+                                </div>
+                                <div class="rx-edu-school">Western Governors University</div>
+                                <div class="rx-edu-note">Expected Completion: March 2027</div>
+                            </div>
+
+                            <div class="rx-edu-item">
+                                <div class="rx-edu-head">
+                                    <div class="rx-edu-degree">Bachelor of Science in Information Technology</div>
+                                    <span class="badge badge-success">Completed</span>
+                                </div>
+                                <div class="rx-edu-school">Vatterott College, Fenton, MO</div>
                             </div>
                         </div>
-                    </div>
-                </section>
-            </div>
+                    </section>
 
-            <!-- Right Column: Featured Projects & Professional Experience -->
-            <div class="td-col">
-                <!-- Featured Projects -->
-                <section id="projects">
-                    <h2><svg viewBox="0 0 24 24"><path d="M12 2l9 5v10l-9 5-9-5V7z"/><path d="M12 22V12M3 7l9 5 9-5"/></svg>Featured projects</h2>
+                </aside>
 
-                    <!-- Flagship Project 1: Dreambox Nexus -->
-                    <div class="card mb-16">
-                        <div class="card-header">
-                            <div><b>Dreambox Nexus</b> &bull; <span class="text-muted font-normal">Security-First Application Gateway</span></div>
-                            <span class="badge badge-primary">Flagship Architecture</span>
+                <!-- Right Main Column: Professional Experience First, Projects Underneath -->
+                <div class="rx-main">
+
+                    <!-- Professional Experience (All 4 Roles Visible in Clean Timeline) -->
+                    <section id="experience" class="rx-main-section" aria-labelledby="heading-experience">
+                        <h2 id="heading-experience" class="rx-section-title">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+                            <span>Professional Experience</span>
+                        </h2>
+
+                        <div class="rx-timeline">
+
+                            <!-- Role 1 -->
+                            <article class="rx-role">
+                                <div class="rx-role-marker" aria-hidden="true"></div>
+                                <div class="rx-role-header">
+                                    <div>
+                                        <h3 class="rx-company">Independent</h3>
+                                        <div class="rx-role-title">Software Developer &amp; Researcher <span class="rx-role-loc">&bull; Remote</span></div>
+                                    </div>
+                                    <span class="rx-date-badge">March 2024 &ndash; March 2026</span>
+                                </div>
+                                <ul class="rx-bullets">
+                                    <li>Expanded AI expertise, mastering prompt engineering and integrating AI tools into software delivery.</li>
+                                    <li>Pursued M.S. in Cybersecurity and Information Assurance to reinforce DevSecOps and platform security skills.</li>
+                                </ul>
+                            </article>
+
+                            <!-- Role 2 -->
+                            <article class="rx-role">
+                                <div class="rx-role-marker" aria-hidden="true"></div>
+                                <div class="rx-role-header">
+                                    <div>
+                                        <h3 class="rx-company">ApplicantPro</h3>
+                                        <div class="rx-role-title">Software Engineer <span class="rx-role-loc">&bull; Remote</span></div>
+                                    </div>
+                                    <span class="rx-date-badge">Nov 2021 &ndash; March 2024</span>
+                                </div>
+                                <ul class="rx-bullets">
+                                    <li>Developed high-availability ATS connectors with RESTful endpoints, achieving <strong>99.9% uptime</strong> across third-party recruiting platform integrations.</li>
+                                    <li>Designed a cloud-native skill-testing platform leveraging modern JavaScript frameworks, accelerating system responsiveness by <strong>25%</strong>.</li>
+                                    <li>Migrated core extension suites to Manifest V3 using Service Workers and background scripts, fortifying cross-browser reliability and performance.</li>
+                                </ul>
+                            </article>
+
+                            <!-- Role 3 -->
+                            <article class="rx-role">
+                                <div class="rx-role-marker" aria-hidden="true"></div>
+                                <div class="rx-role-header">
+                                    <div>
+                                        <h3 class="rx-company">Independent</h3>
+                                        <div class="rx-role-title">Software Engineer <span class="rx-role-loc">&bull; Remote</span></div>
+                                    </div>
+                                    <span class="rx-date-badge rx-date-muted">Consulting &amp; Delivery</span>
+                                </div>
+                                <ul class="rx-bullets">
+                                    <li>Delivered custom web applications using Laravel, Vue.js, and MySQL for SME clients through end-to-end technical leadership and consulting.</li>
+                                    <li>Modernized legacy PHP systems to version 8.x and hardened infrastructure against security vulnerabilities during key organizational technology shifts.</li>
+                                    <li>Integrated custom software interfaces with precision hardware and industrial laser systems to enable seamless real-time operational control.</li>
+                                </ul>
+                            </article>
+
+                            <!-- Role 4 -->
+                            <article class="rx-role">
+                                <div class="rx-role-marker" aria-hidden="true"></div>
+                                <div class="rx-role-header">
+                                    <div>
+                                        <h3 class="rx-company">Dreambox Services</h3>
+                                        <div class="rx-role-title">Software Engineer <span class="rx-role-loc">&bull; Remote</span></div>
+                                    </div>
+                                    <span class="rx-date-badge rx-date-muted">Enterprise Systems</span>
+                                </div>
+                                <ul class="rx-bullets">
+                                    <li>Orchestrated the architectural migration of core systems to modular ASP.NET, establishing enterprise-grade scalability and maintainability.</li>
+                                    <li>Established rigorous code review workflows and automated unit testing standards using PHPUnit to elevate software quality across releases.</li>
+                                    <li>Optimized backend algorithms and SQL query execution paths, lowering infrastructure overhead and dramatically improving report generation speeds.</li>
+                                </ul>
+                            </article>
+
                         </div>
-                        <div class="card-body">
-                            <p>A resilient, zero-dependency PHP 8.5 &amp; MongoDB application gateway engineered from the ground up for strict enterprise isolation, regulatory compliance, and rapid API telemetry.</p>
-                            <div class="td-project-specs">
-                                <div class="td-spec-item">
+                    </section>
+
+                    <!-- Projects -->
+                    <section id="projects" class="rx-main-section" aria-labelledby="heading-projects">
+                        <h2 id="heading-projects" class="rx-section-title">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 2l9 5v10l-9 5-9-5V7z"/><path d="M12 22V12M3 7l9 5 9-5"/></svg>
+                            <span>Projects</span>
+                        </h2>
+
+                        <!-- Project 1: Aether Project (Matches Real Resume Order & Bullets) -->
+                        <article class="rx-project-card">
+                            <div class="rx-project-top">
+                                <div>
+                                    <h3 class="rx-project-name">Aether Project</h3>
+                                    <div class="rx-project-sub">Full-Stack Mail Administration &amp; Enterprise Tooling Suite</div>
+                                </div>
+                                <div class="rx-project-stack">
+                                    <span class="badge badge-primary">Laravel 11</span>
+                                    <span class="badge badge-info">Vue 3</span>
+                                    <span class="badge badge-purple">Inertia.js</span>
+                                    <span class="badge badge-success">Tailwind CSS v4</span>
+                                    <span class="badge badge-secondary">MariaDB &bull; Postfix</span>
+                                </div>
+                            </div>
+                            <ul class="rx-bullets">
+                                <li><strong>Mail Administration System:</strong> Architected a full-stack mail administration system using Laravel 11, Vue 3, Inertia.js, and Tailwind CSS v4, implementing inbound Postfix transport pipelines, MIME stream parsing into MariaDB, and outbound SMTP relays with automatic thread tracking.</li>
+                                <li><strong>Enterprise Wiki Module:</strong> Developed an integrated enterprise wiki module featuring real-time collaborative documentation, Markdown rendering, and granular access control for internal technical knowledge sharing.</li>
+                                <li><strong>System Monitor Dashboard:</strong> Built a real-time system monitor dashboard tracking server health, daemon process states, memory usage, and service availability with instant alerting notifications.</li>
+                                <li><strong>Personal Finance &amp; Budget Tracker:</strong> Created a custom personal finance and budget tracking tool for personal use to monitor resource allocation, expenditures, and automated financial reporting.</li>
+                                <li><strong>AI-Assisted Engineering Workflows:</strong> Integrated AI-assisted coding workflows and agentic tooling into daily development, accelerating system feature implementation, custom integration building, and codebase refactoring.</li>
+                            </ul>
+                        </article>
+
+                        <!-- Project 2: Dreambox Nexus (Live Platform Highlight) -->
+                        <article class="rx-project-card rx-project-flagship">
+                            <div class="rx-project-top">
+                                <div>
+                                    <h3 class="rx-project-name">Dreambox Nexus</h3>
+                                    <div class="rx-project-sub">Security-First Application Gateway</div>
+                                </div>
+                                <div class="rx-project-stack">
+                                    <span class="badge badge-primary">Live Platform</span>
+                                    <span class="badge badge-info">Zero-Dep PHP 8.5</span>
+                                    <span class="badge badge-success">MongoDB</span>
+                                </div>
+                            </div>
+                            <p class="rx-project-desc">
+                                Engineered a zero-dependency enterprise application gateway prioritizing cryptographic auditability, multi-framework compliance validation, and hardened identity management.
+                            </p>
+                            <div class="rx-nexus-highlights">
+                                <div class="rx-highlight-row">
                                     <span class="badge badge-success">Cryptographic Audit</span>
-                                    <span>SHA-256 Merkle hash chain with immutable forward ledger and row integrity tamper detection.</span>
+                                    <span>SHA-256 Merkle hash chain with immutable forward ledger and tamper detection.</span>
                                 </div>
-                                <div class="td-spec-item">
+                                <div class="rx-highlight-row">
                                     <span class="badge badge-info">Compliance Matrix</span>
-                                    <span>Live runtime validation across PCI-DSS v4.0, HIPAA §164.312, NIST CSF 2.0, EU GDPR, and OWASP Top 10.</span>
+                                    <span>Live runtime verification across PCI-DSS v4.0, HIPAA &sect;164.312, NIST CSF 2.0, EU GDPR, and OWASP Top 10.</span>
                                 </div>
-                                <div class="td-spec-item">
+                                <div class="rx-highlight-row">
                                     <span class="badge badge-purple">Enterprise IAM</span>
                                     <span>Argon2id password hashing, RFC 6238 TOTP 2FA, OAuth 2.0 (Google/GitHub), and dynamic RBAC.</span>
                                 </div>
                             </div>
-                            <div class="td-project-links mt-16">
-                                <a href="<?= $appBase ?>/compliance/" class="btn btn-outline-primary btn-sm">Compliance Matrix</a>
-                                <a href="<?= $appBase ?>/nexus/monitor/" class="btn btn-secondary btn-sm">Architecture Monitor</a>
-                                <a href="<?= $appBase ?>/ui/" class="btn btn-secondary btn-sm">Nexus UI Framework</a>
+                            <div class="rx-project-actions">
+                                <a href="<?= htmlspecialchars($appBase) ?>/compliance/" class="btn btn-primary btn-sm">Compliance Matrix</a>
+                                <a href="<?= htmlspecialchars($appBase) ?>/nexus/monitor/" class="btn btn-secondary btn-sm">Architecture Monitor</a>
+                                <a href="<?= htmlspecialchars($appBase) ?>/ui/" class="btn btn-secondary btn-sm">Nexus UI Framework</a>
                             </div>
-                        </div>
-                    </div>
+                        </article>
+                    </section>
 
-                    <!-- Project 2: Aether Project Suite -->
-                    <div class="card">
-                        <div class="card-header">
-                            <div><b>Aether Project</b> &bull; <span class="text-muted font-normal">Mail Admin &amp; Internal Tooling Suite</span></div>
-                            <span class="badge badge-info">L11 &bull; V3</span>
-                        </div>
-                        <div class="card-body">
-                            <p class="text-muted">A full-stack mail administration system and internal tooling suite built with Laravel 11, Vue 3, Inertia.js, and Tailwind CSS v4.</p>
-                            <div class="row mt-16">
-                                <div class="card c6">
-                                    <div class="card-header">Mail administration <span class="badge badge-primary">Laravel 11</span></div>
-                                    <div class="card-body small">Inbound Postfix transport pipelines, MIME stream parsing into MariaDB, and outbound SMTP relays with automatic thread tracking.</div>
-                                </div>
-                                <div class="card c6">
-                                    <div class="card-header">Enterprise wiki <span class="badge badge-success">Collaborative</span></div>
-                                    <div class="card-body small">Real-time collaborative documentation with Markdown rendering and granular access control for internal technical knowledge.</div>
-                                </div>
-                                <div class="card c6">
-                                    <div class="card-header">System monitor <span class="badge badge-warning">Alerting</span></div>
-                                    <div class="card-body small">A real-time dashboard tracking server health, daemon process states, memory usage, and service availability with instant alerts.</div>
-                                </div>
-                                <div class="card c6">
-                                    <div class="card-header">Finance tracker <span class="badge badge-secondary">Personal</span></div>
-                                    <div class="card-body small">A custom budget tool that monitors resource allocation and expenditures and automates financial reporting.</div>
-                                </div>
-                            </div>
-                            <div class="code mt-16">
-                                <header><span>AI-assisted workflow</span><button type="button" data-copy="aether">Copy</button></header>
-                                <pre id="aether"><span class="k">workflow</span>: agentic tooling in daily development&#10;<span class="k">outcomes</span>: <span class="s">faster feature delivery</span>, <span class="s">custom integrations</span>, <span class="s">codebase refactoring</span></pre>
-                            </div>
-                        </div>
-                    </div>
-                </section>
-
-                <!-- Professional Experience -->
-                <section id="experience">
-                    <h2><svg viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V4h6v3"/></svg>Professional experience</h2>
-                    <div class="card">
-                        <div class="card-body">
-                            <ul class="nav-tabs" role="tablist">
-                                <li><button class="nav-link active" role="tab" data-tab="t0">Independent R&amp;D</button></li>
-                                <li><button class="nav-link" role="tab" data-tab="t1">ApplicantPro</button></li>
-                                <li><button class="nav-link" role="tab" data-tab="t2">Independent Engineer</button></li>
-                                <li><button class="nav-link" role="tab" data-tab="t3">Dreambox Services</button></li>
-                            </ul>
-                            <div class="pane active" id="t0">
-                                <h3>Software Developer &amp; Researcher</h3>
-                                <div class="text-muted small">Independent &bull; Remote &bull; March 2024 &ndash; March 2026</div>
-                                <ul>
-                                    <li>Expanded AI expertise by mastering prompt engineering and integrating AI tools into software delivery.</li>
-                                    <li>Pursued an M.S. in Cybersecurity and Information Assurance to reinforce DevSecOps and platform security skills.</li>
-                                </ul>
-                            </div>
-                            <div class="pane" id="t1">
-                                <h3>Software Engineer</h3>
-                                <div class="text-muted small">ApplicantPro &bull; Remote &bull; Nov 2021 &ndash; March 2024</div>
-                                <ul>
-                                    <li>Developed high-availability ATS connectors with RESTful endpoints, achieving 99.9% uptime across third-party recruiting platform integrations.</li>
-                                    <li>Designed a cloud-native skill-testing platform on modern JavaScript frameworks, accelerating system responsiveness by 25%.</li>
-                                    <li>Migrated core extension suites to Manifest V3 using Service Workers and background scripts, strengthening cross-browser reliability and performance.</li>
-                                </ul>
-                            </div>
-                            <div class="pane" id="t2">
-                                <h3>Software Engineer</h3>
-                                <div class="text-muted small">Independent &bull; Remote</div>
-                                <ul>
-                                    <li>Delivered custom web applications using Laravel, Vue.js, and MySQL for SME clients through end-to-end technical leadership and consulting.</li>
-                                    <li>Modernized legacy PHP systems to version 8.x and hardened infrastructure against security vulnerabilities during key organizational technology shifts.</li>
-                                    <li>Integrated custom software interfaces with precision hardware and industrial laser systems for seamless real-time operational control.</li>
-                                </ul>
-                            </div>
-                            <div class="pane" id="t3">
-                                <h3>Software Engineer</h3>
-                                <div class="text-muted small">Dreambox Services &bull; Remote</div>
-                                <ul>
-                                    <li>Orchestrated the architectural migration of core systems to modular ASP.NET, establishing enterprise-grade scalability and maintainability.</li>
-                                    <li>Established code review workflows and automated unit testing standards with PHPUnit to raise software quality across releases.</li>
-                                    <li>Optimized backend algorithms and SQL query execution paths, lowering infrastructure overhead and speeding up report generation.</li>
-                                </ul>
-                            </div>
-                        </div>
-                    </div>
-                </section>
+                </div>
             </div>
-        </div>
 
-        <footer class="td-footer">
-            &copy; <?= date('Y') ?> Timothy Dunn &bull; Systems Architect &bull; Built with Nexus UI components: zero dependencies, custom CSS.
+        </article>
+
+        <footer class="rx-footer">
+            &copy; <?= date('Y') ?> Timothy Dunn &bull; Systems Architect &bull; Built on Dreambox Nexus &amp; Nexus UI Framework.
         </footer>
     </main>
 
     <!-- Contact Modal -->
-    <div class="bd" id="contact" role="dialog" aria-modal="true" aria-label="Contact Timothy">
+    <div class="bd" id="contact" role="dialog" aria-modal="true" aria-label="Contact Timothy Dunn">
         <div class="modal-content">
             <div class="modal-header">
                 <b>Contact Timothy Dunn</b>
-                <button type="button" class="btn-close" data-close aria-label="Close">&times;</button>
+                <button type="button" class="btn-close" data-close aria-label="Close"></button>
             </div>
             <div class="modal-body">
                 <a href="mailto:<?= htmlspecialchars($contactEmail) ?>"><?= htmlspecialchars($contactEmail) ?></a>
@@ -351,58 +486,38 @@ $contactPhone = (string)(\Nexus\Core\Env::get('CONTACT_PHONE') ?: getenv('CONTAC
         </div>
     </div>
 
-    <script>
-    (function(){
-        // Interactive Tab Switching
-        document.querySelectorAll("[data-tab]").forEach(function(b){
-            b.addEventListener("click", function(){
-                document.querySelectorAll(".nav-link").forEach(function(x){ x.classList.remove("active"); });
-                document.querySelectorAll(".pane").forEach(function(x){ x.classList.remove("active"); });
-                b.classList.add("active");
-                var target = document.getElementById(b.dataset.tab);
-                if (target) { target.classList.add("active"); }
-            });
-        });
-
-        // Modal Open / Close Handlers
+    <script nonce="<?= htmlspecialchars($cspNonce) ?>">
+    (function () {
         function openModal(id) {
             var el = document.getElementById(id);
-            if (el) { el.classList.add("open"); }
+            if (el) { el.classList.add('open'); }
         }
         function closeAllModals() {
-            document.querySelectorAll(".bd.open").forEach(function(x){ x.classList.remove("open"); });
+            document.querySelectorAll('.bd.open').forEach(function (x) {
+                x.classList.remove('open');
+            });
         }
-        document.querySelectorAll("[data-open]").forEach(function(b){
-            b.addEventListener("click", function(){ openModal(b.dataset.open); });
+        document.querySelectorAll('[data-open]').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                openModal(btn.getAttribute('data-open'));
+            });
         });
-        document.querySelectorAll("[data-close]").forEach(function(b){
-            b.addEventListener("click", closeAllModals);
+        document.querySelectorAll('[data-close]').forEach(function (btn) {
+            btn.addEventListener('click', closeAllModals);
         });
-        var contactModal = document.getElementById("contact");
+        document.querySelectorAll('[data-print]').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                window.print();
+            });
+        });
+        var contactModal = document.getElementById('contact');
         if (contactModal) {
-            contactModal.addEventListener("click", function(e){
-                if (e.target === this) { closeAllModals(); }
+            contactModal.addEventListener('click', function (e) {
+                if (e.target === contactModal) { closeAllModals(); }
             });
         }
-        document.addEventListener("keydown", function(e){
-            if (e.key === "Escape") { closeAllModals(); }
-        });
-
-        // Copy Code Snippet
-        document.querySelectorAll("[data-copy]").forEach(function(b){
-            b.addEventListener("click", function(){
-                var target = document.getElementById(b.dataset.copy);
-                if (!target) return;
-                var text = target.textContent;
-                try {
-                    navigator.clipboard.writeText(text).then(function(){
-                        b.textContent = "Copied!";
-                        setTimeout(function(){ b.textContent = "Copy"; }, 2000);
-                    });
-                } catch(e) {
-                    b.textContent = "Select to copy";
-                }
-            });
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') { closeAllModals(); }
         });
     })();
     </script>
