@@ -4,6 +4,11 @@ declare(strict_types=1);
 $appBase = $appBase ?? \Nexus\Core\Request::getAppBase();
 $user = $user ?? $currentUser ?? null;
 $cssVersion = file_exists(__DIR__ . '/../../css/theme.css') ? (string)filemtime(__DIR__ . '/../../css/theme.css') : (string)time();
+if (class_exists(\Nexus\Core\Env::class) && !\Nexus\Core\Env::isLoaded() && file_exists(dirname(__DIR__, 2) . '/.env')) {
+    \Nexus\Core\Env::load(dirname(__DIR__, 2) . '/.env');
+}
+$contactEmail = (string)(\Nexus\Core\Env::get('CONTACT_EMAIL') ?: getenv('CONTACT_EMAIL') ?: 'contact@dreamboxnexus.local');
+$contactPhone = (string)(\Nexus\Core\Env::get('CONTACT_PHONE') ?: getenv('CONTACT_PHONE') ?: '');
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -39,13 +44,15 @@ $cssVersion = file_exists(__DIR__ . '/../../css/theme.css') ? (string)filemtime(
             </div>
 
             <div class="td-top-contact">
-                <a href="tel:15550192834" class="td-contact-item" title="Call Timothy Dunn">
+                <?php if (!empty($contactPhone)): ?>
+                <a href="tel:<?= htmlspecialchars(preg_replace('/[^0-9+]/', '', $contactPhone)) ?>" class="td-contact-item" title="Call">
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
-                    <span>(555) 019-2834</span>
+                    <span><?= htmlspecialchars($contactPhone) ?></span>
                 </a>
-                <a href="mailto:admin@nexus.local" class="td-contact-item" title="Email Timothy Dunn">
+                <?php endif; ?>
+                <a href="mailto:<?= htmlspecialchars($contactEmail) ?>" class="td-contact-item" title="Email">
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
-                    <span>admin@nexus.local</span>
+                    <span><?= htmlspecialchars($contactEmail) ?></span>
                 </a>
             </div>
 
@@ -331,8 +338,10 @@ $cssVersion = file_exists(__DIR__ . '/../../css/theme.css') ? (string)filemtime(
                 <button type="button" class="btn-close" data-close aria-label="Close">&times;</button>
             </div>
             <div class="modal-body">
-                <a href="mailto:admin@nexus.local">admin@nexus.local</a>
-                <a href="tel:+15550192834">(555) 019-2834</a>
+                <a href="mailto:<?= htmlspecialchars($contactEmail) ?>"><?= htmlspecialchars($contactEmail) ?></a>
+                <?php if (!empty($contactPhone)): ?>
+                <a href="tel:<?= htmlspecialchars(preg_replace('/[^0-9+]/', '', $contactPhone)) ?>"><?= htmlspecialchars($contactPhone) ?></a>
+                <?php endif; ?>
                 <span class="text-muted">Kansas City, MO</span>
             </div>
             <div class="modal-footer">

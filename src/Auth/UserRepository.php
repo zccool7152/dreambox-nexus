@@ -106,7 +106,7 @@ class UserRepository
             }
         }
 
-        if ($username === 'nexus_admin') {
+        if ($username === 'nexus_admin' || $username === 'admin') {
             return $this->getFallbackMemoryUser('usr_admin_tim');
         }
 
@@ -395,13 +395,14 @@ class UserRepository
 
     private function ensureDefaultAdmin(): void
     {
-        $timEmail = 'admin@nexus.local';
-        $tim = $this->findByEmail($timEmail);
-        if ($tim === null) {
+        $adminEmail = 'admin@nexus.local';
+        $admin = $this->findByEmail($adminEmail);
+        if ($admin === null) {
             $this->create([
                 'id' => 'usr_admin_tim',
-                'email' => $timEmail,
+                'email' => $adminEmail,
                 'name' => 'Timothy Dunn',
+                'username' => 'nexus_admin',
                 'password' => '123qweasd',
                 'auth_provider' => 'email',
                 'status' => 'active',

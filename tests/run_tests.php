@@ -757,6 +757,52 @@ $assertTest('Welcome landing page embeds hero brand logo', str_contains($welcome
 $showcaseHtml = file_get_contents($baseDir . '/resources/views/ui/showcase.php');
 $assertTest('Showcase view contains brand assets and identity section', str_contains($showcaseHtml, 'id="branding"') && str_contains($showcaseHtml, 'Brand Assets & Responsive Identity'));
 
+// ── Test 17: Repository PII & Sensitive Data Exposure Guardrails ───────────────
+echo "\n\033[1;37m[17] Repository PII & Sensitive Data Exposure Guardrails\033[0m\n";
+
+$preCommitHookPath = $baseDir . '/.githooks/pre-commit';
+$assertTest('Pre-commit security hook exists in .githooks/pre-commit', file_exists($preCommitHookPath));
+$assertTest('Pre-commit security hook is executable', is_executable($preCommitHookPath));
+
+// Scan all tracked repository files for prohibited personal PII
+$trackedFilesRaw = shell_exec('git -C ' . escapeshellarg($baseDir) . ' ls-files');
+$trackedFiles = array_filter(explode("\n", trim($trackedFilesRaw ?? '')));
+
+$piiViolations = [];
+$forbiddenTokens = array_map('base64_decode', [
+    'Zm9yYmlkZGVuQGV4YW1wbGUudGVzdA==',
+    'c3ludGhldGljX3Rva2Vu',
+    'NTU1LTAxOTk=',
+    'NTU1IDAxOTk=',
+    'MTgwMDU1NTAxOTk=',
+    'ODAwNTU1MDE5OQ==',
+]);
+
+foreach ($trackedFiles as $relPath) {
+    if ($relPath === 'tests/run_tests.php') continue;
+    $fullPath = $baseDir . '/' . $relPath;
+    if (!file_exists($fullPath) || is_dir($fullPath)) continue;
+    
+    // Skip binary assets
+    $ext = pathinfo($fullPath, PATHINFO_EXTENSION);
+    if (in_array(strtolower($ext), ['png', 'jpg', 'jpeg', 'gif', 'ico', 'webp', 'svg', 'pdf', 'woff', 'woff2', 'ttf'], true)) {
+        continue;
+    }
+
+    $fileContent = (string)file_get_contents($fullPath);
+    foreach ($forbiddenTokens as $token) {
+        if (stripos($fileContent, $token) !== false) {
+            $piiViolations[] = "{$relPath} contains {$token}";
+        }
+    }
+}
+
+$assertTest('Zero occurrences of personal email or username in tracked files', empty($piiViolations));
+$assertTest('Git core.hooksPath is configured to .githooks', trim((string)shell_exec('git -C ' . escapeshellarg($baseDir) . ' config core.hooksPath')) === '.githooks');
+$envIgnored = trim((string)shell_exec('git -C ' . escapeshellarg($baseDir) . ' check-ignore .env'));
+$assertTest('Local .env file is protected by .gitignore', $envIgnored === '.env');
+$assertTest('Welcome resume view loads contact details dynamically via Env::get', str_contains($welcomeHtml, "Env::get('CONTACT_EMAIL')") && str_contains($welcomeHtml, "Env::get('CONTACT_PHONE')"));
+
 // ── Summary ─────────────────────────────────────────────────────────────────
 echo "\n\033[1;36m════════════════════════════════════════════════════════════════\033[0m\n";
 echo "  \033[1;37mTEST SUMMARY:\033[0m \033[0;32m{$passed} Passed\033[0m | \033[0;31m{$failed} Failed\033[0m\n";
