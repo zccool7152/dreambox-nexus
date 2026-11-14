@@ -7,9 +7,10 @@ use RuntimeException;
 use InvalidArgumentException;
 
 /**
- * Hardened Transactional Mailer
+ * Hardened Transactional SMTP Mailer
  *
- * Implements strict CRLF injection defense to eliminate email header tampering.
+ * Pure-PHP SMTP socket client supporting TLS/STARTTLS, AUTH LOGIN,
+ * RFC 5321 dot-stuffing, and strict CRLF header injection defense.
  */
 class Mailer
 {
@@ -48,21 +49,35 @@ class Mailer
             throw new InvalidArgumentException("Invalid recipient email address: '{$safeTo}'");
         }
 
+        if ($this->host === '' || $this->port <= 0) {
+            throw new RuntimeException('SMTP host and port must be configured.');
+        }
+
         $headers = [
             'MIME-Version: 1.0',
-            'Content-Type: text/html; charset=UTF-8',
             "From: {$this->fromName} <{$this->fromAddress}>",
             "Reply-To: {$this->fromAddress}",
             'X-Mailer: Dreambox Nexus Core',
         ];
 
-        if ($this->host !== '' && $this->port > 0) {
-            if ($this->sendSmtp($safeTo, $safeSubject, $htmlBody, $headers)) {
-                return true;
-            }
+        if ($textBody !== '') {
+            $boundary = 'nexus_' . bin2hex(random_bytes(12));
+            $headers[] = "Content-Type: multipart/alternative; boundary=\"{$boundary}\"";
+            $mimeBody = "--{$boundary}\r\n"
+                . "Content-Type: text/plain; charset=UTF-8\r\n"
+                . "Content-Transfer-Encoding: 8bit\r\n\r\n"
+                . $textBody . "\r\n\r\n"
+                . "--{$boundary}\r\n"
+                . "Content-Type: text/html; charset=UTF-8\r\n"
+                . "Content-Transfer-Encoding: 8bit\r\n\r\n"
+                . $htmlBody . "\r\n\r\n"
+                . "--{$boundary}--";
+        } else {
+            $headers[] = 'Content-Type: text/html; charset=UTF-8';
+            $mimeBody = $htmlBody;
         }
 
-        return @mail($safeTo, $safeSubject, $htmlBody, implode("\r\n", $headers));
+        return $this->sendSmtp($safeTo, $safeSubject, $mimeBody, $headers);
     }
 
     /**

@@ -81,6 +81,9 @@ class Session implements SessionHandlerInterface
     public function start(): void
     {
         if (session_status() === PHP_SESSION_ACTIVE) {
+            if (session_id() !== '') {
+                $_COOKIE['nexus_session'] = session_id();
+            }
             return;
         }
 
@@ -110,9 +113,23 @@ class Session implements SessionHandlerInterface
             ]);
 
             @session_name('nexus_session');
+
+            if (!empty($_COOKIE['nexus_session']) && preg_match('/^[a-zA-Z0-9,-]{16,128}$/', (string)$_COOKIE['nexus_session'])) {
+                @session_id((string)$_COOKIE['nexus_session']);
+            }
+
+            @session_start();
         }
 
-        @session_start();
+        if (!isset($_SESSION) || !is_array($_SESSION)) {
+            $_SESSION = [];
+        }
+
+        if (session_id() !== '') {
+            $_COOKIE['nexus_session'] = session_id();
+        } elseif (empty($_COOKIE['nexus_session']) || !preg_match('/^[a-zA-Z0-9,-]{16,128}$/', (string)$_COOKIE['nexus_session'])) {
+            $_COOKIE['nexus_session'] = bin2hex(random_bytes(16));
+        }
 
         // Enforce HIPAA Inactivity Timeout
         $now = time();
@@ -120,7 +137,17 @@ class Session implements SessionHandlerInterface
 
         if (($now - $lastActivity) > $this->idleTimeoutSeconds) {
             $this->destroy();
-            @session_start();
+            if (!headers_sent()) {
+                @session_start();
+            }
+            if (!isset($_SESSION) || !is_array($_SESSION)) {
+                $_SESSION = [];
+            }
+            if (session_id() !== '') {
+                $_COOKIE['nexus_session'] = session_id();
+            } else {
+                $_COOKIE['nexus_session'] = bin2hex(random_bytes(16));
+            }
             $_SESSION['__timeout_expired'] = true;
         }
 
@@ -224,6 +251,8 @@ class Session implements SessionHandlerInterface
             }
         }
 
+        unset($_COOKIE['nexus_session']);
+
         return true;
     }
 
@@ -253,6 +282,11 @@ class Session implements SessionHandlerInterface
     {
         if (session_status() === PHP_SESSION_ACTIVE && !headers_sent()) {
             @session_regenerate_id(true);
+            if (session_id() !== '') {
+                $_COOKIE['nexus_session'] = session_id();
+            }
+        } elseif (!empty($_COOKIE['nexus_session'])) {
+            $_COOKIE['nexus_session'] = bin2hex(random_bytes(16));
         }
     }
 
@@ -292,6 +326,6 @@ class Session implements SessionHandlerInterface
 
     public function getId(): string
     {
-        return session_id() ?: '';
+        return session_id() ?: (string)($_COOKIE['nexus_session'] ?? '');
     }
 }

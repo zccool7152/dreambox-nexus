@@ -9,6 +9,12 @@ $autoloader->register();
 \Nexus\Core\Env::load(dirname(__DIR__) . '/.env');
 $app = new \Nexus\Core\App(dirname(__DIR__));
 
+// Initialize session & CSRF helper before CLI output flushes HTTP headers
+$db = $app->getContainer()->make(\Nexus\Database\Database::class);
+$session = new \Nexus\Security\Session($db);
+$session->start();
+$csrf = new \Nexus\Security\Csrf((string)\Nexus\Core\Env::get('APP_KEY'));
+
 echo "════════════════════════════════════════════════════════════════\n";
 echo "  LIVE AUTHENTICATION LIFECYCLE SIMULATION                      \n";
 echo "════════════════════════════════════════════════════════════════\n";
@@ -25,11 +31,6 @@ $it = function (string $desc, bool $cond) use (&$passCount, &$failCount) {
         echo "  ✖ FAIL: {$desc}\n";
     }
 };
-
-// Initialize session & CSRF helper for lifecycle simulation
-$db = $app->getContainer()->make(\Nexus\Database\Database::class);
-$session = new \Nexus\Security\Session($db);
-$csrf = new \Nexus\Security\Csrf((string)\Nexus\Core\Env::get('APP_KEY'));
 
 // 1. GET /auth/login
 $req1 = new \Nexus\Core\Request('GET', '/auth/login', ['accept' => 'text/html'], [], [], '', '127.0.0.1', null, '/auth/login');
@@ -87,11 +88,11 @@ $it("Setup 2FA contains pure SVG QR code", str_contains($body4, '<svg') && str_c
 
 // 5. Complete 2FA Setup
 $session->start();
-$secret = $session->get('pending_totp_secret');
-$it("Session maintains pending TOTP secret", !empty($secret));
+$secret = (string)($session->get('pending_totp_secret') ?? '');
+$it("Session maintains pending TOTP secret", $secret !== '');
 
 $mfa = new \Nexus\Auth\Mfa();
-$validCode = $mfa->getOtp($secret);
+$validCode = $secret !== '' ? $mfa->getOtp($secret) : '';
 
 $csrfToken5 = $csrf->generate($session->getId());
 $req5 = new \Nexus\Core\Request(

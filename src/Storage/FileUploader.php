@@ -87,34 +87,82 @@ class FileUploader
     }
 
     /**
-     * Neutralize dangerous scripts, external entities, event handlers, and javascript: URIs in SVG uploads.
+     * Neutralize dangerous scripts, external entities, animations, and unsafe URIs in SVG uploads
+     * via strict DOMDocument allowlist filtering.
      */
     public static function sanitizeSvg(string $svgContent): string
     {
-        if (preg_match('/<!(?:ENTITY|DOCTYPE)\b[^>]*\b(?:SYSTEM|PUBLIC)\b/i', $svgContent) || stripos($svgContent, '<!ENTITY') !== false) {
-            throw new InvalidArgumentException("Disallowed XML external entity declaration detected in SVG.");
+        if (preg_match('/<!(?:ENTITY|DOCTYPE)\b/i', $svgContent)) {
+            throw new InvalidArgumentException("Disallowed XML external entity or DOCTYPE declaration detected in SVG.");
         }
 
-        // Remove executable or embedded active content elements
-        $cleaned = preg_replace('/<\s*(script|foreignObject|iframe|object|embed)\b[^>]*>.*?<\s*\/\s*\1\s*>/is', '', $svgContent) ?? $svgContent;
-        $cleaned = preg_replace('/<\s*(script|foreignObject|iframe|object|embed)\b[^>]*\/\s*>/is', '', $cleaned) ?? $cleaned;
+        $allowedElements = [
+            'svg', 'path', 'rect', 'circle', 'ellipse', 'line', 'polyline',
+            'polygon', 'g', 'defs', 'lineargradient', 'radialgradient', 'stop', 'title', 'desc',
+        ];
+        $allowedAttributes = [
+            'xmlns', 'viewBox', 'fill', 'stroke', 'stroke-width', 'stroke-linecap',
+            'stroke-linejoin', 'stroke-dasharray', 'stroke-opacity', 'fill-opacity',
+            'opacity', 'd', 'width', 'height', 'x', 'y', 'x1', 'y1', 'x2', 'y2',
+            'cx', 'cy', 'r', 'rx', 'ry', 'points', 'transform', 'id', 'class',
+            'offset', 'stop-color', 'stop-opacity', 'gradientUnits', 'gradientTransform',
+            'shape-rendering',
+        ];
 
-        // Strip inline event handler attributes (onload=, onclick=, onerror=, etc.)
-        $cleaned = preg_replace('/\s+on[a-z]+\s*=\s*(?:"[^"]*"|\'[^\']*\'|[^\s>]+)/i', '', $cleaned) ?? $cleaned;
+        $dom = new \DOMDocument();
+        $prevErrors = libxml_use_internal_errors(true);
+        try {
+            $loaded = $dom->loadXML($svgContent, LIBXML_NONET | LIBXML_NOENT);
+            $root = $dom->documentElement;
+            if (!$loaded || $root === null || strtolower($root->localName ?: $root->nodeName) !== 'svg') {
+                throw new InvalidArgumentException("Invalid or malformed SVG XML document.");
+            }
+            self::sanitizeSvgNode($root, $allowedElements, $allowedAttributes);
+            return (string)$dom->saveXML($root);
+        } finally {
+            libxml_clear_errors();
+            libxml_use_internal_errors($prevErrors);
+        }
+    }
 
-        // Neutralize javascript:, vbscript:, and non-safe data: URIs in attributes
-        $cleaned = preg_replace(
-            '/\b(href|xlink:href|src|action|formaction)\s*=\s*(["\'])\s*(?:javascript:|vbscript:|data:(?!image\/(?:png|jpeg|webp);))[^"\']*\2/i',
-            '$1=$2#$2',
-            $cleaned
-        ) ?? $cleaned;
-        $cleaned = preg_replace(
-            '/\b(href|xlink:href|src|action|formaction)\s*=\s*(?:javascript:|vbscript:|data:(?!image\/(?:png|jpeg|webp);))[^\s>]+/i',
-            '$1="#"',
-            $cleaned
-        ) ?? $cleaned;
+    private static function sanitizeSvgNode(\DOMNode $node, array $allowedElements, array $allowedAttributes): void
+    {
+        if (in_array($node->nodeType, [XML_COMMENT_NODE, XML_PI_NODE, XML_ENTITY_REF_NODE, XML_ENTITY_NODE, XML_DOCUMENT_TYPE_NODE], true)) {
+            $node->parentNode?->removeChild($node);
+            return;
+        }
 
-        return $cleaned;
+        if ($node instanceof \DOMElement) {
+            $tagName = strtolower($node->localName ?: $node->nodeName);
+            if (!in_array($tagName, $allowedElements, true)) {
+                $node->parentNode?->removeChild($node);
+                return;
+            }
+
+            foreach (iterator_to_array($node->attributes ?? []) as $attr) {
+                if (!in_array($attr->nodeName, $allowedAttributes, true)) {
+                    $node->removeAttributeNode($attr);
+                    continue;
+                }
+
+                $decoded = html_entity_decode((string)$attr->value, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+                $decoded = html_entity_decode($decoded, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+                $normalized = strtolower((string)preg_replace('/[\x00-\x20]+/', '', $decoded));
+
+                if (
+                    str_contains($normalized, 'javascript:') ||
+                    str_contains($normalized, 'vbscript:') ||
+                    str_contains($normalized, 'data:') ||
+                    str_contains($normalized, 'expression(')
+                ) {
+                    $node->removeAttributeNode($attr);
+                }
+            }
+        }
+
+        foreach (iterator_to_array($node->childNodes) as $child) {
+            self::sanitizeSvgNode($child, $allowedElements, $allowedAttributes);
+        }
     }
 }
 

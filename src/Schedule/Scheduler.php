@@ -6,6 +6,8 @@ namespace Nexus\Schedule;
 use Closure;
 use InvalidArgumentException;
 use Nexus\Cache\Lock;
+use Nexus\Console\ConsoleKernel;
+use Nexus\Core\App;
 use Nexus\Core\Logger;
 use Nexus\Database\Database;
 use Throwable;
@@ -15,6 +17,21 @@ use Throwable;
  */
 class Scheduler
 {
+    private const ALLOWED_COMMANDS = [
+        'php bin/nexus cache:clear' => ['nexus', 'cache:clear'],
+        'php bin/nexus compliance:verify' => ['nexus', 'compliance:verify'],
+        'php bin/nexus migrate' => ['nexus', 'migrate'],
+        'php bin/nexus migrate:rollback' => ['nexus', 'migrate:rollback'],
+        'php bin/nexus queue:work' => ['nexus', 'queue:work'],
+        'php bin/nexus routes:list' => ['nexus', 'routes:list'],
+        'cache:clear' => ['nexus', 'cache:clear'],
+        'compliance:verify' => ['nexus', 'compliance:verify'],
+        'migrate' => ['nexus', 'migrate'],
+        'migrate:rollback' => ['nexus', 'migrate:rollback'],
+        'queue:work' => ['nexus', 'queue:work'],
+        'routes:list' => ['nexus', 'routes:list'],
+    ];
+
     private array $events = [];
     private ?Logger $logger;
     private ?Database $db;
@@ -62,8 +79,9 @@ class Scheduler
 
     private function assertSafeCommand(string $command): void
     {
-        if (trim($command) === '' || preg_match('/[;&|`$><\r\n]/', $command)) {
-            throw new InvalidArgumentException("Unsafe shell metacharacters detected in scheduled command.");
+        $normalized = trim($command);
+        if (!isset(self::ALLOWED_COMMANDS[$normalized])) {
+            throw new InvalidArgumentException("Disallowed scheduled command: '{$command}'. Only allowlisted Nexus console commands are permitted.");
         }
     }
 
@@ -150,8 +168,19 @@ class Scheduler
                     $output = is_string($res) ? $res : 'Done';
                 } else {
                     $this->assertSafeCommand((string)$event['handler']);
-                    $safeCmd = escapeshellcmd((string)$event['handler']);
-                    $output = (string)shell_exec($safeCmd);
+                    $argv = self::ALLOWED_COMMANDS[trim((string)$event['handler'])];
+                    $baseDir = dirname(__DIR__, 2);
+                    $app = new App($baseDir);
+                    $kernel = new ConsoleKernel($app->getContainer(), $baseDir);
+                    ob_start();
+                    try {
+                        $exitCode = $kernel->handle($argv);
+                    } finally {
+                        $output = (string)ob_get_clean();
+                    }
+                    if ($exitCode !== 0) {
+                        $success = false;
+                    }
                 }
             } catch (Throwable $e) {
                 $success = false;

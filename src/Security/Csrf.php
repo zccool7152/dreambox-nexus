@@ -29,13 +29,20 @@ class Csrf implements MiddlewareInterface
         }
         $resolvedId = ($sessionId !== null && $sessionId !== '')
             ? $sessionId
-            : (session_id() ?: ($_COOKIE['nexus_session'] ?? 'default_session'));
+            : (session_id() ?: (string)($_COOKIE['nexus_session'] ?? ''));
+
+        if ($resolvedId === '' || $resolvedId === 'default_session') {
+            throw new \RuntimeException('Cannot generate CSRF token without an active session ID.');
+        }
 
         return $this->generateToken($resolvedId);
     }
 
     public function generateToken(string $sessionId): string
     {
+        if (trim($sessionId) === '' || $sessionId === 'default_session') {
+            throw new \InvalidArgumentException('CSRF token generation requires a non-empty session ID.');
+        }
         $entropy = bin2hex(random_bytes(16));
         $hmac = hash_hmac('sha256', $sessionId . '|' . $entropy, $this->secret);
         return $entropy . '.' . $hmac;
@@ -49,7 +56,11 @@ class Csrf implements MiddlewareInterface
 
         $resolvedId = $sessionId !== ''
             ? $sessionId
-            : (session_id() ?: ($_COOKIE['nexus_session'] ?? 'default_session'));
+            : (session_id() ?: (string)($_COOKIE['nexus_session'] ?? ''));
+
+        if ($resolvedId === '' || $resolvedId === 'default_session') {
+            return false;
+        }
 
         [$entropy, $hmac] = explode('.', $token, 2);
         $expectedHmac = hash_hmac('sha256', $resolvedId . '|' . $entropy, $this->secret);
@@ -68,7 +79,7 @@ class Csrf implements MiddlewareInterface
             return false;
         }
 
-        return $this->validateToken($token, $sessionId) || $this->validateToken($token, 'default_session');
+        return $this->validateToken($token, $sessionId);
     }
 
     public function handle(Request $request, callable $next): Response

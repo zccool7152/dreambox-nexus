@@ -74,7 +74,7 @@ class AccountController
         $html = $this->view->render('account.index', [
             'appBase' => $appBase,
             'user' => $user,
-            'csrfToken' => $this->csrf->generateToken($this->session->getId()),
+            'csrfToken' => $this->csrf->generate($this->session->getId()),
             'success' => $this->session->getFlash('account_success'),
             'error' => $this->session->getFlash('account_error'),
             'traceId' => $request->getTraceId(),

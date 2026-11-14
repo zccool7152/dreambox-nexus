@@ -863,12 +863,39 @@ if (is_dir($tmpCacheDir)) {
     @rmdir($tmpCacheDir);
 }
 
-// 18.4 Mandatory CSRF verification even without session cookie
+// 18.4 Mandatory CSRF verification without static 'default_session' fallback
 $prevCookies = $_COOKIE;
+$prevSessionId = session_id();
 unset($_COOKIE['nexus_session']);
+if (session_status() === PHP_SESSION_ACTIVE) {
+    @session_write_close();
+}
 $noCookiePostReq = new \Nexus\Core\Request('POST', '/auth/login', ['accept' => 'application/json'], [], ['email' => 'a@b.com']);
 $strictCsrf = new \Nexus\Security\Csrf('base64:' . base64_encode(random_bytes(32)));
 $assertTest('Csrf::verifyRequest rejects POST without token even when nexus_session cookie is absent', !$strictCsrf->verifyRequest($noCookiePostReq, ''));
+
+$forgedDefaultToken = (function () use ($strictCsrf) {
+    $entropy = bin2hex(random_bytes(16));
+    $ref = new \ReflectionProperty($strictCsrf, 'secret');
+    $secret = (string)$ref->getValue($strictCsrf);
+    return $entropy . '.' . hash_hmac('sha256', 'default_session|' . $entropy, $secret);
+})();
+$forgedReq = new \Nexus\Core\Request('POST', '/auth/login', ['accept' => 'application/json', 'x-csrf-token' => $forgedDefaultToken], [], []);
+$assertTest('Csrf::verifyRequest and validateToken reject static default_session fallback tokens', !$strictCsrf->verifyRequest($forgedReq, 'real_session_123456') && !$strictCsrf->validateToken($forgedDefaultToken, ''));
+
+$defaultGenRejected = false;
+try {
+    $strictCsrf->generate('default_session');
+} catch (\RuntimeException) {
+    $defaultGenRejected = true;
+}
+$emptyGenRejected = false;
+try {
+    $strictCsrf->generate('');
+} catch (\RuntimeException) {
+    $emptyGenRejected = true;
+}
+$assertTest('Csrf::generate throws RuntimeException when session ID is empty or default_session', $defaultGenRejected && $emptyGenRejected);
 $_COOKIE = $prevCookies;
 
 // 18.5 Weak CSRF secret rejection
@@ -931,12 +958,27 @@ if ($prevAllowLocal !== null) {
     putenv("MONITOR_ALLOW_LOCAL={$prevAllowLocal}");
 }
 
-// 18.9 FileUploader SVG script neutralization
-$dirtySvg = '<svg xmlns="http://www.w3.org/2000/svg" onload="alert(1)"><script>fetch("/steal")</script><a href="javascript:alert(2)"><rect width="10" height="10"/></a></svg>';
+// 18.9 FileUploader DOMDocument allowlist SVG sanitization (<animate>, <use>, and entity-encoded vectors)
+$dirtySvg = '<svg xmlns="http://www.w3.org/2000/svg" onload="alert(1)" viewBox="0 0 24 24">'
+    . '<script>fetch("/steal")</script>'
+    . '<animate attributeName="href" to="javascript:alert(1)"/>'
+    . '<use href="data:image/svg+xml;base64,PHN2Zz4="/>'
+    . '<path d="M1 1h10v10H1z" fill="url(&#106;avascript:alert(1))" stroke="#0f172a"/>'
+    . '<rect width="10" height="10" fill="#2563eb"/>'
+    . '<a href="javascript:alert(2)"><circle cx="5" cy="5" r="2"/></a>'
+    . '</svg>';
 $cleanSvg = \Nexus\Storage\FileUploader::sanitizeSvg($dirtySvg);
 $assertTest(
-    'FileUploader::sanitizeSvg strips script tags, onload handlers, and javascript: URIs',
-    !str_contains($cleanSvg, '<script') && !str_contains($cleanSvg, 'onload=') && !str_contains($cleanSvg, 'javascript:')
+    'FileUploader::sanitizeSvg strips script, animate, use, a, onload, and entity-encoded URIs while keeping safe shapes',
+    !str_contains($cleanSvg, '<script')
+    && !str_contains($cleanSvg, '<animate')
+    && !str_contains($cleanSvg, '<use')
+    && !str_contains($cleanSvg, '<a ')
+    && !str_contains($cleanSvg, 'onload')
+    && !str_contains(strtolower($cleanSvg), 'javascript:')
+    && !str_contains($cleanSvg, 'url(')
+    && str_contains($cleanSvg, 'd="M1 1h10v10H1z"')
+    && str_contains($cleanSvg, 'fill="#2563eb"')
 );
 
 // 18.10 Monitor telemetry & AnomalyDetector MongoDB compatibility
@@ -947,6 +989,79 @@ $secMonOut = (new \Nexus\Monitor\SecurityMonitor($mongoDb))->getMetrics();
 $assertTest(
     'MonitorController::queue(), AnomalyDetector, and SecurityMonitor execute cleanly on MongoDB',
     $queueMonRes->getStatusCode() === 200 && isset($anomalyOut['threat_level']) && isset($secMonOut['throttled_clients_count'])
+);
+
+// 18.11 Scheduler command allowlist & in-process execution (zero shell_exec / escapeshellcmd)
+$schedulerSec = new \Nexus\Schedule\Scheduler(null, $mongoDb);
+$arbitraryCmdRejected = false;
+try {
+    $schedulerSec->command('php -r "echo 1;"', 'Arbitrary Command');
+} catch (\InvalidArgumentException) {
+    $arbitraryCmdRejected = true;
+}
+\Nexus\Schedule\Scheduler::registerDefaultTasks($schedulerSec);
+$schedExecResults = $schedulerSec->run();
+$schedulerSource = (string)file_get_contents($baseDir . '/src/Schedule/Scheduler.php');
+$assertTest(
+    'Scheduler rejects arbitrary shell commands and executes allowlisted Nexus tasks in-process',
+    $arbitraryCmdRejected
+    && !str_contains($schedulerSource, 'shell_exec')
+    && !str_contains($schedulerSource, 'escapeshellcmd')
+    && count($schedExecResults) === 2
+    && !empty($schedExecResults[0]['success'])
+    && str_contains($schedExecResults[1]['output'] ?? '', 'COMPLIANCE VERIFIER')
+);
+
+// 18.12 Mailer pure-SMTP socket transport (zero @mail() fallback)
+$mailerSource = (string)file_get_contents($baseDir . '/src/Mail/Mailer.php');
+$smtpMockCode = <<<'PHP'
+$srv = @stream_socket_server('tcp://127.0.0.1:0', $errno, $errstr);
+if (!$srv) exit(1);
+echo stream_socket_get_name($srv, false) . "\n";
+fflush(STDOUT);
+$conn = @stream_socket_accept($srv, 5);
+if (!$conn) exit(1);
+fwrite($conn, "220 localhost ESMTP\r\n");
+$inData = false;
+while (($line = fgets($conn, 1024)) !== false) {
+    if ($inData) {
+        if (trim($line) === '.') {
+            $inData = false;
+            fwrite($conn, "250 OK\r\n");
+        }
+        continue;
+    }
+    $cmd = strtoupper(substr($line, 0, 4));
+    if (in_array($cmd, ['EHLO', 'MAIL', 'RCPT'], true)) {
+        fwrite($conn, "250 OK\r\n");
+    } elseif ($cmd === 'DATA') {
+        $inData = true;
+        fwrite($conn, "354 End data with <CR><LF>.<CR><LF>\r\n");
+    } elseif ($cmd === 'QUIT') {
+        fwrite($conn, "221 Bye\r\n");
+        break;
+    }
+}
+@fclose($conn);
+@fclose($srv);
+PHP;
+$smtpDelivered = false;
+$proc = proc_open([PHP_BINARY, '-r', $smtpMockCode], [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $smtpPipes);
+if (is_resource($proc)) {
+    $listenAddr = trim((string)fgets($smtpPipes[1]));
+    if (str_contains($listenAddr, ':')) {
+        [$smtpHost, $smtpPort] = explode(':', $listenAddr, 2);
+        $mailerProbe = new \Nexus\Mail\Mailer($smtpHost, (int)$smtpPort);
+        $smtpDelivered = $mailerProbe->send('smtp_probe@example.com', 'SMTP Socket Check', '<p>OK</p>', 'OK');
+    }
+    @fclose($smtpPipes[0]);
+    @fclose($smtpPipes[1]);
+    @fclose($smtpPipes[2]);
+    proc_close($proc);
+}
+$assertTest(
+    'Mailer transmits over pure SMTP sockets without native @mail() fallback',
+    !str_contains($mailerSource, '@mail(') && $smtpDelivered
 );
 
 // ── Summary ─────────────────────────────────────────────────────────────────
