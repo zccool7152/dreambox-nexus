@@ -49,14 +49,16 @@ class Cors implements MiddlewareInterface
 
     private function applyCorsHeaders(Response $response, ?string $origin): void
     {
-        if ($origin === null) {
+        if ($origin === null || trim($origin) === '') {
             return;
         }
 
-        $isAllowed = in_array('*', $this->allowedOrigins, true) || in_array($origin, $this->allowedOrigins, true);
+        $hasWildcard = in_array('*', $this->allowedOrigins, true);
+        $isExplicitlyAllowed = in_array($origin, $this->allowedOrigins, true);
 
-        if ($isAllowed) {
+        if ($isExplicitlyAllowed) {
             $response->setHeader('Access-Control-Allow-Origin', $origin);
+            $response->setHeader('Vary', 'Origin');
             $response->setHeader('Access-Control-Allow-Methods', implode(', ', $this->allowedMethods));
             $response->setHeader('Access-Control-Allow-Headers', implode(', ', $this->allowedHeaders));
             $response->setHeader('Access-Control-Max-Age', '86400');
@@ -64,6 +66,14 @@ class Cors implements MiddlewareInterface
             if ($this->allowCredentials) {
                 $response->setHeader('Access-Control-Allow-Credentials', 'true');
             }
+            return;
+        }
+
+        if ($hasWildcard && !$this->allowCredentials) {
+            $response->setHeader('Access-Control-Allow-Origin', '*');
+            $response->setHeader('Access-Control-Allow-Methods', implode(', ', $this->allowedMethods));
+            $response->setHeader('Access-Control-Allow-Headers', implode(', ', $this->allowedHeaders));
+            $response->setHeader('Access-Control-Max-Age', '86400');
         }
     }
 }

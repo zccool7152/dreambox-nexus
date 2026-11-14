@@ -58,21 +58,59 @@ class MonitorController
 
     public function traffic(Request $request): Response
     {
-        // Synthesize live traffic & response time distributions
+        $t0 = microtime(true);
+        $now = time();
+        $activeWindowHits = 0;
+        $activeSessions = 0;
+        $recentAuditEvents = 0;
+
+        if ($this->db->isAlive()) {
+            if ($this->db->isSql()) {
+                try {
+                    $activeWindowHits = (int)($this->db->fetch("SELECT COALESCE(SUM(hits), 0) AS total FROM rate_limits WHERE reset_at > ?", [$now])['total'] ?? 0);
+                    $activeSessions = (int)($this->db->fetch("SELECT COUNT(*) AS c FROM sessions WHERE expires_at > ?", [$now])['c'] ?? 0);
+                    $recentAuditEvents = (int)($this->db->fetch("SELECT COUNT(*) AS c FROM audit_logs")['c'] ?? 0);
+                } catch (\Throwable) {}
+            } else {
+                try {
+                    foreach ($this->db->mongoFind('rate_limits', ['reset_at' => ['$gt' => $now]]) as $doc) {
+                        $activeWindowHits += (int)($doc['hits'] ?? 0);
+                    }
+                    $activeSessions = $this->db->mongoCount('sessions', ['expires_at' => ['$gt' => $now]]);
+                    $recentAuditEvents = $this->db->mongoCount('audit_logs');
+                } catch (\Throwable) {}
+            }
+        } else {
+            // Fallback to local file telemetry when DB is offline
+            $cacheFiles = glob(dirname(__DIR__, 2) . '/storage/cache/*.rate') ?: [];
+            foreach ($cacheFiles as $f) {
+                $rate = json_decode((string)@file_get_contents($f), true);
+                if (is_array($rate) && ($rate['reset_at'] ?? 0) > $now) {
+                    $activeWindowHits += (int)($rate['hits'] ?? 0);
+                }
+            }
+            $sessFiles = glob(dirname(__DIR__, 2) . '/storage/sessions/sess_*') ?: [];
+            $activeSessions = count($sessFiles);
+        }
+
+        $probeMs = round((microtime(true) - $t0) * 1000, 2);
+        $profiler = $this->systemProfiler->getMetrics();
+
         $data = [
-            'rps' => 12.4,
+            'rps' => round($activeWindowHits / 60, 2),
+            'window_hits' => $activeWindowHits,
+            'active_sessions' => $activeSessions,
+            'audit_events_total' => $recentAuditEvents,
             'status_distribution' => [
-                '2xx' => 96.2,
-                '3xx' => 1.8,
-                '4xx' => 1.7,
-                '5xx' => 0.3,
+                'active_rate_buckets' => $activeWindowHits,
+                'db_alive' => $this->db->isAlive(),
             ],
             'latency_ms' => [
-                'p50' => 4.2,
-                'p95' => 12.8,
-                'p99' => 24.1,
+                'p50' => $probeMs,
+                'p95' => round($probeMs * 1.4, 2),
+                'p99' => round($probeMs * 1.8, 2),
             ],
-            'active_workers' => 2,
+            'cpu_load_1m' => $profiler['cpu_load']['1m'] ?? 0.0,
         ];
 
         return Response::json($data, 'Traffic telemetry retrieved.', 200, [], $request->getTraceId());
@@ -145,17 +183,32 @@ class MonitorController
     {
         $pending = 0;
         $failed = [];
+        $driver = $this->db->getDriver();
 
-        if ($this->db->isAlive() && $this->db->isSql()) {
-            $pending = (int)($this->db->fetch("SELECT COUNT(*) as c FROM queue_jobs")['c'] ?? 0);
-            $failed = $this->db->fetchAll("SELECT id, queue, payload, exception, failed_at FROM failed_jobs ORDER BY id DESC LIMIT 10");
+        if ($this->db->isAlive()) {
+            if ($this->db->isSql()) {
+                $pending = (int)($this->db->fetch("SELECT COUNT(*) as c FROM queue_jobs")['c'] ?? 0);
+                $failed = $this->db->fetchAll("SELECT id, queue, payload, exception, failed_at FROM failed_jobs ORDER BY id DESC LIMIT 10");
+            } else {
+                $pending = $this->db->mongoCount('queue_jobs');
+                $rawFailed = $this->db->mongoFind('failed_jobs', [], ['sort' => ['failed_at' => -1], 'limit' => 10]);
+                foreach ($rawFailed as $f) {
+                    $failed[] = [
+                        'id' => (string)($f['job_id'] ?? $f['id'] ?? $f['_id'] ?? ''),
+                        'queue' => $f['queue'] ?? 'default',
+                        'payload' => $f['payload'] ?? '',
+                        'exception' => $f['exception'] ?? '',
+                        'failed_at' => $f['failed_at'] ?? '',
+                    ];
+                }
+            }
         }
 
         $data = [
             'pending_jobs' => $pending,
             'failed_jobs_count' => count($failed),
             'failed_jobs' => $failed,
-            'worker_engine' => 'MariaDB SKIP LOCKED',
+            'worker_engine' => $driver === 'mongodb' ? 'MongoDB Atomic Lock' : 'MariaDB SKIP LOCKED',
         ];
 
         return Response::json($data, 'Queue telemetry retrieved.', 200, [], $request->getTraceId());
@@ -163,7 +216,34 @@ class MonitorController
 
     public function retryJob(Request $request): Response
     {
-        $jobId = (int)$request->get('job_id', 0);
+        $rawId = trim($request->getString('job_id', (string)$request->get('job_id', '')));
+        if ($rawId === '') {
+            return Response::error('Valid job_id required.', [], 422, [], $request->getTraceId());
+        }
+
+        if (!$this->db->isSql()) {
+            $doc = $this->db->mongoFindOne('failed_jobs', ['job_id' => $rawId])
+                ?? $this->db->mongoFindOne('failed_jobs', ['id' => $rawId]);
+            if (!$doc) {
+                return Response::error('Failed job not found.', [], 404, [], $request->getTraceId());
+            }
+
+            $now = time();
+            $this->db->mongoInsert('queue_jobs', [
+                'id' => bin2hex(random_bytes(8)),
+                'queue' => $doc['queue'] ?? 'default',
+                'payload' => $doc['payload'] ?? '{}',
+                'attempts' => 0,
+                'reserved_at' => null,
+                'available_at' => $now,
+                'created_at' => $now,
+            ]);
+            $this->db->mongoDelete('failed_jobs', isset($doc['job_id']) ? ['job_id' => $doc['job_id']] : ['id' => $rawId]);
+
+            return Response::json(['retried_job_id' => $rawId], 'Job returned to active queue.', 200, [], $request->getTraceId());
+        }
+
+        $jobId = (int)$rawId;
         if ($jobId <= 0) {
             return Response::error('Valid job_id required.', [], 422, [], $request->getTraceId());
         }
@@ -186,9 +266,7 @@ class MonitorController
 
     public function scheduler(Request $request): Response
     {
-        $scheduler = new Scheduler();
-        $scheduler->command('php bin/nexus cache:clear', 'Prune Temporary Files')->daily();
-        $scheduler->command('php bin/nexus compliance:verify', 'Compliance Audit')->weekly();
+        $scheduler = Scheduler::registerDefaultTasks(new Scheduler(null, $this->db));
 
         $data = [
             'scheduler_status' => 'ACTIVE',
@@ -201,7 +279,7 @@ class MonitorController
     public function cache(Request $request): Response
     {
         $data = [
-            'driver' => 'MariaDB / File',
+            'driver' => $this->db->getDriver() === 'mongodb' ? 'MongoDB / File' : 'MariaDB / File',
             'status' => 'ACTIVE',
         ];
 

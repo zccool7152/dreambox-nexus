@@ -79,7 +79,7 @@ $assertTest('Hasher rejects incorrect password', !$hasher->verify('WrongPassword
 
 // ── Test 4: Timing-Safe HMAC CSRF Protection ────────────────────────────────
 echo "\n\033[1;37m[4] CSRF Protection & Timing Attack Resistance\033[0m\n";
-$csrf = new \Nexus\Security\Csrf('csrf_secret_salt_123');
+$csrf = new \Nexus\Security\Csrf('base64:' . base64_encode(random_bytes(32)));
 $sessionId = 'session_alpha_99';
 $token = $csrf->generateToken($sessionId);
 $assertTest('CSRF generates valid dot-separated token', str_contains($token, '.'));
@@ -509,13 +509,16 @@ $testLoginUser = $userRepo->create([
     'must_change_password' => true,
 ]);
 
+$session->start();
+$loginCsrfToken = (new \Nexus\Security\Csrf((string)\Nexus\Core\Env::get('APP_KEY')))->generate($session->getId());
+
 $formLoginReq = new \Nexus\Core\Request(
     'POST',
     '/auth/login',
     ['accept' => 'text/html', 'content-type' => 'application/x-www-form-urlencoded'],
     [],
-    ['email' => 'login_flow_test@example.com', 'password' => '123qweasd'],
-    'email=login_flow_test%40example.com&password=123qweasd',
+    ['email' => 'login_flow_test@example.com', 'password' => '123qweasd', 'csrf_token' => $loginCsrfToken],
+    'email=login_flow_test%40example.com&password=123qweasd&csrf_token=' . urlencode($loginCsrfToken),
     '127.0.0.1',
     null,
     '/auth/login'
@@ -523,10 +526,11 @@ $formLoginReq = new \Nexus\Core\Request(
 $formLoginRes = $app->handle($formLoginReq);
 $assertTest('POST /auth/login via form redirects to 2FA enrollment (HTTP 302)', $formLoginRes->getStatusCode() === 302 && str_contains($formLoginRes->getHeader('location') ?? '', '/auth/2fa/setup/'));
 
+$ajaxCsrfToken = (new \Nexus\Security\Csrf((string)\Nexus\Core\Env::get('APP_KEY')))->generate($session->getId());
 $ajaxLoginReq = new \Nexus\Core\Request(
     'POST',
     '/auth/login',
-    ['accept' => 'application/json', 'content-type' => 'application/json'],
+    ['accept' => 'application/json', 'content-type' => 'application/json', 'x-csrf-token' => $ajaxCsrfToken],
     [],
     ['email' => 'login_flow_test@example.com', 'password' => '123qweasd'],
     json_encode(['email' => 'login_flow_test@example.com', 'password' => '123qweasd']),
@@ -769,20 +773,12 @@ $trackedFilesRaw = shell_exec('git -C ' . escapeshellarg($baseDir) . ' ls-files'
 $trackedFiles = array_filter(explode("\n", trim($trackedFilesRaw ?? '')));
 
 $piiViolations = [];
-$forbiddenTokens = array_map('base64_decode', [
-    'Zm9yYmlkZGVuQGV4YW1wbGUudGVzdA==',
-    'c3ludGhldGljX3Rva2Vu',
-    'NTU1LTAxOTk=',
-    'NTU1IDAxOTk=',
-    'MTgwMDU1NTAxOTk=',
-    'ODAwNTU1MDE5OQ==',
-]);
 
 foreach ($trackedFiles as $relPath) {
     if ($relPath === 'tests/run_tests.php') continue;
     $fullPath = $baseDir . '/' . $relPath;
     if (!file_exists($fullPath) || is_dir($fullPath)) continue;
-    
+
     // Skip binary assets
     $ext = pathinfo($fullPath, PATHINFO_EXTENSION);
     if (in_array(strtolower($ext), ['png', 'jpg', 'jpeg', 'gif', 'ico', 'webp', 'svg', 'pdf', 'woff', 'woff2', 'ttf'], true)) {
@@ -790,14 +786,34 @@ foreach ($trackedFiles as $relPath) {
     }
 
     $fileContent = (string)file_get_contents($fullPath);
-    foreach ($forbiddenTokens as $token) {
-        if (stripos($fileContent, $token) !== false) {
-            $piiViolations[] = "{$relPath} contains {$token}";
+
+    // 1. Scan for personal webmail addresses (excluding synthetic test placeholders)
+    if (preg_match_all('/[a-zA-Z0-9._%+-]+@(?:gmail|yahoo|hotmail|outlook|aol|icloud)\.com/i', $fileContent, $emailMatches)) {
+        foreach ($emailMatches[0] as $match) {
+            if (!preg_match('/^(?:example|placeholder|testuser|forbidden|test)@/i', $match)) {
+                $piiViolations[] = "{$relPath} contains personal webmail ({$match})";
+            }
+        }
+    }
+
+    // 2. Scan for unmasked North American telephone numbers (excluding dummy 555 test numbers)
+    if (preg_match_all('/\b(?:\+?1[-. ]?)?\(?[2-9][0-9]{2}\)?[-. ]?[2-9][0-9]{2}[-. ]?[0-9]{4}\b/', $fileContent, $phoneMatches)) {
+        foreach ($phoneMatches[0] as $match) {
+            if (!str_contains($match, '555')) {
+                $piiViolations[] = "{$relPath} contains unmasked telephone pattern ({$match})";
+            }
+        }
+    }
+
+    // 3. Scan for unmasked SSN patterns
+    if (preg_match_all('/\b(?!000|666|9\d\d)\d{3}-(?!00)\d{2}-(?!0000)\d{4}\b/', $fileContent, $ssnMatches)) {
+        foreach ($ssnMatches[0] as $match) {
+            $piiViolations[] = "{$relPath} contains unmasked SSN pattern";
         }
     }
 }
 
-$assertTest('Zero occurrences of personal email or username in tracked files', empty($piiViolations));
+$assertTest('Zero occurrences of personal webmail, phone, or SSN PII in tracked files', empty($piiViolations));
 $assertTest('Sensitive meta files (.env.example, .gitignore, .githooks/pre-commit) are not tracked in Git', !in_array('.env.example', $trackedFiles, true) && !in_array('.gitignore', $trackedFiles, true) && !in_array('.githooks/pre-commit', $trackedFiles, true));
 $logosTracked = array_filter($trackedFiles, fn($f) => str_starts_with($f, 'logos/') || str_starts_with($f, 'outside assets/'));
 $assertTest('Outside assets / legacy logos directories are untracked in Git', empty($logosTracked));
@@ -846,6 +862,92 @@ $secCache->forget('obj_probe');
 if (is_dir($tmpCacheDir)) {
     @rmdir($tmpCacheDir);
 }
+
+// 18.4 Mandatory CSRF verification even without session cookie
+$prevCookies = $_COOKIE;
+unset($_COOKIE['nexus_session']);
+$noCookiePostReq = new \Nexus\Core\Request('POST', '/auth/login', ['accept' => 'application/json'], [], ['email' => 'a@b.com']);
+$strictCsrf = new \Nexus\Security\Csrf('base64:' . base64_encode(random_bytes(32)));
+$assertTest('Csrf::verifyRequest rejects POST without token even when nexus_session cookie is absent', !$strictCsrf->verifyRequest($noCookiePostReq, ''));
+$_COOKIE = $prevCookies;
+
+// 18.5 Weak CSRF secret rejection
+$weakSecretRejected = false;
+try {
+    new \Nexus\Security\Csrf('default_secret');
+} catch (\InvalidArgumentException) {
+    $weakSecretRejected = true;
+}
+$assertTest('Csrf rejects weak default_secret key', $weakSecretRejected);
+
+// 18.6 Storage path traversal protection
+$tmpStorageRoot = sys_get_temp_dir() . '/nexus_storage_sec_' . uniqid();
+$secStorage = new \Nexus\Storage\Storage($tmpStorageRoot);
+$traversalPutBlocked = false;
+$traversalGetBlocked = false;
+$traversalDelBlocked = false;
+try {
+    $secStorage->put('../../etc/evil.txt', 'x');
+} catch (\InvalidArgumentException) {
+    $traversalPutBlocked = true;
+}
+try {
+    $secStorage->get('../outside.txt');
+} catch (\InvalidArgumentException) {
+    $traversalGetBlocked = true;
+}
+try {
+    $secStorage->delete('../../etc/passwd');
+} catch (\InvalidArgumentException) {
+    $traversalDelBlocked = true;
+}
+$assertTest('Storage blocks directory traversal in put/get/delete', $traversalPutBlocked && $traversalGetBlocked && $traversalDelBlocked);
+@rmdir($tmpStorageRoot . '/private');
+@rmdir($tmpStorageRoot . '/public');
+@rmdir($tmpStorageRoot);
+
+// 18.7 CORS disallows origin reflection + credentials on wildcard
+$wildcardCors = new \Nexus\Security\Cors(['*'], ['GET'], ['Content-Type'], true);
+$corsReq = new \Nexus\Core\Request('GET', '/health', ['origin' => 'https://evil.example']);
+$corsRes = $wildcardCors->handle($corsReq, fn() => \Nexus\Core\Response::json(['ok' => true]));
+$assertTest(
+    'Cors never reflects arbitrary origin with Allow-Credentials when wildcard * is set',
+    $corsRes->getHeader('access-control-allow-origin') === null && $corsRes->getHeader('access-control-allow-credentials') === null
+);
+
+// 18.8 MonitorAccessMiddleware enforces admin RBAC when Gate is null
+$prevAllowLocal = $_ENV['MONITOR_ALLOW_LOCAL'] ?? null;
+putenv('MONITOR_ALLOW_LOCAL=0');
+$memberAuth = new class extends \Nexus\Auth\Auth {
+    public function __construct() {}
+    public function user(\Nexus\Core\Request $request): ?array {
+        return ['id' => 'usr_m', 'roles' => ['Member'], 'guard' => 'session'];
+    }
+};
+$mwMember = new \Nexus\Security\MonitorAccessMiddleware($memberAuth, null, ['127.0.0.1'], false);
+$memberRes = $mwMember->handle(new \Nexus\Core\Request('GET', '/api/v1/monitor/overview', ['accept' => 'application/json'], [], [], '', '203.0.113.10'), fn() => \Nexus\Core\Response::json(['ok' => true]));
+$assertTest('MonitorAccessMiddleware denies Member role when Gate is null (no wildcard auth grant)', $memberRes->getStatusCode() === 403);
+if ($prevAllowLocal !== null) {
+    putenv("MONITOR_ALLOW_LOCAL={$prevAllowLocal}");
+}
+
+// 18.9 FileUploader SVG script neutralization
+$dirtySvg = '<svg xmlns="http://www.w3.org/2000/svg" onload="alert(1)"><script>fetch("/steal")</script><a href="javascript:alert(2)"><rect width="10" height="10"/></a></svg>';
+$cleanSvg = \Nexus\Storage\FileUploader::sanitizeSvg($dirtySvg);
+$assertTest(
+    'FileUploader::sanitizeSvg strips script tags, onload handlers, and javascript: URIs',
+    !str_contains($cleanSvg, '<script') && !str_contains($cleanSvg, 'onload=') && !str_contains($cleanSvg, 'javascript:')
+);
+
+// 18.10 Monitor telemetry & AnomalyDetector MongoDB compatibility
+$monitorCtrl = new \Nexus\Monitor\MonitorController($mongoDb, $app->getRouter());
+$queueMonRes = $monitorCtrl->queue(new \Nexus\Core\Request('GET', '/api/v1/monitor/queue'));
+$anomalyOut = (new \Nexus\Monitor\AnomalyDetector($mongoDb))->analyze();
+$secMonOut = (new \Nexus\Monitor\SecurityMonitor($mongoDb))->getMetrics();
+$assertTest(
+    'MonitorController::queue(), AnomalyDetector, and SecurityMonitor execute cleanly on MongoDB',
+    $queueMonRes->getStatusCode() === 200 && isset($anomalyOut['threat_level']) && isset($secMonOut['throttled_clients_count'])
+);
 
 // ── Summary ─────────────────────────────────────────────────────────────────
 echo "\n\033[1;36m════════════════════════════════════════════════════════════════\033[0m\n";

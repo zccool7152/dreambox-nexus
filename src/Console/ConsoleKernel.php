@@ -144,7 +144,9 @@ class ConsoleKernel
     private function handleScheduleRun(): int
     {
         echo "\033[1;36m[Nexus]\033[0m Evaluating scheduled crontab tasks...\n";
-        $scheduler = new Scheduler();
+        /** @var Database $db */
+        $db = $this->container->make(Database::class);
+        $scheduler = Scheduler::registerDefaultTasks(new Scheduler(null, $db));
         $results = $scheduler->run();
 
         foreach ($results as $res) {

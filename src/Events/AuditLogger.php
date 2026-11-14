@@ -76,57 +76,69 @@ class AuditLogger
         $cleanBefore = $before !== null ? DataMasker::maskArray($before) : null;
         $cleanAfter = $after !== null ? DataMasker::maskArray($after) : null;
 
-        // 2. Fetch all existing records to determine sequence & last hash
-        $existing = $this->getAllLogsAscending();
-        $lastRow = !empty($existing) ? end($existing) : null;
-        $previousHash = $lastRow['hash'] ?? self::GENESIS_HASH;
-        $nextId = $lastRow ? ((int)$lastRow['id'] + 1) : 1;
-
-        $timestamp = gmdate('Y-m-d H:i:s');
-        $jsonBefore = $cleanBefore !== null ? json_encode($cleanBefore, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) : null;
-        $jsonAfter = $cleanAfter !== null ? json_encode($cleanAfter, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) : null;
-
-        $effectiveUserId = $userId ?? 'SYSTEM';
-        $effectiveResourceId = $resourceId ?? '';
-
-        // 3. Compute Cryptographic SHA-256 Hash
-        $currentHash = self::computeHash(
-            $previousHash,
+        return $this->withExclusiveLock(function () use (
             $traceId,
-            $effectiveUserId,
+            $userId,
             $action,
             $resource,
-            $effectiveResourceId,
+            $resourceId,
             $ipAddress,
-            $jsonBefore,
-            $jsonAfter,
-            $timestamp
-        );
+            $userAgent,
+            $cleanBefore,
+            $cleanAfter
+        ): string {
+            // 2. Fetch all existing records to determine sequence & last hash
+            $existing = $this->getAllLogsAscending();
+            $lastRow = !empty($existing) ? end($existing) : null;
+            $previousHash = $lastRow['hash'] ?? self::GENESIS_HASH;
+            $nextId = $lastRow ? ((int)$lastRow['id'] + 1) : 1;
 
-        $entry = [
-            'id' => $nextId,
-            'trace_id' => $traceId,
-            'user_id' => $effectiveUserId,
-            'action' => $action,
-            'resource' => $resource,
-            'resource_id' => $effectiveResourceId,
-            'ip_address' => $ipAddress,
-            'user_agent' => substr((string)$userAgent, 0, 255),
-            'payload_before' => $jsonBefore,
-            'payload_after' => $jsonAfter,
-            'previous_hash' => $previousHash,
-            'hash' => $currentHash,
-            'created_at' => $timestamp,
-        ];
+            $timestamp = gmdate('Y-m-d H:i:s');
+            $jsonBefore = $cleanBefore !== null ? json_encode($cleanBefore, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) : null;
+            $jsonAfter = $cleanAfter !== null ? json_encode($cleanAfter, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) : null;
 
-        // 4. Persist to active database if online
-        $this->persistToDatabase($entry);
+            $effectiveUserId = $userId ?? 'SYSTEM';
+            $effectiveResourceId = $resourceId ?? '';
 
-        // 5. Persist to resilient local ledger file
-        $existing[] = $entry;
-        $this->saveFileLedger($existing);
+            // 3. Compute Cryptographic SHA-256 Hash
+            $currentHash = self::computeHash(
+                $previousHash,
+                $traceId,
+                $effectiveUserId,
+                $action,
+                $resource,
+                $effectiveResourceId,
+                $ipAddress,
+                $jsonBefore,
+                $jsonAfter,
+                $timestamp
+            );
 
-        return $currentHash;
+            $entry = [
+                'id' => $nextId,
+                'trace_id' => $traceId,
+                'user_id' => $effectiveUserId,
+                'action' => $action,
+                'resource' => $resource,
+                'resource_id' => $effectiveResourceId,
+                'ip_address' => $ipAddress,
+                'user_agent' => substr((string)$userAgent, 0, 255),
+                'payload_before' => $jsonBefore,
+                'payload_after' => $jsonAfter,
+                'previous_hash' => $previousHash,
+                'hash' => $currentHash,
+                'created_at' => $timestamp,
+            ];
+
+            // 4. Persist to active database if online
+            $this->persistToDatabase($entry);
+
+            // 5. Persist to resilient local ledger file
+            $existing[] = $entry;
+            $this->saveFileLedger($existing);
+
+            return $currentHash;
+        });
     }
 
     /**
@@ -278,134 +290,165 @@ class AuditLogger
      */
     private function ensureSeedLedger(): void
     {
-        $existing = $this->getFileLedger();
-        if (!empty($existing)) {
-            // Synchronize database if active but currently empty
-            if ($this->db !== null && $this->db->isAlive()) {
-                $hasDbLogs = false;
-                try {
-                    if ($this->db->getDriver() === 'mongodb') {
-                        $hasDbLogs = $this->db->mongoCount('audit_logs') > 0;
-                    } elseif ($this->db->isSql()) {
-                        $hasDbLogs = !empty($this->db->fetch("SELECT id FROM audit_logs LIMIT 1"));
-                    }
-                } catch (\Throwable) {}
+        $this->withExclusiveLock(function (): void {
+            $existing = $this->getFileLedger();
+            if (!empty($existing)) {
+                // Synchronize database if active but currently empty
+                if ($this->db !== null && $this->db->isAlive()) {
+                    $hasDbLogs = false;
+                    try {
+                        if ($this->db->getDriver() === 'mongodb') {
+                            $hasDbLogs = $this->db->mongoCount('audit_logs') > 0;
+                        } elseif ($this->db->isSql()) {
+                            $hasDbLogs = !empty($this->db->fetch("SELECT id FROM audit_logs LIMIT 1"));
+                        }
+                    } catch (\Throwable) {}
 
-                if (!$hasDbLogs) {
-                    foreach ($existing as $entry) {
-                        $this->persistToDatabase($entry);
+                    if (!$hasDbLogs) {
+                        foreach ($existing as $entry) {
+                            $this->persistToDatabase($entry);
+                        }
                     }
                 }
+                return;
             }
-            return;
-        }
 
-        $seeds = [
-            [
-                'trace_id' => 'genesis-0001',
-                'user_id' => 'SYSTEM',
-                'action' => 'SYSTEM_BOOT',
-                'resource' => 'kernel',
-                'resource_id' => 'v0.1-alpha',
-                'ip_address' => '127.0.0.1',
-                'user_agent' => 'Dreambox Nexus Kernel',
-                'payload_before' => null,
-                'payload_after' => ['status' => 'CIA Triad Active', 'engine' => 'Argon2id+AEAD'],
-                'created_at' => '2026-11-08 12:00:00',
-            ],
-            [
-                'trace_id' => 'sec-init-0002',
-                'user_id' => 'SYSTEM',
-                'action' => 'SECURITY_PROFILE_ENFORCE',
-                'resource' => 'soc_monitor',
-                'resource_id' => 'rate_limit_sliding_window',
-                'ip_address' => '127.0.0.1',
-                'user_agent' => 'Dreambox Nexus Kernel',
-                'payload_before' => null,
-                'payload_after' => ['csp' => 'strict_dynamic_nonce', 'ssrf_protection' => 'active'],
-                'created_at' => '2026-11-08 12:00:01',
-            ],
-            [
-                'trace_id' => 'iam-init-0003',
-                'user_id' => 'usr_admin_001',
-                'action' => 'RBAC_POLICY_LOAD',
-                'resource' => 'iam',
-                'resource_id' => 'roles_matrix',
-                'ip_address' => '127.0.0.1',
-                'user_agent' => 'Dreambox Nexus Kernel',
-                'payload_before' => null,
-                'payload_after' => ['roles' => 5, 'groups' => 3, 'superadmin' => 'admin@nexus.local'],
-                'created_at' => '2026-11-08 12:00:02',
-            ],
-            [
-                'trace_id' => 'comp-eval-0004',
-                'user_id' => 'SYSTEM',
-                'action' => 'COMPLIANCE_MATRIX_EVALUATE',
-                'resource' => 'compliance',
-                'resource_id' => 'multi_framework',
-                'ip_address' => '127.0.0.1',
-                'user_agent' => 'Nexus Automated Audit Engine',
-                'payload_before' => null,
-                'payload_after' => ['frameworks' => ['PCI-DSS', 'HIPAA', 'NIST', 'GDPR', 'OWASP'], 'score' => 100],
-                'created_at' => '2026-11-08 12:00:03',
-            ],
-            [
-                'trace_id' => 'crypto-0005',
-                'user_id' => 'admin@nexus.local',
-                'action' => 'IAM_SUPERADMIN_SESSION',
-                'resource' => 'iam_session',
-                'resource_id' => 'active_session',
-                'ip_address' => '127.0.0.1',
-                'user_agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
-                'payload_before' => null,
-                'payload_after' => ['auth_provider' => 'local', 'mfa_enforced' => true],
-                'created_at' => '2026-11-08 12:00:04',
-            ],
-        ];
-
-        $currentPrev = self::GENESIS_HASH;
-        $ledger = [];
-
-        foreach ($seeds as $idx => $s) {
-            $id = $idx + 1;
-            $jsonBefore = $s['payload_before'] !== null ? json_encode($s['payload_before'], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) : null;
-            $jsonAfter = $s['payload_after'] !== null ? json_encode($s['payload_after'], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) : null;
-
-            $currentHash = self::computeHash(
-                $currentPrev,
-                $s['trace_id'],
-                $s['user_id'],
-                $s['action'],
-                $s['resource'],
-                $s['resource_id'],
-                $s['ip_address'],
-                $jsonBefore,
-                $jsonAfter,
-                $s['created_at']
-            );
-
-            $entry = [
-                'id' => $id,
-                'trace_id' => $s['trace_id'],
-                'user_id' => $s['user_id'],
-                'action' => $s['action'],
-                'resource' => $s['resource'],
-                'resource_id' => $s['resource_id'],
-                'ip_address' => $s['ip_address'],
-                'user_agent' => $s['user_agent'],
-                'payload_before' => $jsonBefore,
-                'payload_after' => $jsonAfter,
-                'previous_hash' => $currentPrev,
-                'hash' => $currentHash,
-                'created_at' => $s['created_at'],
+            $seeds = [
+                [
+                    'trace_id' => 'genesis-0001',
+                    'user_id' => 'SYSTEM',
+                    'action' => 'SYSTEM_BOOT',
+                    'resource' => 'kernel',
+                    'resource_id' => 'v0.1-alpha',
+                    'ip_address' => '127.0.0.1',
+                    'user_agent' => 'Dreambox Nexus Kernel',
+                    'payload_before' => null,
+                    'payload_after' => ['status' => 'CIA Triad Active', 'engine' => 'Argon2id+AEAD'],
+                    'created_at' => '2026-11-08 12:00:00',
+                ],
+                [
+                    'trace_id' => 'sec-init-0002',
+                    'user_id' => 'SYSTEM',
+                    'action' => 'SECURITY_PROFILE_ENFORCE',
+                    'resource' => 'soc_monitor',
+                    'resource_id' => 'rate_limit_sliding_window',
+                    'ip_address' => '127.0.0.1',
+                    'user_agent' => 'Dreambox Nexus Kernel',
+                    'payload_before' => null,
+                    'payload_after' => ['csp' => 'strict_dynamic_nonce', 'ssrf_protection' => 'active'],
+                    'created_at' => '2026-11-08 12:00:01',
+                ],
+                [
+                    'trace_id' => 'iam-init-0003',
+                    'user_id' => 'usr_admin_001',
+                    'action' => 'RBAC_POLICY_LOAD',
+                    'resource' => 'iam',
+                    'resource_id' => 'roles_matrix',
+                    'ip_address' => '127.0.0.1',
+                    'user_agent' => 'Dreambox Nexus Kernel',
+                    'payload_before' => null,
+                    'payload_after' => ['roles' => 5, 'groups' => 3, 'superadmin' => 'admin@nexus.local'],
+                    'created_at' => '2026-11-08 12:00:02',
+                ],
+                [
+                    'trace_id' => 'comp-eval-0004',
+                    'user_id' => 'SYSTEM',
+                    'action' => 'COMPLIANCE_MATRIX_EVALUATE',
+                    'resource' => 'compliance',
+                    'resource_id' => 'multi_framework',
+                    'ip_address' => '127.0.0.1',
+                    'user_agent' => 'Nexus Automated Audit Engine',
+                    'payload_before' => null,
+                    'payload_after' => ['frameworks' => ['PCI-DSS', 'HIPAA', 'NIST', 'GDPR', 'OWASP'], 'score' => 100],
+                    'created_at' => '2026-11-08 12:00:03',
+                ],
+                [
+                    'trace_id' => 'crypto-0005',
+                    'user_id' => 'admin@nexus.local',
+                    'action' => 'IAM_SUPERADMIN_SESSION',
+                    'resource' => 'iam_session',
+                    'resource_id' => 'active_session',
+                    'ip_address' => '127.0.0.1',
+                    'user_agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
+                    'payload_before' => null,
+                    'payload_after' => ['auth_provider' => 'local', 'mfa_enforced' => true],
+                    'created_at' => '2026-11-08 12:00:04',
+                ],
             ];
 
-            $ledger[] = $entry;
-            $this->persistToDatabase($entry);
-            $currentPrev = $currentHash;
+            $currentPrev = self::GENESIS_HASH;
+            $ledger = [];
+
+            foreach ($seeds as $idx => $s) {
+                $id = $idx + 1;
+                $jsonBefore = $s['payload_before'] !== null ? json_encode($s['payload_before'], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) : null;
+                $jsonAfter = $s['payload_after'] !== null ? json_encode($s['payload_after'], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) : null;
+
+                $currentHash = self::computeHash(
+                    $currentPrev,
+                    $s['trace_id'],
+                    $s['user_id'],
+                    $s['action'],
+                    $s['resource'],
+                    $s['resource_id'],
+                    $s['ip_address'],
+                    $jsonBefore,
+                    $jsonAfter,
+                    $s['created_at']
+                );
+
+                $entry = [
+                    'id' => $id,
+                    'trace_id' => $s['trace_id'],
+                    'user_id' => $s['user_id'],
+                    'action' => $s['action'],
+                    'resource' => $s['resource'],
+                    'resource_id' => $s['resource_id'],
+                    'ip_address' => $s['ip_address'],
+                    'user_agent' => $s['user_agent'],
+                    'payload_before' => $jsonBefore,
+                    'payload_after' => $jsonAfter,
+                    'previous_hash' => $currentPrev,
+                    'hash' => $currentHash,
+                    'created_at' => $s['created_at'],
+                ];
+
+                $ledger[] = $entry;
+                $this->persistToDatabase($entry);
+                $currentPrev = $currentHash;
+            }
+
+            $this->saveFileLedger($ledger);
+        });
+    }
+
+    /**
+     * Acquire an exclusive advisory lock around critical ledger read-compute-write sections.
+     */
+    private function withExclusiveLock(callable $callback): mixed
+    {
+        $dir = dirname($this->ledgerFile);
+        if (!is_dir($dir)) {
+            @mkdir($dir, 0750, true);
         }
 
-        $this->saveFileLedger($ledger);
+        $lockFile = $this->ledgerFile . '.lock';
+        $fp = @fopen($lockFile, 'c+');
+        if ($fp === false) {
+            return $callback();
+        }
+
+        if (!@flock($fp, LOCK_EX)) {
+            fclose($fp);
+            return $callback();
+        }
+
+        try {
+            return $callback();
+        } finally {
+            @flock($fp, LOCK_UN);
+            @fclose($fp);
+        }
     }
 
     /**

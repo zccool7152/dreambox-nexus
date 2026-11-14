@@ -26,6 +26,11 @@ $it = function (string $desc, bool $cond) use (&$passCount, &$failCount) {
     }
 };
 
+// Initialize session & CSRF helper for lifecycle simulation
+$db = $app->getContainer()->make(\Nexus\Database\Database::class);
+$session = new \Nexus\Security\Session($db);
+$csrf = new \Nexus\Security\Csrf((string)\Nexus\Core\Env::get('APP_KEY'));
+
 // 1. GET /auth/login
 $req1 = new \Nexus\Core\Request('GET', '/auth/login', ['accept' => 'text/html'], [], [], '', '127.0.0.1', null, '/auth/login');
 $res1 = $app->handle($req1);
@@ -37,13 +42,15 @@ $it("Login form contains name=email and name=password", str_contains($body1, 'na
 $it("Zero credential leaks in HTML markup", !str_contains($body1, '123qweasd') && !str_contains($body1, 'NexusAdmin@2026!'));
 
 // 2. POST /auth/login (Simulate browser form POST)
+$session->start();
+$csrfToken2 = $csrf->generate($session->getId());
 $req2 = new \Nexus\Core\Request(
     'POST',
     '/auth/login',
     ['accept' => 'text/html', 'content-type' => 'application/x-www-form-urlencoded'],
     [],
-    ['email' => 'admin@nexus.local', 'password' => '123qweasd'],
-    'email=admin%40nexus.local&password=123qweasd',
+    ['email' => 'admin@nexus.local', 'password' => '123qweasd', 'csrf_token' => $csrfToken2],
+    'email=admin%40nexus.local&password=123qweasd&csrf_token=' . urlencode($csrfToken2),
     '127.0.0.1',
     null,
     '/auth/login'
@@ -53,10 +60,11 @@ $it("POST /auth/login via form redirects (HTTP 302)", $res2->getStatusCode() ===
 $it("Redirect target is /auth/2fa/setup/", str_contains($res2->getHeader('location') ?? '', '/auth/2fa/setup/'));
 
 // 3. POST /auth/login (Simulate browser fetch AJAX)
+$csrfToken3 = $csrf->generate($session->getId());
 $req3 = new \Nexus\Core\Request(
     'POST',
     '/auth/login',
-    ['accept' => 'application/json', 'content-type' => 'application/json'],
+    ['accept' => 'application/json', 'content-type' => 'application/json', 'x-csrf-token' => $csrfToken3],
     [],
     ['email' => 'admin@nexus.local', 'password' => '123qweasd'],
     json_encode(['email' => 'admin@nexus.local', 'password' => '123qweasd']),
@@ -78,8 +86,6 @@ $it("Setup 2FA view contains script with CSP nonce", str_contains($body4, '<scri
 $it("Setup 2FA contains pure SVG QR code", str_contains($body4, '<svg') && str_contains($body4, 'xmlns="http://www.w3.org/2000/svg"'));
 
 // 5. Complete 2FA Setup
-$db = $app->getContainer()->make(\Nexus\Database\Database::class);
-$session = new \Nexus\Security\Session($db);
 $session->start();
 $secret = $session->get('pending_totp_secret');
 $it("Session maintains pending TOTP secret", !empty($secret));
@@ -87,10 +93,11 @@ $it("Session maintains pending TOTP secret", !empty($secret));
 $mfa = new \Nexus\Auth\Mfa();
 $validCode = $mfa->getOtp($secret);
 
+$csrfToken5 = $csrf->generate($session->getId());
 $req5 = new \Nexus\Core\Request(
     'POST',
     '/auth/2fa/setup',
-    ['accept' => 'application/json', 'content-type' => 'application/json'],
+    ['accept' => 'application/json', 'content-type' => 'application/json', 'x-csrf-token' => $csrfToken5],
     [],
     ['code' => $validCode],
     json_encode(['code' => $validCode]),
@@ -113,10 +120,11 @@ $body6 = $res6->getBody();
 $it("Password rotation view contains script with CSP nonce", str_contains($body6, '<script nonce="') && !str_contains($body6, '<script>'));
 
 // 7. POST /auth/password/change (Mismatched passwords rejected)
+$csrfToken7a = $csrf->generate($session->getId());
 $req7a = new \Nexus\Core\Request(
     'POST',
     '/auth/password/change',
-    ['accept' => 'application/json', 'content-type' => 'application/json'],
+    ['accept' => 'application/json', 'content-type' => 'application/json', 'x-csrf-token' => $csrfToken7a],
     [],
     ['current_password' => '123qweasd', 'new_password' => 'Pass12345!', 'confirm_password' => 'PassMismatch!'],
     json_encode(['current_password' => '123qweasd', 'new_password' => 'Pass12345!', 'confirm_password' => 'PassMismatch!']),
@@ -128,10 +136,11 @@ $res7a = $app->handle($req7a);
 $it("Password change rejects mismatched passwords", $res7a->getStatusCode() === 422);
 
 // 8. POST /auth/password/change (Identical to temporary rejected)
+$csrfToken7b = $csrf->generate($session->getId());
 $req7b = new \Nexus\Core\Request(
     'POST',
     '/auth/password/change',
-    ['accept' => 'application/json', 'content-type' => 'application/json'],
+    ['accept' => 'application/json', 'content-type' => 'application/json', 'x-csrf-token' => $csrfToken7b],
     [],
     ['current_password' => '123qweasd', 'new_password' => '123qweasd', 'confirm_password' => '123qweasd'],
     json_encode(['current_password' => '123qweasd', 'new_password' => '123qweasd', 'confirm_password' => '123qweasd']),
@@ -143,10 +152,11 @@ $res7b = $app->handle($req7b);
 $it("Password change rejects identical password", $res7b->getStatusCode() === 422);
 
 // 9. POST /auth/password/change (Valid rotation)
+$csrfToken8 = $csrf->generate($session->getId());
 $req8 = new \Nexus\Core\Request(
     'POST',
     '/auth/password/change',
-    ['accept' => 'application/json', 'content-type' => 'application/json'],
+    ['accept' => 'application/json', 'content-type' => 'application/json', 'x-csrf-token' => $csrfToken8],
     [],
     ['current_password' => '123qweasd', 'new_password' => 'CyberNoir2026#Secure', 'confirm_password' => 'CyberNoir2026#Secure'],
     json_encode(['current_password' => '123qweasd', 'new_password' => 'CyberNoir2026#Secure', 'confirm_password' => 'CyberNoir2026#Secure']),

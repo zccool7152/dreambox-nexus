@@ -39,6 +39,11 @@ class App
             Env::load($envFile);
         }
 
+        $appKey = (string)Env::get('APP_KEY', '');
+        if (trim($appKey) === '' || $appKey === 'default_secret' || strlen($appKey) < 16) {
+            throw new RuntimeException('Insecure or missing APP_KEY configuration. A high-entropy APP_KEY of at least 16 characters is required.');
+        }
+
         // 2. Register Logger & Error Containment
         $logPath = $this->basePath . '/storage/logs/nexus.log';
         $logger = new Logger($logPath);

@@ -24,31 +24,44 @@ class SecurityMonitor
         $throttledIps = [];
         $lockedAccounts = [];
 
-        if ($this->db !== null && $this->db->isAlive() && $this->db->isSql()) {
+        if ($this->db !== null && $this->db->isAlive()) {
             $now = time();
-            $throttledRows = $this->db->fetchAll(
-                "SELECT key_id, hits, reset_at FROM rate_limits WHERE reset_at > ? AND hits > 60 ORDER BY hits DESC LIMIT 10",
-                [$now]
-            );
+
+            if ($this->db->isSql()) {
+                $throttledRows = $this->db->fetchAll(
+                    "SELECT key_id, hits, reset_at FROM rate_limits WHERE reset_at > ? AND hits > 60 ORDER BY hits DESC LIMIT 10",
+                    [$now]
+                );
+                $lockedRows = $this->db->fetchAll(
+                    "SELECT identity, ip_address, attempts, locked_until FROM login_attempts WHERE locked_until > CURRENT_TIMESTAMP LIMIT 10"
+                );
+            } else {
+                $throttledRows = $this->db->mongoFind(
+                    'rate_limits',
+                    ['reset_at' => ['$gt' => $now], 'hits' => ['$gt' => 60]],
+                    ['sort' => ['hits' => -1], 'limit' => 10]
+                );
+                $lockedRows = $this->db->mongoFind(
+                    'login_attempts',
+                    ['locked_until' => ['$gt' => date('Y-m-d H:i:s')]],
+                    ['limit' => 10]
+                );
+            }
 
             foreach ($throttledRows as $row) {
                 $throttledIps[] = [
-                    'target' => $row['key_id'],
-                    'hits' => (int)$row['hits'],
-                    'seconds_remaining' => max(0, (int)$row['reset_at'] - $now),
+                    'target' => $row['key_id'] ?? '',
+                    'hits' => (int)($row['hits'] ?? 0),
+                    'seconds_remaining' => max(0, (int)($row['reset_at'] ?? 0) - $now),
                 ];
             }
 
-            $lockedRows = $this->db->fetchAll(
-                "SELECT identity, ip_address, attempts, locked_until FROM login_attempts WHERE locked_until > CURRENT_TIMESTAMP LIMIT 10"
-            );
-
             foreach ($lockedRows as $row) {
                 $lockedAccounts[] = [
-                    'identity' => $row['identity'],
-                    'ip_address' => $row['ip_address'],
-                    'attempts' => (int)$row['attempts'],
-                    'locked_until' => $row['locked_until'],
+                    'identity' => $row['identity'] ?? '',
+                    'ip_address' => $row['ip_address'] ?? '',
+                    'attempts' => (int)($row['attempts'] ?? 0),
+                    'locked_until' => $row['locked_until'] ?? '',
                 ];
             }
         }

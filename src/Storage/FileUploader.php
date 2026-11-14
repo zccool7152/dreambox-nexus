@@ -60,6 +60,7 @@ class FileUploader
             'image/jpeg' => 'jpg',
             'image/png' => 'png',
             'image/webp' => 'webp',
+            'image/svg+xml' => 'svg',
             'application/pdf' => 'pdf',
             default => 'bin',
         };
@@ -69,6 +70,9 @@ class FileUploader
         $storedFilename = "{$uuid}.{$extension}";
 
         $contents = (string)file_get_contents($tmpPath);
+        if ($detectedMime === 'image/svg+xml') {
+            $contents = self::sanitizeSvg($contents);
+        }
 
         // 4. Save to isolated storage outside web root
         $savedPath = $this->storage->put($storedFilename, $contents, $isPublic);
@@ -80,6 +84,37 @@ class FileUploader
             'size' => $size,
             'path' => $savedPath,
         ];
+    }
+
+    /**
+     * Neutralize dangerous scripts, external entities, event handlers, and javascript: URIs in SVG uploads.
+     */
+    public static function sanitizeSvg(string $svgContent): string
+    {
+        if (preg_match('/<!(?:ENTITY|DOCTYPE)\b[^>]*\b(?:SYSTEM|PUBLIC)\b/i', $svgContent) || stripos($svgContent, '<!ENTITY') !== false) {
+            throw new InvalidArgumentException("Disallowed XML external entity declaration detected in SVG.");
+        }
+
+        // Remove executable or embedded active content elements
+        $cleaned = preg_replace('/<\s*(script|foreignObject|iframe|object|embed)\b[^>]*>.*?<\s*\/\s*\1\s*>/is', '', $svgContent) ?? $svgContent;
+        $cleaned = preg_replace('/<\s*(script|foreignObject|iframe|object|embed)\b[^>]*\/\s*>/is', '', $cleaned) ?? $cleaned;
+
+        // Strip inline event handler attributes (onload=, onclick=, onerror=, etc.)
+        $cleaned = preg_replace('/\s+on[a-z]+\s*=\s*(?:"[^"]*"|\'[^\']*\'|[^\s>]+)/i', '', $cleaned) ?? $cleaned;
+
+        // Neutralize javascript:, vbscript:, and non-safe data: URIs in attributes
+        $cleaned = preg_replace(
+            '/\b(href|xlink:href|src|action|formaction)\s*=\s*(["\'])\s*(?:javascript:|vbscript:|data:(?!image\/(?:png|jpeg|webp);))[^"\']*\2/i',
+            '$1=$2#$2',
+            $cleaned
+        ) ?? $cleaned;
+        $cleaned = preg_replace(
+            '/\b(href|xlink:href|src|action|formaction)\s*=\s*(?:javascript:|vbscript:|data:(?!image\/(?:png|jpeg|webp);))[^\s>]+/i',
+            '$1="#"',
+            $cleaned
+        ) ?? $cleaned;
+
+        return $cleaned;
     }
 }
 

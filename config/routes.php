@@ -68,7 +68,6 @@ $docsHandler = function (Request $req) use ($app) {
 
     return new Response($yaml, 200, [
         'Content-Type' => 'text/yaml; charset=utf-8',
-        'Access-Control-Allow-Origin' => '*',
     ]);
 };
 
@@ -77,10 +76,12 @@ $router->get('/docs/openapi.yaml', $docsHandler, [], 'docs.openapi');
 
 // ── Security & CSRF ──────────────────────────────────────────────────────────
 $router->get('/api/v1/security/csrf-token', function (Request $req) use ($app) {
-    $session = new \Nexus\Security\Session();
+    /** @var Database $db */
+    $db = $app->getContainer()->make(Database::class);
+    $session = new \Nexus\Security\Session($db);
     $session->start();
-    $csrf = new Csrf(\Nexus\Core\Env::get('APP_KEY', 'default_secret'));
-    $token = $csrf->generateToken($session->getId());
+    $csrf = new Csrf((string)\Nexus\Core\Env::get('APP_KEY', ''));
+    $token = $csrf->generate($session->getId());
     return Response::json(['csrf_token' => $token], 'CSRF token generated.', 200, [], $req->getTraceId());
 }, [], 'security.csrf');
 
@@ -105,7 +106,7 @@ $getAuthController = function () use ($app): \Nexus\Auth\AuthController {
     $oauth = new \Nexus\Auth\OAuth\OAuthManager($authConfig['oauth'] ?? [], $session);
     $rbac = new \Nexus\Auth\Rbac\RoleManager($db);
     $view = new View($app->getBasePath() . '/resources/views');
-    $csrf = new Csrf(\Nexus\Core\Env::get('APP_KEY', 'default_secret'));
+    $csrf = new Csrf((string)\Nexus\Core\Env::get('APP_KEY', ''));
 
     return new \Nexus\Auth\AuthController(
         $auth, $userRepo, $mfa, $lockout, $oauth, $rbac, $view, $session, $csrf
@@ -122,7 +123,7 @@ $getAdminController = function () use ($app): \Nexus\Admin\AdminController {
     $roleMgr = new \Nexus\Auth\Rbac\RoleManager($db);
     $groupMgr = new \Nexus\Auth\Rbac\GroupManager($db);
     $view = new View($app->getBasePath() . '/resources/views');
-    $csrf = new Csrf(\Nexus\Core\Env::get('APP_KEY', 'default_secret'));
+    $csrf = new Csrf((string)\Nexus\Core\Env::get('APP_KEY', ''));
 
     return new \Nexus\Admin\AdminController(
         $auth, $userRepo, $roleMgr, $groupMgr, $db, $view, $csrf, $session
@@ -137,7 +138,7 @@ $getAccountController = function () use ($app): \Nexus\Auth\AccountController {
     $auth = new \Nexus\Auth\Auth($session, $hasher, $db);
     $userRepo = new \Nexus\Auth\UserRepository($db, $hasher);
     $view = new View($app->getBasePath() . '/resources/views');
-    $csrf = new Csrf(\Nexus\Core\Env::get('APP_KEY', 'default_secret'));
+    $csrf = new Csrf((string)\Nexus\Core\Env::get('APP_KEY', ''));
 
     return new \Nexus\Auth\AccountController(
         $auth, $userRepo, $hasher, $db, $view, $csrf, $session

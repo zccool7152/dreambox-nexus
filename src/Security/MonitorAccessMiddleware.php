@@ -58,13 +58,26 @@ class MonitorAccessMiddleware implements MiddlewareInterface
         }
 
         // Layer 2: In production or strict mode, require authenticated admin session/token
-        if (!$isAuthorized && $this->auth !== null) {
-            $user = $this->auth->user($request);
+        if (!$isAuthorized) {
+            $auth = $this->auth;
+            if ($auth === null) {
+                $container = \Nexus\Core\Container::getInstance();
+                $db = $container->has(\Nexus\Database\Database::class)
+                    ? $container->make(\Nexus\Database\Database::class)
+                    : null;
+                $session = new Session($db);
+                $auth = new Auth($session, new \Nexus\Crypto\Hasher(), $db);
+            }
+
+            $user = $auth->user($request);
             if ($user !== null) {
                 if ($this->gate !== null) {
                     $isAuthorized = $this->gate->allows('view-telemetry', $user);
                 } else {
-                    $isAuthorized = true;
+                    $roles = (array)($user['roles'] ?? []);
+                    $hasAdminRole = !empty(array_intersect($roles, ['SuperAdmin', 'SecurityOfficer', 'Admin']));
+                    $roleMgr = new \Nexus\Auth\Rbac\RoleManager();
+                    $isAuthorized = $hasAdminRole || $roleMgr->userHasPermission($user, 'telemetry.view');
                 }
             }
         }

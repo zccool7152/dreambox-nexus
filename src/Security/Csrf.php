@@ -16,6 +16,9 @@ class Csrf implements MiddlewareInterface
 
     public function __construct(string $secret)
     {
+        if (trim($secret) === '' || $secret === 'default_secret' || strlen($secret) < 16) {
+            throw new \InvalidArgumentException('CSRF secret must be a high-entropy key of at least 16 characters.');
+        }
         $this->secret = $secret;
     }
 
@@ -61,15 +64,11 @@ class Csrf implements MiddlewareInterface
         }
 
         $token = $request->getHeader('x-csrf-token') ?? (string)($request->get('csrf_token') ?: $request->get('_token', ''));
-        if ($token !== '') {
-            return $this->validateToken($token, $sessionId) || $this->validateToken($token, 'default_session');
-        }
-
-        if (!empty($_COOKIE['nexus_session'])) {
+        if ($token === '') {
             return false;
         }
 
-        return true;
+        return $this->validateToken($token, $sessionId) || $this->validateToken($token, 'default_session');
     }
 
     public function handle(Request $request, callable $next): Response

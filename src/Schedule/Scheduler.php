@@ -4,7 +4,10 @@ declare(strict_types=1);
 namespace Nexus\Schedule;
 
 use Closure;
+use InvalidArgumentException;
+use Nexus\Cache\Lock;
 use Nexus\Core\Logger;
+use Nexus\Database\Database;
 use Throwable;
 
 /**
@@ -14,10 +17,21 @@ class Scheduler
 {
     private array $events = [];
     private ?Logger $logger;
+    private ?Database $db;
+    private string $lockPath;
 
-    public function __construct(?Logger $logger = null)
+    public function __construct(?Logger $logger = null, ?Database $db = null, ?string $lockPath = null)
     {
         $this->logger = $logger;
+        $this->db = $db;
+        $this->lockPath = $lockPath ?? dirname(__DIR__, 2) . '/storage/cache';
+    }
+
+    public static function registerDefaultTasks(self $scheduler): self
+    {
+        $scheduler->command('php bin/nexus cache:clear', 'Prune Temporary Files')->daily();
+        $scheduler->command('php bin/nexus compliance:verify', 'Compliance Audit')->weekly();
+        return $scheduler;
     }
 
     public function call(Closure|callable $callback, string $name = 'anonymous'): static
@@ -34,6 +48,8 @@ class Scheduler
 
     public function command(string $command, string $name = ''): static
     {
+        $this->assertSafeCommand($command);
+
         $this->events[] = [
             'type' => 'command',
             'handler' => $command,
@@ -42,6 +58,13 @@ class Scheduler
             'last_run' => null,
         ];
         return $this;
+    }
+
+    private function assertSafeCommand(string $command): void
+    {
+        if (trim($command) === '' || preg_match('/[;&|`$><\r\n]/', $command)) {
+            throw new InvalidArgumentException("Unsafe shell metacharacters detected in scheduled command.");
+        }
     }
 
     public function everyMinute(): static
@@ -84,14 +107,38 @@ class Scheduler
 
     public function getEvents(): array
     {
-        return $this->events;
+        $state = $this->loadState();
+        $events = [];
+        foreach ($this->events as $event) {
+            $name = $event['name'];
+            if (isset($state[$name])) {
+                $event['last_run'] = $state[$name]['last_run'] ?? $event['last_run'];
+                $event['last_success'] = $state[$name]['success'] ?? null;
+                $event['last_duration_ms'] = $state[$name]['duration_ms'] ?? null;
+            }
+            $events[] = $event;
+        }
+        return $events;
     }
 
     public function run(): array
     {
         $executed = [];
+        $state = $this->loadState();
 
         foreach ($this->events as &$event) {
+            $lock = new Lock($this->db, 'schedule:' . md5($event['name']), 300, $this->lockPath);
+            if (!$lock->acquire()) {
+                $executed[] = [
+                    'name' => $event['name'],
+                    'success' => false,
+                    'skipped' => true,
+                    'duration_ms' => 0.0,
+                    'output' => 'Skipped: overlapping execution prevented by mutex lock.',
+                ];
+                continue;
+            }
+
             $startTime = microtime(true);
             $success = true;
             $output = '';
@@ -102,7 +149,9 @@ class Scheduler
                     $res = $handler();
                     $output = is_string($res) ? $res : 'Done';
                 } else {
-                    $output = (string)shell_exec($event['handler']);
+                    $this->assertSafeCommand((string)$event['handler']);
+                    $safeCmd = escapeshellcmd((string)$event['handler']);
+                    $output = (string)shell_exec($safeCmd);
                 }
             } catch (Throwable $e) {
                 $success = false;
@@ -110,10 +159,19 @@ class Scheduler
                 if ($this->logger !== null) {
                     $this->logger->error("Scheduled task [{$event['name']}] failed: " . $e->getMessage());
                 }
+            } finally {
+                $lock->release();
             }
 
             $duration = round((microtime(true) - $startTime) * 1000, 2);
-            $event['last_run'] = time();
+            $now = time();
+            $event['last_run'] = $now;
+
+            $state[$event['name']] = [
+                'last_run' => $now,
+                'success' => $success,
+                'duration_ms' => $duration,
+            ];
 
             $executed[] = [
                 'name' => $event['name'],
@@ -123,7 +181,29 @@ class Scheduler
             ];
         }
 
+        $this->saveState($state);
+
         return $executed;
+    }
+
+    private function loadState(): array
+    {
+        $stateFile = $this->lockPath . '/scheduler_state.json';
+        if (!file_exists($stateFile)) {
+            return [];
+        }
+        $raw = (string)@file_get_contents($stateFile);
+        $decoded = json_decode($raw, true);
+        return is_array($decoded) ? $decoded : [];
+    }
+
+    private function saveState(array $state): void
+    {
+        if (!is_dir($this->lockPath)) {
+            @mkdir($this->lockPath, 0755, true);
+        }
+        $stateFile = $this->lockPath . '/scheduler_state.json';
+        @file_put_contents($stateFile, json_encode($state, JSON_PRETTY_PRINT), LOCK_EX);
     }
 }
 
