@@ -14,7 +14,7 @@ class GoogleProvider implements OAuthProviderInterface
     public function __construct(array $config, ?HttpClient $http = null)
     {
         $this->config = $config;
-        $this->http = $http ?? new HttpClient(10, 3, true);
+        $this->http = $http ?? new HttpClient(10, 3, false);
     }
 
     public function getName(): string
@@ -24,7 +24,8 @@ class GoogleProvider implements OAuthProviderInterface
 
     public function isMock(): bool
     {
-        return !empty($this->config['mock_enabled']);
+        return !empty($this->config['mock_enabled'])
+            && (string)\Nexus\Core\Env::get('APP_ENV', 'development') !== 'production';
     }
 
     public function getAuthorizationUrl(string $state): string
@@ -96,6 +97,9 @@ class GoogleProvider implements OAuthProviderInterface
         }
 
         $userData = json_decode($userRes['body'], true);
+        if (isset($userData['email_verified']) && $userData['email_verified'] === false) {
+            throw new RuntimeException('Google account email is not verified.');
+        }
 
         return [
             'provider' => 'google',

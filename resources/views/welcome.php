@@ -18,10 +18,10 @@ $cspNonce = (string)($nonce ?? (\Nexus\Security\Headers::getNonce() ?: ''));
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Timothy Dunn // Systems Architect | DevSecOps Focused // Security-First Application Gateway</title>
     <link rel="icon" type="image/x-icon" href="<?= htmlspecialchars($appBase) ?>/favicon.ico">
-    <link rel="icon" type="image/png" sizes="32x32" href="<?= htmlspecialchars($appBase) ?>/logos/favicon-32x32.png">
-    <link rel="icon" type="image/png" sizes="16x16" href="<?= htmlspecialchars($appBase) ?>/logos/favicon-16x16.png">
-    <link rel="apple-touch-icon" sizes="180x180" href="<?= htmlspecialchars($appBase) ?>/logos/apple-touch-icon.png">
-    <link rel="manifest" href="<?= htmlspecialchars($appBase) ?>/logos/site.webmanifest">
+    <link rel="icon" type="image/png" sizes="32x32" href="<?= htmlspecialchars($appBase) ?>/brand/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="<?= htmlspecialchars($appBase) ?>/brand/favicon-16x16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="<?= htmlspecialchars($appBase) ?>/brand/apple-touch-icon.png">
+    <link rel="manifest" href="<?= htmlspecialchars($appBase) ?>/brand/site.webmanifest">
     <link rel="stylesheet" href="<?= htmlspecialchars($appBase) ?>/css/theme.css?v=<?= htmlspecialchars($cssVersion) ?>">
 </head>
 <body>
@@ -37,7 +37,7 @@ $cspNonce = (string)($nonce ?? (\Nexus\Security\Headers::getNonce() ?: ''));
                 <div class="rx-header-top">
                     <div class="rx-identity-block">
                         <div class="rx-logo-frame">
-                            <img src="<?= htmlspecialchars($appBase) ?>/logos/logo.png" alt="Dreambox Nexus Master Logo" class="hero-brand-logo">
+                            <img src="<?= htmlspecialchars($appBase) ?>/brand/logo.png" alt="Dreambox Nexus Master Logo" class="hero-brand-logo">
                         </div>
                         <div class="rx-identity-text">
                             <div class="rx-eyebrow-pill">

@@ -20,7 +20,7 @@ class CspReporter
 
     public function ingest(Request $request): Response
     {
-        $raw = $request->getRawBody();
+        $raw = substr($request->getRawBody(), 0, 8192);
         if (trim($raw) === '') {
             return Response::noContent();
         }

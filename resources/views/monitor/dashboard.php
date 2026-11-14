@@ -16,10 +16,10 @@ $initStorageBreakdown = 'Logs: ' . ($vitals['storage_formatted']['logs'] ?? '0 B
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dreambox Nexus // Telemetry & Observability HUD</title>
     <link rel="icon" type="image/x-icon" href="<?= htmlspecialchars($appBase) ?>/favicon.ico">
-    <link rel="icon" type="image/png" sizes="32x32" href="<?= htmlspecialchars($appBase) ?>/logos/favicon-32x32.png">
-    <link rel="icon" type="image/png" sizes="16x16" href="<?= htmlspecialchars($appBase) ?>/logos/favicon-16x16.png">
-    <link rel="apple-touch-icon" sizes="180x180" href="<?= htmlspecialchars($appBase) ?>/logos/apple-touch-icon.png">
-    <link rel="manifest" href="<?= htmlspecialchars($appBase) ?>/logos/site.webmanifest">
+    <link rel="icon" type="image/png" sizes="32x32" href="<?= htmlspecialchars($appBase) ?>/brand/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="<?= htmlspecialchars($appBase) ?>/brand/favicon-16x16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="<?= htmlspecialchars($appBase) ?>/brand/apple-touch-icon.png">
+    <link rel="manifest" href="<?= htmlspecialchars($appBase) ?>/brand/site.webmanifest">
     <link rel="stylesheet" href="<?= htmlspecialchars($appBase) ?>/css/theme.css">
 </head>
 <body>
@@ -27,15 +27,35 @@ $initStorageBreakdown = 'Logs: ' . ($vitals['storage_formatted']['logs'] ?? '0 B
     <?php include dirname(__DIR__) . '/partials/topbar.php'; ?>
     <main class="container">
 
-    <nav class="tabs">
-        <button class="tab-btn active" data-tab="vitals" onclick="switchTab('vitals')">System Vitals</button>
-        <button class="tab-btn" data-tab="security" onclick="switchTab('security')">Security & SOC</button>
-        <button class="tab-btn" data-tab="traffic" onclick="switchTab('traffic')">Traffic & Ingress</button>
-        <button class="tab-btn" data-tab="database" onclick="switchTab('database')">Database & Schema</button>
-        <button class="tab-btn" data-tab="queue" onclick="switchTab('queue')">Queue & Workers</button>
-        <button class="tab-btn" data-tab="audit" onclick="switchTab('audit')">Audit Hash-Chain</button>
-        <button class="tab-btn" data-tab="gdpr" onclick="switchTab('gdpr')">Privacy & GDPR</button>
-        <button class="tab-btn" data-tab="routes" onclick="switchTab('routes')">Route Registry</button>
+    <header class="hud-header">
+        <div class="rx-identity-block">
+            <div class="rx-logo-frame">
+                <img src="<?= htmlspecialchars($appBase) ?>/brand/logo-128.png" alt="Dreambox Nexus" class="hero-brand-logo">
+            </div>
+            <div class="hud-title-group">
+                <div class="rx-eyebrow-pill">
+                    <span class="rx-status-dot" aria-hidden="true"></span>
+                    <span>TELEMETRY &amp; OBSERVABILITY HUD</span>
+                </div>
+                <h1>System Observability &amp; SecOps Cockpit</h1>
+                <p>Real-time runtime vitals, intrusion defense telemetry, cryptographic audit verification &amp; route registry.</p>
+            </div>
+        </div>
+        <div class="hud-live-pill">
+            <span class="pulse-dot" aria-hidden="true"></span>
+            <span>TELEMETRY LIVE</span>
+        </div>
+    </header>
+
+    <nav class="tabs" aria-label="Telemetry Subsystems">
+        <button type="button" class="tab-btn active" data-tab="vitals">System Vitals</button>
+        <button type="button" class="tab-btn" data-tab="security">Security &amp; SOC</button>
+        <button type="button" class="tab-btn" data-tab="traffic">Traffic &amp; Ingress</button>
+        <button type="button" class="tab-btn" data-tab="database">Database &amp; Schema</button>
+        <button type="button" class="tab-btn" data-tab="queue">Queue &amp; Workers</button>
+        <button type="button" class="tab-btn" data-tab="audit">Audit Hash-Chain</button>
+        <button type="button" class="tab-btn" data-tab="gdpr">Privacy &amp; GDPR</button>
+        <button type="button" class="tab-btn" data-tab="routes">Route Registry</button>
     </nav>
 
     <!-- 1. System Vitals Tab -->
@@ -278,6 +298,15 @@ $initStorageBreakdown = 'Logs: ' . ($vitals['storage_formatted']['logs'] ?? '0 B
     </div>
 
     <script nonce="<?= $nonce ?? '' ?>">
+        function esc(str) {
+            return String(str ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
         function switchTab(name) {
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
             document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
@@ -362,9 +391,9 @@ $initStorageBreakdown = 'Logs: ' . ($vitals['storage_formatted']['logs'] ?? '0 B
                     (data.migrations || []).forEach(m => {
                         const tr = document.createElement('tr');
                         tr.innerHTML = `
-                            <td>${m.migration}</td>
-                            <td>${m.batch || '-'}</td>
-                            <td>${m.applied_at || '-'}</td>
+                            <td>${esc(m.migration)}</td>
+                            <td>${esc(m.batch || '-')}</td>
+                            <td>${esc(m.applied_at || '-')}</td>
                             <td><span class="badge ${m.applied ? 'badge-success' : 'badge-warning'}">${m.applied ? 'APPLIED' : 'PENDING'}</span></td>
                         `;
                         tbody.appendChild(tr);
@@ -384,11 +413,11 @@ $initStorageBreakdown = 'Logs: ' . ($vitals['storage_formatted']['logs'] ?? '0 B
                         data.failed_jobs.forEach(j => {
                             const tr = document.createElement('tr');
                             tr.innerHTML = `
-                                <td>#${j.id}</td>
-                                <td>${j.queue}</td>
-                                <td>${j.failed_at}</td>
-                                <td class="table-cell-truncate">${j.exception}</td>
-                                <td><button class="btn" onclick="retryJob(${j.id})">Retry</button></td>
+                                <td>#${esc(j.id)}</td>
+                                <td>${esc(j.queue)}</td>
+                                <td>${esc(j.failed_at)}</td>
+                                <td class="table-cell-truncate">${esc(j.exception)}</td>
+                                <td><button type="button" class="btn btn-sm btn-secondary" data-retry-id="${esc(j.id)}">Retry</button></td>
                             `;
                             tbody.appendChild(tr);
                         });
@@ -412,13 +441,13 @@ $initStorageBreakdown = 'Logs: ' . ($vitals['storage_formatted']['logs'] ?? '0 B
                     (data.recent_logs || []).forEach(l => {
                         const tr = document.createElement('tr');
                         tr.innerHTML = `
-                            <td>#${l.id}</td>
-                            <td><span class="badge badge-cyan">${l.action}</span></td>
-                            <td>${l.resource}</td>
-                            <td>${l.user_id || 'SYSTEM'}</td>
-                            <td>${l.ip_address}</td>
-                            <td class="small text-cyan">${(l.hash || '').substring(0, 16)}...</td>
-                            <td>${l.created_at}</td>
+                            <td>#${esc(l.id)}</td>
+                            <td><span class="badge badge-cyan">${esc(l.action)}</span></td>
+                            <td>${esc(l.resource)}</td>
+                            <td>${esc(l.user_id || 'SYSTEM')}</td>
+                            <td>${esc(l.ip_address)}</td>
+                            <td class="small text-cyan">${esc((l.hash || '').substring(0, 16))}...</td>
+                            <td>${esc(l.created_at)}</td>
                         `;
                         tbody.appendChild(tr);
                     });
@@ -431,12 +460,15 @@ $initStorageBreakdown = 'Logs: ' . ($vitals['storage_formatted']['logs'] ?? '0 B
                     const tbody = document.querySelector('#tbl-routes tbody');
                     tbody.innerHTML = '';
                     (data.routes || []).forEach(r => {
+                        const mwText = Array.isArray(r.middleware)
+                            ? (r.middleware.length ? r.middleware.map(esc).join(', ') : 'None')
+                            : esc(r.middleware || 'None');
                         const tr = document.createElement('tr');
                         tr.innerHTML = `
-                            <td><span class="badge badge-cyan">${r.method}</span></td>
-                            <td>${r.uri}</td>
-                            <td>${r.handler}</td>
-                            <td>${r.middleware.join(', ') || 'None'}</td>
+                            <td><span class="badge badge-cyan">${esc(r.method)}</span></td>
+                            <td>${esc(r.uri)}</td>
+                            <td>${esc(r.handler)}</td>
+                            <td>${mwText}</td>
                         `;
                         tbody.appendChild(tr);
                     });
@@ -475,6 +507,18 @@ $initStorageBreakdown = 'Logs: ' . ($vitals['storage_formatted']['logs'] ?? '0 B
                     if (tab) switchTab(tab);
                 });
             });
+
+            // Delegate retry button clicks to avoid inline onclick handlers
+            const failedJobsTable = document.getElementById('tbl-failed-jobs');
+            if (failedJobsTable) {
+                failedJobsTable.addEventListener('click', (e) => {
+                    const btn = e.target.closest('button[data-retry-id]');
+                    if (btn) {
+                        const jobId = btn.getAttribute('data-retry-id');
+                        if (jobId) retryJob(jobId);
+                    }
+                });
+            }
 
             loadTelemetry('vitals');
             // Auto refresh active telemetry every 10 seconds

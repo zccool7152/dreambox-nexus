@@ -145,7 +145,7 @@ class RateLimiter implements MiddlewareInterface
         }
 
         if ($isNew) {
-            @chmod($filePath, 0666);
+            @chmod($filePath, 0600);
         }
             if (flock($fp, LOCK_EX)) {
                 $content = stream_get_contents($fp);

@@ -83,6 +83,9 @@ class MonitorAccessMiddleware implements MiddlewareInterface
                 );
             }
 
+            $safeIp = htmlspecialchars($clientIp, ENT_QUOTES, 'UTF-8');
+            $safeTrace = htmlspecialchars($request->getTraceId(), ENT_QUOTES, 'UTF-8');
+
             $html = <<<HTML
 <!DOCTYPE html>
 <html lang="en">
@@ -105,8 +108,8 @@ class MonitorAccessMiddleware implements MiddlewareInterface
     <div class="box">
         <h1>[ 403 // ACCESS DENIED ]</h1>
         <p>The Cyber-Noir Observability HUD is restricted to authenticated SecOps administrators and authorized IP networks.</p>
-        <p>Client Ingress IP: <span class="ip">{$clientIp}</span></p>
-        <p style="font-size: 0.75rem; color: #475569; margin-top: 16px;">Trace ID: {$request->getTraceId()}</p>
+        <p>Client Ingress IP: <span class="ip">{$safeIp}</span></p>
+        <p style="font-size: 0.75rem; color: #475569; margin-top: 16px;">Trace ID: {$safeTrace}</p>
         <a href="/" class="btn">&larr; Return to Application Gateway</a>
     </div>
 </body>

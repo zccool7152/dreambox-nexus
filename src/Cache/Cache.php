@@ -24,14 +24,18 @@ class Cache
         $now = time();
 
         if ($this->db !== null && $this->db->isAlive()) {
-            $row = $this->db->fetch(
-                "SELECT cache_value, expiration FROM cache_store WHERE cache_key = ?",
-                [$key]
-            );
+            if ($this->db->getDriver() === 'mongodb') {
+                $row = $this->db->mongoFindOne('cache_store', ['cache_key' => $key]);
+            } else {
+                $row = $this->db->fetch(
+                    "SELECT cache_value, expiration FROM cache_store WHERE cache_key = ?",
+                    [$key]
+                );
+            }
 
             if ($row) {
                 if ((int)$row['expiration'] >= $now) {
-                    return unserialize($row['cache_value']);
+                    return unserialize((string)$row['cache_value'], ['allowed_classes' => false]);
                 }
                 $this->forget($key);
             }
@@ -42,7 +46,7 @@ class Cache
         if (file_exists($file)) {
             $data = json_decode((string)file_get_contents($file), true);
             if (is_array($data) && ($data['exp'] ?? 0) >= $now) {
-                return unserialize($data['val']);
+                return unserialize((string)$data['val'], ['allowed_classes' => false]);
             }
             @unlink($file);
         }
@@ -56,6 +60,15 @@ class Cache
         $serialized = serialize($value);
 
         if ($this->db !== null && $this->db->isAlive()) {
+            if ($this->db->getDriver() === 'mongodb') {
+                $this->db->mongoUpdate(
+                    'cache_store',
+                    ['cache_key' => $key],
+                    ['$set' => ['cache_key' => $key, 'cache_value' => $serialized, 'expiration' => $exp]],
+                    ['upsert' => true]
+                );
+                return true;
+            }
             $sql = "INSERT INTO cache_store (cache_key, cache_value, expiration)
                     VALUES (?, ?, ?)
                     ON DUPLICATE KEY UPDATE cache_value = VALUES(cache_value), expiration = VALUES(expiration)";
@@ -66,10 +79,10 @@ class Cache
         $file = $this->getFilePath($key);
         $dir = dirname($file);
         if (!is_dir($dir)) {
-            mkdir($dir, 0755, true);
+            mkdir($dir, 0750, true);
         }
 
-        return file_put_contents($file, json_encode(['val' => $serialized, 'exp' => $exp])) !== false;
+        return file_put_contents($file, json_encode(['val' => $serialized, 'exp' => $exp]), LOCK_EX) !== false;
     }
 
     public function has(string $key): bool
@@ -80,6 +93,10 @@ class Cache
     public function forget(string $key): bool
     {
         if ($this->db !== null && $this->db->isAlive()) {
+            if ($this->db->getDriver() === 'mongodb') {
+                $this->db->mongoDelete('cache_store', ['cache_key' => $key]);
+                return true;
+            }
             $this->db->execute("DELETE FROM cache_store WHERE cache_key = ?", [$key]);
             return true;
         }
@@ -91,6 +108,10 @@ class Cache
     public function flush(): bool
     {
         if ($this->db !== null && $this->db->isAlive()) {
+            if ($this->db->getDriver() === 'mongodb') {
+                $this->db->mongoDelete('cache_store', []);
+                return true;
+            }
             $this->db->execute("DELETE FROM cache_store");
             return true;
         }

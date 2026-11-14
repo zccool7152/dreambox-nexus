@@ -59,6 +59,24 @@ class AdminController
         return $user;
     }
 
+    private function verifyCsrf(Request $request): ?Response
+    {
+        if ($this->session !== null) {
+            $this->session->start();
+        }
+        $sessionId = $this->session ? $this->session->getId() : '';
+        if (!$this->csrf->verifyRequest($request, $sessionId)) {
+            if ($request->wantsJson()) {
+                return Response::error('CSRF token validation failed.', 419, 'CSRF_INVALID');
+            }
+            if ($this->session !== null) {
+                $this->session->flash('admin_error', 'Invalid security token (CSRF). Please retry.');
+            }
+            return Response::redirect(Request::getAppBase() . '/admin/users/');
+        }
+        return null;
+    }
+
     public function dashboard(Request $request): Response
     {
         return $this->users($request);
@@ -92,6 +110,10 @@ class AdminController
             ], 200, 'User directory retrieved.');
         }
 
+        if ($this->session !== null) {
+            $this->session->start();
+        }
+
         $appBase = Request::getAppBase();
         $html = $this->view->render('admin.users', [
             'appBase' => $appBase,
@@ -99,7 +121,7 @@ class AdminController
             'users' => $users,
             'roles' => $roles,
             'groups' => $groups,
-            'csrfToken' => $this->csrf->generate(),
+            'csrfToken' => $this->csrf->generate($this->session?->getId()),
             'nonce' => \Nexus\Security\Headers::getNonce(),
             'error' => $this->session ? $this->session->getFlash('admin_error') : null,
             'success' => $this->session ? $this->session->getFlash('admin_success') : null,
@@ -113,6 +135,11 @@ class AdminController
         $currentUser = $this->authenticateAdmin($request, 'users.manage');
         if ($currentUser === null) {
             return Response::error('Unauthorized or insufficient permissions.', 403, 'FORBIDDEN');
+        }
+
+        $csrfErr = $this->verifyCsrf($request);
+        if ($csrfErr !== null) {
+            return $csrfErr;
         }
 
         $email = strtolower(trim($request->getString('email', '')));
@@ -184,6 +211,11 @@ class AdminController
             return Response::error('Unauthorized or insufficient permissions.', 403, 'FORBIDDEN');
         }
 
+        $csrfErr = $this->verifyCsrf($request);
+        if ($csrfErr !== null) {
+            return $csrfErr;
+        }
+
         $appBase = Request::getAppBase();
         $user = $this->userRepo->findById($id);
         if ($user === null) {
@@ -250,6 +282,11 @@ class AdminController
         $currentUser = $this->authenticateAdmin($request, 'users.manage');
         if ($currentUser === null) {
             return Response::error('Unauthorized or insufficient permissions.', 403, 'FORBIDDEN');
+        }
+
+        $csrfErr = $this->verifyCsrf($request);
+        if ($csrfErr !== null) {
+            return $csrfErr;
         }
 
         $appBase = Request::getAppBase();
@@ -322,12 +359,15 @@ class AdminController
             ], 200, 'Roles and permissions retrieved.');
         }
 
+        if ($this->session !== null) {
+            $this->session->start();
+        }
         $html = $this->view->render('admin.roles', [
             'appBase' => Request::getAppBase(),
             'currentUser' => $currentUser,
             'roles' => $roles,
             'permissions' => $permissions,
-            'csrfToken' => $this->csrf->generate(),
+            'csrfToken' => $this->csrf->generate($this->session?->getId()),
         ]);
 
         return new Response($html, 200, ['Content-Type' => 'text/html; charset=UTF-8']);
@@ -356,12 +396,15 @@ class AdminController
             ], 200, 'Identity groups retrieved.');
         }
 
+        if ($this->session !== null) {
+            $this->session->start();
+        }
         $html = $this->view->render('admin.groups', [
             'appBase' => Request::getAppBase(),
             'currentUser' => $currentUser,
             'groups' => $groups,
             'roles' => $roles,
-            'csrfToken' => $this->csrf->generate(),
+            'csrfToken' => $this->csrf->generate($this->session?->getId()),
         ]);
 
         return new Response($html, 200, ['Content-Type' => 'text/html; charset=UTF-8']);
@@ -390,12 +433,15 @@ class AdminController
             ], 200, 'Audit trail retrieved.');
         }
 
+        if ($this->session !== null) {
+            $this->session->start();
+        }
         $html = $this->view->render('admin.audit', [
             'appBase' => Request::getAppBase(),
             'currentUser' => $currentUser,
             'logs' => $logs,
             'chainIntact' => $this->verifyChain($logs),
-            'csrfToken' => $this->csrf->generate(),
+            'csrfToken' => $this->csrf->generate($this->session?->getId()),
         ]);
 
         return new Response($html, 200, ['Content-Type' => 'text/html; charset=UTF-8']);

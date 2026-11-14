@@ -32,6 +32,20 @@ class Queue
             'pushed_at' => $now,
         ], JSON_THROW_ON_ERROR);
 
+        if ($this->db->getDriver() === 'mongodb') {
+            $id = bin2hex(random_bytes(8));
+            $this->db->mongoInsert('queue_jobs', [
+                'id' => $id,
+                'queue' => $targetQueue,
+                'payload' => $payload,
+                'attempts' => 0,
+                'reserved_at' => null,
+                'available_at' => $availableAt,
+                'created_at' => $now,
+            ]);
+            return $id;
+        }
+
         $sql = "INSERT INTO queue_jobs (queue, payload, attempts, available_at, created_at)
                 VALUES (?, ?, 0, ?, ?)";
 

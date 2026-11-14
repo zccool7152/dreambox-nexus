@@ -18,10 +18,10 @@ $cspNonce = (string)($nonce ?? (\Nexus\Security\Headers::getNonce() ?: ''));
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Nexus UI // Component Framework &amp; Executive Light Design System</title>
     <link rel="icon" type="image/x-icon" href="<?= htmlspecialchars($appBase) ?>/favicon.ico">
-    <link rel="icon" type="image/png" sizes="32x32" href="<?= htmlspecialchars($appBase) ?>/logos/favicon-32x32.png">
-    <link rel="icon" type="image/png" sizes="16x16" href="<?= htmlspecialchars($appBase) ?>/logos/favicon-16x16.png">
-    <link rel="apple-touch-icon" sizes="180x180" href="<?= htmlspecialchars($appBase) ?>/logos/apple-touch-icon.png">
-    <link rel="manifest" href="<?= htmlspecialchars($appBase) ?>/logos/site.webmanifest">
+    <link rel="icon" type="image/png" sizes="32x32" href="<?= htmlspecialchars($appBase) ?>/brand/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="<?= htmlspecialchars($appBase) ?>/brand/favicon-16x16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="<?= htmlspecialchars($appBase) ?>/brand/apple-touch-icon.png">
+    <link rel="manifest" href="<?= htmlspecialchars($appBase) ?>/brand/site.webmanifest">
     <link rel="stylesheet" href="<?= htmlspecialchars($appBase) ?>/css/theme.css?v=<?= htmlspecialchars($cssVersion) ?>">
 </head>
 <body>
@@ -68,7 +68,7 @@ $cspNonce = (string)($nonce ?? (\Nexus\Security\Headers::getNonce() ?: ''));
                 <div class="showcase-hero-top">
                     <div class="showcase-hero-identity">
                         <div class="rx-logo-frame">
-                            <img src="<?= htmlspecialchars($appBase) ?>/logos/logo.png" alt="Dreambox Nexus Logo" class="hero-brand-logo">
+                            <img src="<?= htmlspecialchars($appBase) ?>/brand/logo.png" alt="Dreambox Nexus Logo" class="hero-brand-logo">
                         </div>
                         <div>
                             <div class="rx-eyebrow-pill">
@@ -148,7 +148,7 @@ $cspNonce = (string)($nonce ?? (\Nexus\Security\Headers::getNonce() ?: ''));
                             <div class="col-12 col-md-4">
                                 <div class="card p-3 text-center h-100 bg-white">
                                     <div class="d-flex align-items-center justify-content-center p-3 mb-2 rounded bg-light">
-                                        <img src="<?= htmlspecialchars($appBase) ?>/logos/logo-128.png" alt="Nexus Brand 128" class="auth-brand-logo mb-0">
+                                        <img src="<?= htmlspecialchars($appBase) ?>/brand/logo-128.png" alt="Nexus Brand 128" class="auth-brand-logo mb-0">
                                     </div>
                                     <strong class="text-dark small d-block">Auth &amp; Modal Badge</strong>
                                     <span class="text-muted small">logo-128.png (128&times;128)</span>
@@ -158,7 +158,7 @@ $cspNonce = (string)($nonce ?? (\Nexus\Security\Headers::getNonce() ?: ''));
                                 <div class="card p-3 text-center h-100 bg-white">
                                     <div class="d-flex align-items-center justify-content-center p-3 mb-2 rounded bg-light">
                                         <div class="nexus-logo-icon">
-                                            <img src="<?= htmlspecialchars($appBase) ?>/logos/logo-64.png" alt="Nexus Brand 64" class="nexus-brand-img">
+                                            <img src="<?= htmlspecialchars($appBase) ?>/brand/logo-64.png" alt="Nexus Brand 64" class="nexus-brand-img">
                                         </div>
                                     </div>
                                     <strong class="text-dark small d-block">Topbar &amp; Navigation</strong>
@@ -168,9 +168,9 @@ $cspNonce = (string)($nonce ?? (\Nexus\Security\Headers::getNonce() ?: ''));
                             <div class="col-12 col-md-4">
                                 <div class="card p-3 text-center h-100 bg-white">
                                     <div class="d-flex align-items-center justify-content-center gap-3 p-3 mb-2 rounded bg-light">
-                                        <img src="<?= htmlspecialchars($appBase) ?>/logos/favicon-32x32.png" alt="Favicon 32" width="32" height="32">
-                                        <img src="<?= htmlspecialchars($appBase) ?>/logos/favicon-16x16.png" alt="Favicon 16" width="16" height="16">
-                                        <img src="<?= htmlspecialchars($appBase) ?>/logos/apple-touch-icon.png" alt="Apple Touch" width="36" height="36" class="rounded">
+                                        <img src="<?= htmlspecialchars($appBase) ?>/brand/favicon-32x32.png" alt="Favicon 32" width="32" height="32">
+                                        <img src="<?= htmlspecialchars($appBase) ?>/brand/favicon-16x16.png" alt="Favicon 16" width="16" height="16">
+                                        <img src="<?= htmlspecialchars($appBase) ?>/brand/apple-touch-icon.png" alt="Apple Touch" width="36" height="36" class="rounded">
                                     </div>
                                     <strong class="text-dark small d-block">Favicons &amp; Touch Icons</strong>
                                     <span class="text-muted small">favicon.ico + PWA manifest</span>
@@ -199,7 +199,7 @@ $cspNonce = (string)($nonce ?? (\Nexus\Security\Headers::getNonce() ?: ''));
                                 <div class="rx-header-top">
                                     <div class="rx-identity-block">
                                         <div class="rx-logo-frame">
-                                            <img src="<?= htmlspecialchars($appBase) ?>/logos/logo-128.png" alt="Executive Identity Mark" class="hero-brand-logo">
+                                            <img src="<?= htmlspecialchars($appBase) ?>/brand/logo-128.png" alt="Executive Identity Mark" class="hero-brand-logo">
                                         </div>
                                         <div class="rx-identity-text">
                                             <div class="rx-eyebrow-pill">

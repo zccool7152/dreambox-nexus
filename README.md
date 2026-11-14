@@ -70,4 +70,4 @@ php tests/run_tests.php
 ---
 
 ## License
-Proprietary & Confidential // Engineered by Timothy Dunn
+Released under the [MIT License](LICENSE). Copyright (c) 2026 Timothy Dunn - Dreambox Services LLC.

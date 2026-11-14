@@ -14,7 +14,7 @@ class GitHubProvider implements OAuthProviderInterface
     public function __construct(array $config, ?HttpClient $http = null)
     {
         $this->config = $config;
-        $this->http = $http ?? new HttpClient(10, 3, true);
+        $this->http = $http ?? new HttpClient(10, 3, false);
     }
 
     public function getName(): string
@@ -24,7 +24,8 @@ class GitHubProvider implements OAuthProviderInterface
 
     public function isMock(): bool
     {
-        return !empty($this->config['mock_enabled']);
+        return !empty($this->config['mock_enabled'])
+            && (string)\Nexus\Core\Env::get('APP_ENV', 'development') !== 'production';
     }
 
     public function getAuthorizationUrl(string $state): string

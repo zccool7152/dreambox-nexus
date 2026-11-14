@@ -70,6 +70,7 @@ class AccountController
             ], 'User profile retrieved.', 200, [], $request->getTraceId());
         }
 
+        $this->session->start();
         $html = $this->view->render('account.index', [
             'appBase' => $appBase,
             'user' => $user,
@@ -89,13 +90,13 @@ class AccountController
             return Response::error('Authentication required.', [], 401, [], $request->getTraceId());
         }
 
-        // Verify CSRF for web forms
-        if (!$request->wantsJson()) {
-            $token = $request->getString('csrf_token');
-            if (!$this->csrf->validateToken($token, $this->session->getId())) {
-                $this->session->flash('account_error', 'Invalid security token (CSRF). Please retry.');
-                return Response::redirect(Request::getAppBase() . '/account/');
+        $this->session->start();
+        if (!$this->csrf->verifyRequest($request, $this->session->getId())) {
+            if ($request->wantsJson()) {
+                return Response::error('CSRF token validation failed.', ['csrf' => ['Invalid or missing CSRF token.']], 419, [], $request->getTraceId());
             }
+            $this->session->flash('account_error', 'Invalid security token (CSRF). Please retry.');
+            return Response::redirect(Request::getAppBase() . '/account/');
         }
 
         $name = trim($request->getString('name'));
@@ -152,11 +153,15 @@ class AccountController
         // Record Audit Log
         if ($this->db !== null) {
             $auditLogger = new AuditLogger($this->db);
-            $auditLogger->record(
+            $auditLogger->log(
+                $request->getTraceId(),
+                (string)$sessionUser['id'],
                 'account.profile_updated',
-                $sessionUser['id'],
+                'users',
+                (string)$sessionUser['id'],
                 $request->getClientIp(),
                 $request->getUserAgent(),
+                null,
                 ['updated_fields' => array_keys($updateFields)]
             );
         }
@@ -179,12 +184,13 @@ class AccountController
             return Response::error('Authentication required.', [], 401, [], $request->getTraceId());
         }
 
-        if (!$request->wantsJson()) {
-            $token = $request->getString('csrf_token');
-            if (!$this->csrf->validateToken($token, $this->session->getId())) {
-                $this->session->flash('account_error', 'Invalid security token (CSRF). Please retry.');
-                return Response::redirect(Request::getAppBase() . '/account/');
+        $this->session->start();
+        if (!$this->csrf->verifyRequest($request, $this->session->getId())) {
+            if ($request->wantsJson()) {
+                return Response::error('CSRF token validation failed.', ['csrf' => ['Invalid or missing CSRF token.']], 419, [], $request->getTraceId());
             }
+            $this->session->flash('account_error', 'Invalid security token (CSRF). Please retry.');
+            return Response::redirect(Request::getAppBase() . '/account/');
         }
 
         $currentPassword = $request->getString('current_password');
@@ -238,11 +244,15 @@ class AccountController
 
         if ($this->db !== null) {
             $auditLogger = new AuditLogger($this->db);
-            $auditLogger->record(
+            $auditLogger->log(
+                $request->getTraceId(),
+                (string)$sessionUser['id'],
                 'account.password_changed',
-                $sessionUser['id'],
+                'users',
+                (string)$sessionUser['id'],
                 $request->getClientIp(),
                 $request->getUserAgent(),
+                null,
                 ['algorithm' => 'Argon2id']
             );
         }

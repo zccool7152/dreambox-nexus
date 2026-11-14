@@ -270,6 +270,9 @@ paths:
     post:
       summary: Record Granular Consent
       description: Logs affirmative user consent under GDPR Art 7.
+      security:
+        - BearerAuth: []
+        - SessionCookie: []
       requestBody:
         required: true
         content:

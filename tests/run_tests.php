@@ -734,26 +734,26 @@ $testUserRepo->delete($accountUser['id']);
 
 // 16. Site Brand Identity & Multi-Resolution Logo Assets
 echo "\n\033[1;35m[16] Site Brand Identity & Multi-Resolution Logo Assets\033[0m\n";
-$logosDir = $baseDir . '/logos';
-$assertTest('Master logo exists in logos/logo.png', file_exists($logosDir . '/logo.png'));
-$assertTest('Generated logo-512.png exists (512x512)', file_exists($logosDir . '/logo-512.png') && getimagesize($logosDir . '/logo-512.png')[0] === 512);
-$assertTest('Generated logo-256.png exists (256x256)', file_exists($logosDir . '/logo-256.png') && getimagesize($logosDir . '/logo-256.png')[0] === 256);
-$assertTest('Generated logo-128.png exists (128x128)', file_exists($logosDir . '/logo-128.png') && getimagesize($logosDir . '/logo-128.png')[0] === 128);
-$assertTest('Generated logo-64.png exists (64x64)', file_exists($logosDir . '/logo-64.png') && getimagesize($logosDir . '/logo-64.png')[0] === 64);
-$assertTest('Generated logo-32.png exists (32x32)', file_exists($logosDir . '/logo-32.png') && getimagesize($logosDir . '/logo-32.png')[0] === 32);
-$assertTest('Generated logo-16.png exists (16x16)', file_exists($logosDir . '/logo-16.png') && getimagesize($logosDir . '/logo-16.png')[0] === 16);
-$assertTest('Multi-resolution favicon.ico exists', file_exists($logosDir . '/favicon.ico'));
+$brandDir = $baseDir . '/brand';
+$assertTest('Master logo exists in brand/logo.png', file_exists($brandDir . '/logo.png'));
+$assertTest('Generated logo-512.png exists (512x512)', file_exists($brandDir . '/logo-512.png') && getimagesize($brandDir . '/logo-512.png')[0] === 512);
+$assertTest('Generated logo-256.png exists (256x256)', file_exists($brandDir . '/logo-256.png') && getimagesize($brandDir . '/logo-256.png')[0] === 256);
+$assertTest('Generated logo-128.png exists (128x128)', file_exists($brandDir . '/logo-128.png') && getimagesize($brandDir . '/logo-128.png')[0] === 128);
+$assertTest('Generated logo-64.png exists (64x64)', file_exists($brandDir . '/logo-64.png') && getimagesize($brandDir . '/logo-64.png')[0] === 64);
+$assertTest('Generated logo-32.png exists (32x32)', file_exists($brandDir . '/logo-32.png') && getimagesize($brandDir . '/logo-32.png')[0] === 32);
+$assertTest('Generated logo-16.png exists (16x16)', file_exists($brandDir . '/logo-16.png') && getimagesize($brandDir . '/logo-16.png')[0] === 16);
+$assertTest('Multi-resolution favicon.ico exists', file_exists($brandDir . '/favicon.ico'));
 $assertTest('Public root favicon.ico exists in public/favicon.ico', file_exists($baseDir . '/public/favicon.ico'));
-$assertTest('Public asset bridge public/logos symlink exists', file_exists($baseDir . '/public/logos') && is_link($baseDir . '/public/logos'));
-$assertTest('Apple Touch Icon exists (180x180)', file_exists($logosDir . '/apple-touch-icon.png') && getimagesize($logosDir . '/apple-touch-icon.png')[0] === 180);
-$assertTest('Android Chrome PWA icon exists (192x192)', file_exists($logosDir . '/android-chrome-192x192.png') && getimagesize($logosDir . '/android-chrome-192x192.png')[0] === 192);
-$assertTest('Android Chrome PWA icon exists (512x512)', file_exists($logosDir . '/android-chrome-512x512.png') && getimagesize($logosDir . '/android-chrome-512x512.png')[0] === 512);
-$assertTest('Web App Manifest site.webmanifest exists', file_exists($logosDir . '/site.webmanifest'));
-$assertTest('Topbar partial embeds real logo image', str_contains($topbarHtml, 'logos/logo-64.png') || str_contains($topbarHtml, 'logos/logo-32.png'));
+$assertTest('Public asset bridge public/brand symlink exists', file_exists($baseDir . '/public/brand') && is_link($baseDir . '/public/brand'));
+$assertTest('Apple Touch Icon exists (180x180)', file_exists($brandDir . '/apple-touch-icon.png') && getimagesize($brandDir . '/apple-touch-icon.png')[0] === 180);
+$assertTest('Android Chrome PWA icon exists (192x192)', file_exists($brandDir . '/android-chrome-192x192.png') && getimagesize($brandDir . '/android-chrome-192x192.png')[0] === 192);
+$assertTest('Android Chrome PWA icon exists (512x512)', file_exists($brandDir . '/android-chrome-512x512.png') && getimagesize($brandDir . '/android-chrome-512x512.png')[0] === 512);
+$assertTest('Web App Manifest site.webmanifest exists', file_exists($brandDir . '/site.webmanifest'));
+$assertTest('Topbar partial embeds real brand logo image', str_contains($topbarHtml, 'brand/logo-64.png') || str_contains($topbarHtml, 'brand/logo-32.png'));
 $loginHtml = file_get_contents($baseDir . '/resources/views/auth/login.php');
-$assertTest('Login view embeds brand logo image', str_contains($loginHtml, 'logos/logo-128.png') || str_contains($loginHtml, 'auth-brand-logo'));
+$assertTest('Login view embeds brand logo image', str_contains($loginHtml, 'brand/logo-128.png') || str_contains($loginHtml, 'auth-brand-logo'));
 $welcomeHtml = file_get_contents($baseDir . '/resources/views/welcome.php');
-$assertTest('Welcome landing page embeds hero brand logo', str_contains($welcomeHtml, 'logos/logo-256.png') || str_contains($welcomeHtml, 'hero-brand-logo'));
+$assertTest('Welcome landing page embeds hero brand logo', str_contains($welcomeHtml, 'brand/logo-256.png') || str_contains($welcomeHtml, 'hero-brand-logo'));
 $showcaseHtml = file_get_contents($baseDir . '/resources/views/ui/showcase.php');
 $assertTest('Showcase view contains brand assets and identity section', str_contains($showcaseHtml, 'id="branding"') && str_contains($showcaseHtml, 'Brand Assets & Responsive Identity'));
 
@@ -799,12 +799,53 @@ foreach ($trackedFiles as $relPath) {
 
 $assertTest('Zero occurrences of personal email or username in tracked files', empty($piiViolations));
 $assertTest('Sensitive meta files (.env.example, .gitignore, .githooks/pre-commit) are not tracked in Git', !in_array('.env.example', $trackedFiles, true) && !in_array('.gitignore', $trackedFiles, true) && !in_array('.githooks/pre-commit', $trackedFiles, true));
+$logosTracked = array_filter($trackedFiles, fn($f) => str_starts_with($f, 'logos/') || str_starts_with($f, 'outside assets/'));
+$assertTest('Outside assets / legacy logos directories are untracked in Git', empty($logosTracked));
 $assertTest('Git core.hooksPath is configured to .githooks', trim((string)shell_exec('git -C ' . escapeshellarg($baseDir) . ' config core.hooksPath')) === '.githooks');
 $envIgnored = trim((string)shell_exec('git -C ' . escapeshellarg($baseDir) . ' check-ignore .env'));
 $assertTest('Local .env file is protected by .gitignore', $envIgnored === '.env');
-$ignoredMetaList = array_filter(explode("\n", trim((string)shell_exec('git -C ' . escapeshellarg($baseDir) . ' check-ignore .env .env.example .gitignore .githooks'))));
-$assertTest('Local .env, .env.example, .gitignore, and .githooks are ignored by Git', count(array_intersect(['.env', '.env.example', '.gitignore', '.githooks'], $ignoredMetaList)) === 4);
+$ignoredMetaList = array_filter(explode("\n", trim((string)shell_exec('git -C ' . escapeshellarg($baseDir) . ' check-ignore .env .env.example .gitignore .githooks logos "outside assets"'))));
+$assertTest('Local .env, .env.example, .gitignore, .githooks, logos, and outside assets are ignored by Git', count(array_intersect(['.env', '.env.example', '.gitignore', '.githooks', 'logos', 'outside assets'], $ignoredMetaList)) === 6);
 $assertTest('Welcome resume view loads contact details dynamically via Env::get', str_contains($welcomeHtml, "Env::get('CONTACT_EMAIL')") && str_contains($welcomeHtml, "Env::get('CONTACT_PHONE')"));
+
+// ── Test 18: Security Hardening & Compliance Regressions ───────────────────────
+echo "\n\033[1;37m[18] Security Hardening & Compliance Regressions\033[0m\n";
+
+// 18.1 Unauthenticated GDPR requests return HTTP 401
+foreach (['/api/v1/gdpr/consent', '/api/v1/gdpr/export', '/api/v1/gdpr/erase'] as $gdprRoute) {
+    $gdprReq = new \Nexus\Core\Request('POST', $gdprRoute, ['accept' => 'application/json'], [], ['purpose' => 'analytics']);
+    $gdprRes = $app->handle($gdprReq);
+    $assertTest("Unauthenticated POST {$gdprRoute} returns HTTP 401", $gdprRes->getStatusCode() === 401);
+}
+
+// 18.2 X-Trace-Id header sanitization in Request::capture()
+$prevServer = $_SERVER;
+$_SERVER['REQUEST_METHOD'] = 'GET';
+$_SERVER['REQUEST_URI'] = '/health';
+$_SERVER['HTTP_X_TRACE_ID'] = '<script>alert(1)</script>';
+$badTraceReq = \Nexus\Core\Request::capture();
+$assertTest(
+    'Request::capture() rejects malicious X-Trace-Id header and generates UUIDv4 fallback',
+    preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i', $badTraceReq->getTraceId()) === 1
+);
+$_SERVER['HTTP_X_TRACE_ID'] = 'trace-valid_123';
+$goodTraceReq = \Nexus\Core\Request::capture();
+$assertTest('Request::capture() preserves valid alphanumeric X-Trace-Id header', $goodTraceReq->getTraceId() === 'trace-valid_123');
+$_SERVER = $prevServer;
+
+// 18.3 Cache safe deserialization (allowed_classes => false)
+$tmpCacheDir = sys_get_temp_dir() . '/nexus_cache_sec_' . uniqid();
+$secCache = new \Nexus\Cache\Cache(null, $tmpCacheDir);
+$secCache->put('obj_probe', new \stdClass(), 60);
+$cachedObj = $secCache->get('obj_probe');
+$assertTest(
+    'Cache::get() disallows PHP object instantiation during unserialize()',
+    $cachedObj instanceof \__PHP_Incomplete_Class && !($cachedObj instanceof \stdClass)
+);
+$secCache->forget('obj_probe');
+if (is_dir($tmpCacheDir)) {
+    @rmdir($tmpCacheDir);
+}
 
 // ── Summary ─────────────────────────────────────────────────────────────────
 echo "\n\033[1;36m════════════════════════════════════════════════════════════════\033[0m\n";

@@ -38,8 +38,8 @@ class Headers implements MiddlewareInterface
         // 3. Inject Security Headers
         $isProduction = (string)\Nexus\Core\Env::get('APP_ENV', 'local') === 'production';
         $scriptSrc = $isProduction
-            ? "script-src 'self' 'unsafe-inline' '{$requestNonceHeader}';"
-            : "script-src 'self' 'unsafe-inline' 'unsafe-eval' '{$requestNonceHeader}';";
+            ? "script-src 'self' '{$requestNonceHeader}';"
+            : "script-src 'self' 'unsafe-eval' '{$requestNonceHeader}';";
 
         $headers = [
             'X-Frame-Options' => 'DENY',

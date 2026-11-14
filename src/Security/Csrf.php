@@ -21,7 +21,14 @@ class Csrf implements MiddlewareInterface
 
     public function generate(?string $sessionId = null): string
     {
-        return $this->generateToken($sessionId ?? (session_id() ?: 'default_session'));
+        if (session_status() === PHP_SESSION_NONE && !headers_sent()) {
+            @session_start();
+        }
+        $resolvedId = ($sessionId !== null && $sessionId !== '')
+            ? $sessionId
+            : (session_id() ?: ($_COOKIE['nexus_session'] ?? 'default_session'));
+
+        return $this->generateToken($resolvedId);
     }
 
     public function generateToken(string $sessionId): string
@@ -37,10 +44,32 @@ class Csrf implements MiddlewareInterface
             return false;
         }
 
+        $resolvedId = $sessionId !== ''
+            ? $sessionId
+            : (session_id() ?: ($_COOKIE['nexus_session'] ?? 'default_session'));
+
         [$entropy, $hmac] = explode('.', $token, 2);
-        $expectedHmac = hash_hmac('sha256', $sessionId . '|' . $entropy, $this->secret);
+        $expectedHmac = hash_hmac('sha256', $resolvedId . '|' . $entropy, $this->secret);
 
         return hash_equals($expectedHmac, $hmac);
+    }
+
+    public function verifyRequest(Request $request, string $sessionId = ''): bool
+    {
+        if ($request->getBearerToken() !== null) {
+            return true;
+        }
+
+        $token = $request->getHeader('x-csrf-token') ?? (string)($request->get('csrf_token') ?: $request->get('_token', ''));
+        if ($token !== '') {
+            return $this->validateToken($token, $sessionId) || $this->validateToken($token, 'default_session');
+        }
+
+        if (!empty($_COOKIE['nexus_session'])) {
+            return false;
+        }
+
+        return true;
     }
 
     public function handle(Request $request, callable $next): Response
@@ -50,15 +79,8 @@ class Csrf implements MiddlewareInterface
             return $next($request);
         }
 
-        // Check if API Bearer token is present (stateless API bypass)
-        if ($request->getBearerToken() !== null) {
-            return $next($request);
-        }
-
         $sessionId = $_COOKIE['nexus_session'] ?? '';
-        $token = $request->getHeader('x-csrf-token') ?? (string)$request->get('_token', '');
-
-        if (!$this->validateToken($token, $sessionId)) {
+        if (!$this->verifyRequest($request, $sessionId)) {
             return Response::error(
                 'CSRF token validation failed or token expired.',
                 ['csrf' => ['Invalid or missing CSRF token.']],

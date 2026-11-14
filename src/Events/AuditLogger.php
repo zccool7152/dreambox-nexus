@@ -433,12 +433,13 @@ class AuditLogger
     {
         $dir = dirname($this->ledgerFile);
         if (!is_dir($dir)) {
-            @mkdir($dir, 0777, true);
+            @mkdir($dir, 0750, true);
         }
 
         file_put_contents(
             $this->ledgerFile,
-            json_encode($entries, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)
+            json_encode($entries, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
+            LOCK_EX
         );
     }
 }

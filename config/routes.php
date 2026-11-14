@@ -339,29 +339,58 @@ $router->get('/nexus/admin', function (Request $req) use ($getAdminController) {
 }, [], 'admin.nexus_alias');
 
 // ── GDPR & Data Subject Rights ───────────────────────────────────────────────
-$router->post('/api/v1/gdpr/consent', function (Request $req) use ($app) {
+$authorizeGdpr = function (Request $req) use ($app): array {
     /** @var Database $db */
     $db = $app->getContainer()->make(Database::class);
-    $consentMgr = new ConsentManager($db);
-    $consentMgr->recordConsent($req->getString('user_id', 'anon'), $req->getString('purpose', 'analytics'), $req->getString('version', 'v1.0'), $req);
+    $session = new \Nexus\Security\Session($db);
+    $hasher = new \Nexus\Crypto\Hasher();
+    $auth = new \Nexus\Auth\Auth($session, $hasher, $db);
+    $user = $auth->user($req);
+
+    if ($user === null) {
+        return ['db' => $db, 'error' => Response::error('Authentication required.', [], 401, [], $req->getTraceId())];
+    }
+
+    $targetUserId = $req->getString('user_id', (string)$user['id']);
+    $roles = (array)($user['roles'] ?? []);
+    $isPrivileged = in_array('SuperAdmin', $roles, true) || in_array('SecurityOfficer', $roles, true);
+
+    if ($targetUserId !== (string)$user['id'] && !$isPrivileged) {
+        return ['db' => $db, 'error' => Response::error('Forbidden: You may only manage GDPR data for your own identity.', [], 403, [], $req->getTraceId())];
+    }
+
+    return ['db' => $db, 'user_id' => $targetUserId, 'error' => null];
+};
+
+$router->post('/api/v1/gdpr/consent', function (Request $req) use ($authorizeGdpr) {
+    $ctx = $authorizeGdpr($req);
+    if ($ctx['error'] !== null) {
+        return $ctx['error'];
+    }
+    $consentMgr = new ConsentManager($ctx['db']);
+    $consentMgr->recordConsent($ctx['user_id'], $req->getString('purpose', 'analytics'), $req->getString('version', 'v1.0'), $req);
     return Response::json(['consent_logged' => true], 'Consent recorded.', 200, [], $req->getTraceId());
 }, [], 'gdpr.consent');
 
-$router->post('/api/v1/gdpr/export', function (Request $req) use ($app) {
-    /** @var Database $db */
-    $db = $app->getContainer()->make(Database::class);
+$router->post('/api/v1/gdpr/export', function (Request $req) use ($authorizeGdpr, $app) {
+    $ctx = $authorizeGdpr($req);
+    if ($ctx['error'] !== null) {
+        return $ctx['error'];
+    }
     $storage = new Storage($app->getBasePath() . '/storage/app');
-    $gdpr = new GdprManager($db, $storage);
-    $data = $gdpr->exportData($req->getString('user_id', '1'));
+    $gdpr = new GdprManager($ctx['db'], $storage);
+    $data = $gdpr->exportData($ctx['user_id']);
     return Response::json($data, 'Data portability export generated.', 200, [], $req->getTraceId());
 }, [], 'gdpr.export');
 
-$router->post('/api/v1/gdpr/erase', function (Request $req) use ($app) {
-    /** @var Database $db */
-    $db = $app->getContainer()->make(Database::class);
+$router->post('/api/v1/gdpr/erase', function (Request $req) use ($authorizeGdpr, $app) {
+    $ctx = $authorizeGdpr($req);
+    if ($ctx['error'] !== null) {
+        return $ctx['error'];
+    }
     $storage = new Storage($app->getBasePath() . '/storage/app');
-    $gdpr = new GdprManager($db, $storage);
-    $gdpr->eraseData($req->getString('user_id', '1'));
+    $gdpr = new GdprManager($ctx['db'], $storage);
+    $gdpr->eraseData($ctx['user_id']);
     return Response::json(['erased' => true], 'Right to be forgotten completed (data shredded).', 200, [], $req->getTraceId());
 }, [], 'gdpr.erase');
 

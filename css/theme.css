@@ -6,7 +6,7 @@
 
 
 :root, :root[data-theme=light], :root[data-theme=dark] {
-    --logo: url("../logos/logo-512.png");
+    --logo: url("../brand/logo-512.png");
     --bg: #f4f7fb;
     --bg2: #ffffff;
     --card: rgba(255, 255, 255, .88);
@@ -184,7 +184,7 @@ h2{font-size:1.9rem;letter-spacing:-.025em;line-height:1.2}
 /* nav */
 .breadcrumb{display:flex;gap:.5rem;list-style:none;padding:0;font-size:.84rem;color:var(--mu)}
 .breadcrumb-item+.breadcrumb-item::before{content:"/";margin-right:.5rem;opacity:.5}.breadcrumb-item.active{color:var(--tx)}.breadcrumb a:hover{color:var(--pri)}
-.nav-tabs{display:flex;gap:.2rem;list-style:none;padding:0;border-bottom:1px solid var(--line);overflow-x:auto}
+.nav-tabs{display:flex;flex-wrap:wrap;gap:.2rem;list-style:none;padding:0;border-bottom:1px solid var(--line);overflow:visible}
 .nav-link{display:block;padding:.75rem 1rem;color:var(--mu);font-weight:600;font-size:.86rem;border-bottom:2px solid transparent;margin-bottom:-1px;cursor:pointer;white-space:nowrap;transition:.2s}
 .nav-link:hover{color:var(--tx)}.nav-link.active{color:var(--pri);border-color:var(--pri);text-shadow:0 0 18px var(--pri)}
 .tab-pane{display:none;padding-top:1.2rem}.tab-pane.active{display:block;animation:in .35s}
@@ -1426,10 +1426,11 @@ footer {
 /* Compliance Framework Tabs */
 .comp-tabs {
     display: flex;
-    gap: 0.5rem;
-    border-bottom: 1px solid var(--line);
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    border-bottom: 1px solid #dbe4f0;
     margin-bottom: 1.75rem;
-    overflow-x: auto;
+    overflow: visible;
     padding-bottom: 1px;
 }
 
@@ -2142,36 +2143,43 @@ tbody tr:hover {
 /* Navigation & Tabs */
 .tabs {
     display: flex;
-    gap: 0.5rem;
-    border-bottom: 1px solid var(--line);
-    margin-bottom: 2rem;
-    overflow-x: auto;
-    padding-bottom: 1px;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem;
+    border-bottom: 1px solid #dbe4f0;
+    margin-bottom: 1.75rem;
+    overflow: visible;
+    padding-bottom: 0;
 }
 
 .tab-btn {
-    padding: 0.65rem 1.25rem;
-    border: none;
-    background: none;
-    font-size: 0.875rem;
+    padding: 0.65rem 1rem;
+    border: 1px solid transparent;
+    border-top: 2px solid transparent;
+    border-bottom: 0;
+    background: transparent;
+    font-size: 0.84rem;
     font-weight: 600;
     color: var(--mu);
     cursor: pointer;
-    border-bottom: 2px solid transparent;
-    transition: all 0.2s ease;
+    transition: all 0.18s ease;
     white-space: nowrap;
-    border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+    border-radius: 10px 10px 0 0;
+    margin-bottom: -1px;
 }
 
 .tab-btn:hover {
-    color: var(--pri);
-    background: var(--primary-subtle);
+    color: #0369a1;
+    background: #f0f9ff;
 }
 
 .tab-btn.active {
-    color: var(--pri);
-    border-bottom-color: var(--pri);
+    color: #0369a1;
+    font-weight: 700;
     background: #ffffff;
+    border-color: #dbe4f0 #dbe4f0 #ffffff;
+    border-top: 2px solid #0369a1;
+    box-shadow: 0 -4px 12px -6px rgba(3, 105, 161, 0.22);
 }
 
 .tab-pane {
@@ -5232,12 +5240,13 @@ main.resume-wrapper {
 /* Interactive Tabs & Panes */
 .nav-tabs {
     display: flex;
+    flex-wrap: wrap;
     gap: 2px;
     margin: 0;
     padding: 0;
     list-style: none;
     border-bottom: 1px solid #e2e8f0;
-    overflow-x: auto;
+    overflow: visible;
 }
 
 .nav-link {
@@ -5492,6 +5501,371 @@ footer.rx-footer {
     color: #64748b;
     font-size: 0.84rem;
     text-align: center;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   20. Universal Platinum Sapphire Executive Sheet Unification
+   Harmonizes Monitor HUD, Compliance Matrix, OpenAPI Docs, Health Probe,
+   Account Self-Service, IAM Admin Console, and Auth Hubs with the Resume Sheet.
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+.alert:empty {
+    display: none;
+}
+
+.otp-input {
+    width: 100%;
+    padding: 0.8rem 1rem;
+    border: 1px solid #cbd5e1;
+    border-radius: var(--radius-md);
+    background: #f8fafc;
+    color: #0f172a;
+    margin-bottom: 1.15rem;
+    transition: border-color 0.16s ease, box-shadow 0.16s ease, background 0.16s ease;
+}
+
+.otp-input:focus {
+    outline: none;
+    background: #ffffff;
+    border-color: #0369a1;
+    box-shadow: 0 0 0 3px rgba(3, 105, 161, 0.16);
+}
+
+/* Unified .rx-sheet Container Treatment */
+body > main:not(.resume-wrapper):not(.showcase-content),
+body > .container,
+.auth-container {
+    position: relative;
+    background: #ffffff;
+    border: 1px solid #d6e0ec;
+    border-radius: 18px;
+    box-shadow:
+        0 28px 64px -22px rgba(15, 23, 42, 0.16),
+        0 10px 26px -10px rgba(3, 105, 161, 0.12),
+        inset 0 1px 0 #ffffff;
+    max-width: 1240px;
+    width: calc(100% - 2.5rem);
+    margin: 1.75rem auto 3rem;
+    padding: 2rem 2.25rem 2.5rem;
+}
+
+body > main:not(.resume-wrapper):not(.showcase-content)::before,
+body > .container::before,
+.auth-container::before,
+body > header:not(.nexus-topbar)::before {
+    content: "";
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 4px;
+    border-radius: 18px 18px 0 0;
+    background: linear-gradient(90deg, #0369a1 0%, #1d4ed8 55%, #059669 100%);
+    z-index: 3;
+    pointer-events: none;
+}
+
+/* Narrow Executive Sheet for Authentication & 2FA Flows */
+.auth-container {
+    max-width: 500px;
+    margin: 3rem auto;
+    padding: 2.25rem 2.5rem;
+}
+
+body > .container:has(.otp-input),
+body > .container:has(#pwdForm) {
+    max-width: 560px;
+    margin: 3rem auto;
+    padding: 2.25rem 2.5rem;
+}
+
+/* Paired Header + Main Sheet Fusion (OpenAPI Docs & Health Diagnostics) */
+body > header:not(.nexus-topbar) {
+    position: relative;
+    max-width: 1240px;
+    width: calc(100% - 2.5rem);
+    margin: 1.75rem auto 0;
+    padding: 1.15rem 2.25rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+    background:
+        radial-gradient(640px 240px at 94% -12%, rgba(14, 165, 233, 0.16), transparent 65%),
+        linear-gradient(135deg, #ffffff 0%, #f0f9ff 62%, #ecfdf5 100%);
+    border: 1px solid #d6e0ec;
+    border-bottom: 1px solid #cbd5e1;
+    border-radius: 18px 18px 0 0;
+    box-shadow: 0 14px 32px -20px rgba(15, 23, 42, 0.14);
+}
+
+body > header:not(.nexus-topbar) + main {
+    margin-top: 0;
+    border-top: 0;
+    border-radius: 0 0 18px 18px;
+}
+
+body > header:not(.nexus-topbar) + main::before {
+    display: none;
+}
+
+/* Platinum Sapphire Executive Header Banners Inside Sheets */
+.hud-header,
+.admin-header,
+.profile-hero,
+body > main:not(.resume-wrapper):not(.showcase-content) > .hero,
+.status-hero {
+    margin: -2rem -2.25rem 1.75rem -2.25rem;
+    padding: 28px 36px;
+    border-radius: 18px 18px 0 0;
+    border: 0;
+    border-bottom: 1px solid #cbd5e1;
+    background:
+        radial-gradient(640px 260px at 94% -12%, rgba(14, 165, 233, 0.18), transparent 65%),
+        radial-gradient(500px 240px at 6% 112%, rgba(16, 185, 129, 0.12), transparent 70%),
+        linear-gradient(135deg, #ffffff 0%, #f0f9ff 62%, #ecfdf5 100%);
+    box-shadow: none;
+    position: relative;
+}
+
+.auth-container .auth-header {
+    margin: -2.25rem -2.5rem 1.75rem -2.5rem;
+    padding: 2rem 2rem 1.5rem;
+    border-radius: 18px 18px 0 0;
+    border-bottom: 1px solid #cbd5e1;
+    background:
+        radial-gradient(420px 200px at 94% -12%, rgba(14, 165, 233, 0.16), transparent 65%),
+        linear-gradient(135deg, #ffffff 0%, #f0f9ff 62%, #ecfdf5 100%);
+}
+
+body > header:not(.nexus-topbar) + main > .hero,
+body > header:not(.nexus-topbar) + main > .status-hero {
+    border-radius: 0;
+}
+
+body > main:not(.resume-wrapper):not(.showcase-content) > .hero {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+    text-align: left;
+}
+
+body > main:not(.resume-wrapper):not(.showcase-content) > .hero h1 {
+    font-size: clamp(1.55rem, 2.5vw, 2.05rem);
+    margin: 0 0 0.45rem 0;
+    color: #0f172a;
+}
+
+body > main:not(.resume-wrapper):not(.showcase-content) > .hero p {
+    margin: 0;
+    max-width: 70ch;
+    font-size: 0.96rem;
+    color: #334155;
+}
+
+.hud-header h1,
+.admin-header h1 {
+    color: #0f172a;
+    letter-spacing: -0.025em;
+}
+
+.hud-header p {
+    color: #475569;
+    font-size: 0.92rem;
+    margin: 0.25rem 0 0;
+}
+
+/* Monitor & Compliance Tab Strip without Horizontal Scrollbars */
+body > main:not(.resume-wrapper):not(.showcase-content) .tabs {
+    margin: 0 -2.25rem 1.75rem -2.25rem;
+    padding: 0.65rem 2.25rem 0;
+    background: #f8fbff;
+    border-bottom: 1px solid #dbe4f0;
+    flex-wrap: wrap;
+    overflow: visible;
+    gap: 0.25rem;
+}
+
+body > main:not(.resume-wrapper):not(.showcase-content) .hud-header + .tabs {
+    margin-top: -1.75rem;
+}
+
+body > main:not(.resume-wrapper):not(.showcase-content) .tabs .tab-btn {
+    padding: 0.62rem 0.9rem;
+    font-size: 0.82rem;
+}
+
+/* Admin Navigation Strip inside Sheet */
+.admin-nav {
+    margin: -0.25rem 0 1.75rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.admin-nav .nav-link {
+    background: #f8fafc;
+    border: 1px solid #dbe4f0;
+    color: #334155;
+    box-shadow: 0 2px 5px rgba(15, 23, 42, 0.04);
+}
+
+.admin-nav .nav-link:hover,
+.admin-nav .nav-link.active {
+    background: #e0f2fe;
+    border-color: #0369a1;
+    color: #0369a1;
+}
+
+/* KPI & Telemetry Metric Cards matching .rx-kpi-item */
+.grid-cards > .card,
+.grid > .card,
+.scorecard-grid > .score-card,
+.hud-grid-vitals > .hud-card {
+    background: linear-gradient(160deg, #ffffff 0%, #f8fafc 100%);
+    border: 1px solid #d6e0ec;
+    border-top: 3px solid #0369a1;
+    border-radius: 12px;
+    padding: 1.25rem 1.35rem;
+    box-shadow: 0 10px 24px -14px rgba(15, 23, 42, 0.16), inset 0 1px 0 #ffffff;
+    transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+    height: auto;
+}
+
+.grid-cards > .card:hover,
+.grid > .card:hover,
+.scorecard-grid > .score-card:hover,
+.hud-grid-vitals > .hud-card:hover {
+    transform: translateY(-2px);
+    border-color: #7dd3fc;
+    border-top-color: #0369a1;
+    box-shadow: 0 16px 32px -14px rgba(3, 105, 161, 0.24), inset 0 1px 0 #ffffff;
+}
+
+.grid-cards > .card .card-header {
+    padding: 0 0 0.65rem 0;
+    margin-bottom: 0.75rem;
+    background: transparent;
+    border-bottom: 1px solid #eef2f7;
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #475569;
+}
+
+.grid-cards > .card .metric-value,
+.hud-card .hud-card-value {
+    font-size: 1.85rem;
+    font-weight: 800;
+    letter-spacing: -0.025em;
+    background: linear-gradient(125deg, #0f172a 0%, #0369a1 55%, #059669 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin: 0.2rem 0 0.35rem;
+}
+
+/* Tables, Content Panels & Cards matching .rx-project-card */
+.data-table-wrapper,
+.table-card,
+.table-wrapper,
+.nexus-table-card,
+.framework-summary,
+.group-card,
+.endpoint-row,
+.account-card {
+    background: #ffffff;
+    border: 1px solid #dbe4f0;
+    border-radius: 12px;
+    box-shadow: 0 10px 24px -16px rgba(15, 23, 42, 0.14);
+}
+
+.framework-summary,
+.endpoint-row {
+    background: #f8fafc;
+}
+
+.data-table-wrapper,
+.table-card,
+.table-wrapper,
+.nexus-table-card {
+    overflow-x: auto;
+}
+
+.data-table-wrapper > .p-3,
+.table-card > .p-3 {
+    background: #f3f5fb;
+    border-bottom: 1px solid #dbe4f0 !important;
+    color: #0f172a;
+}
+
+.data-table-wrapper thead th,
+.table-card thead th,
+.table-wrapper thead th {
+    background: #f3f5fb;
+    color: #334155;
+    border-bottom: 1px solid #dbe4f0;
+}
+
+.data-table-wrapper tbody tr:hover,
+.table-card tbody tr:hover,
+.table-wrapper tbody tr:hover {
+    background: #f0f9ff;
+}
+
+.account-card .card-header {
+    background: transparent;
+    padding: 0 0 1.1rem 0;
+    margin-bottom: 1.25rem;
+    border-bottom: 1px solid #e2e8f0;
+    justify-content: flex-start;
+}
+
+.group-card:hover,
+.endpoint-row:hover {
+    border-color: #7dd3fc;
+    box-shadow: 0 12px 26px -16px rgba(8, 145, 178, 0.32);
+}
+
+body > footer {
+    margin: 0 auto 2.5rem;
+    padding: 0.75rem 1.25rem;
+    border-top: 0;
+    background: transparent;
+    max-width: 1240px;
+    justify-content: center;
+}
+
+@media (max-width: 768px) {
+    body > main:not(.resume-wrapper):not(.showcase-content),
+    body > .container,
+    body > header:not(.nexus-topbar) {
+        width: calc(100% - 1.25rem);
+        padding: 1.25rem 1.1rem 1.75rem;
+    }
+
+    body > header:not(.nexus-topbar) {
+        padding: 1rem 1.1rem;
+    }
+
+    .hud-header,
+    .admin-header,
+    .profile-hero,
+    body > main:not(.resume-wrapper):not(.showcase-content) > .hero,
+    .status-hero {
+        margin: -1.25rem -1.1rem 1.25rem -1.1rem;
+        padding: 20px 18px;
+    }
+
+    body > main:not(.resume-wrapper):not(.showcase-content) .tabs {
+        margin: 0 -1.1rem 1.25rem -1.1rem;
+        padding: 0.5rem 1.1rem 0;
+    }
+
+    body > main:not(.resume-wrapper):not(.showcase-content) .hud-header + .tabs {
+        margin-top: -1.25rem;
+    }
 }
 
 /* Print Optimization */

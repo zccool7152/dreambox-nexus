@@ -57,10 +57,10 @@ $isDeveloper = $isSuperAdmin || in_array('Developer', $userRoles, true) || in_ar
 ?>
 
 <link rel="icon" type="image/x-icon" href="<?= htmlspecialchars($appBase) ?>/favicon.ico">
-<link rel="icon" type="image/png" sizes="32x32" href="<?= htmlspecialchars($appBase) ?>/logos/favicon-32x32.png">
-<link rel="icon" type="image/png" sizes="16x16" href="<?= htmlspecialchars($appBase) ?>/logos/favicon-16x16.png">
-<link rel="apple-touch-icon" sizes="180x180" href="<?= htmlspecialchars($appBase) ?>/logos/apple-touch-icon.png">
-<link rel="manifest" href="<?= htmlspecialchars($appBase) ?>/logos/site.webmanifest">
+<link rel="icon" type="image/png" sizes="32x32" href="<?= htmlspecialchars($appBase) ?>/brand/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="<?= htmlspecialchars($appBase) ?>/brand/favicon-16x16.png">
+<link rel="apple-touch-icon" sizes="180x180" href="<?= htmlspecialchars($appBase) ?>/brand/apple-touch-icon.png">
+<link rel="manifest" href="<?= htmlspecialchars($appBase) ?>/brand/site.webmanifest">
 <link rel="stylesheet" href="<?= htmlspecialchars($appBase) ?>/css/theme.css?v=<?= file_exists(dirname(__DIR__, 2) . '/css/theme.css') ? filemtime(dirname(__DIR__, 2) . '/css/theme.css') : time() ?>">
 <script nonce="<?= $nonce ?? '' ?>">
 (function(){
@@ -74,7 +74,7 @@ $isDeveloper = $isSuperAdmin || in_array('Developer', $userRoles, true) || in_ar
         <!-- Brand / Logo on Left -->
         <a href="<?= $appBase ?>/" class="nexus-brand" title="Dreambox Nexus Application Gateway">
             <div class="nexus-logo-icon">
-                <img src="<?= htmlspecialchars($appBase) ?>/logos/logo-64.png" alt="Dreambox Nexus Logo" class="nexus-brand-img">
+                <img src="<?= htmlspecialchars($appBase) ?>/brand/logo-64.png" alt="Dreambox Nexus Logo" class="nexus-brand-img">
             </div>
             <div class="nexus-brand-text">
                 <span class="nexus-brand-title">Dreambox Nexus</span>

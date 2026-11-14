@@ -149,8 +149,11 @@ class Request
             }
         }
 
-        // Trace ID header pass-through or generation
-        $traceId = $headers['x-request-id'] ?? $headers['x-trace-id'] ?? null;
+        // Trace ID header pass-through (validated) or generation
+        $rawTrace = $headers['x-request-id'] ?? $headers['x-trace-id'] ?? null;
+        $traceId = ($rawTrace !== null && preg_match('/^[a-zA-Z0-9\-_]{1,64}$/', (string)$rawTrace) === 1)
+            ? (string)$rawTrace
+            : self::generateUuidV4();
 
         return new static($method, $uri, $headers, $queryParams, $body, $rawBody, $clientIp, $traceId, $path);
     }

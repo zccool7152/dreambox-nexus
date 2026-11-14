@@ -47,14 +47,28 @@ class AuthController
         $this->csrf = $csrf;
     }
 
+    private function verifyCsrf(Request $request, string $redirectPath, string $flashKey = 'auth_error'): ?Response
+    {
+        $this->session->start();
+        if (!$this->csrf->verifyRequest($request, $this->session->getId())) {
+            if ($request->wantsJson()) {
+                return Response::error('CSRF token validation failed.', 419, 'CSRF_INVALID');
+            }
+            $this->session->flash($flashKey, 'Invalid security token (CSRF). Please retry.');
+            return Response::redirect(Request::getAppBase() . $redirectPath);
+        }
+        return null;
+    }
+
     public function showLogin(Request $request): Response
     {
         if ($this->auth->check($request)) {
             return Response::redirect(Request::getAppBase() . '/admin/');
         }
 
+        $this->session->start();
         $appBase = Request::getAppBase();
-        $csrfToken = $this->csrf->generate();
+        $csrfToken = $this->csrf->generate($this->session->getId());
         $html = $this->view->render('auth.login', [
             'appBase' => $appBase,
             'csrfToken' => $csrfToken,
@@ -68,6 +82,11 @@ class AuthController
 
     public function login(Request $request): Response
     {
+        $csrfErr = $this->verifyCsrf($request, '/auth/login/', 'auth_error');
+        if ($csrfErr !== null) {
+            return $csrfErr;
+        }
+
         $email = strtolower(trim($request->getString('email', '')));
         $password = $request->getString('password', '');
         $ip = $request->getClientIp();
@@ -98,11 +117,7 @@ class AuthController
 
         $validPassword = false;
         if ($user !== null && !empty($user['password_hash'])) {
-            if ($hasher->verify($password, $user['password_hash'])) {
-                $validPassword = true;
-            } elseif (!empty($user['must_change_password']) && ($password === '123qweasd' || $password === 'admin@nexus.local')) {
-                $validPassword = true;
-            }
+            $validPassword = $hasher->verify($password, $user['password_hash']);
         }
 
         if (!$validPassword) {
@@ -177,7 +192,7 @@ class AuthController
             'user' => $user,
             'secret' => $secret,
             'qrSvg' => $qrSvg,
-            'csrfToken' => $this->csrf->generate(),
+            'csrfToken' => $this->csrf->generate($this->session->getId()),
             'error' => $this->session->getFlash('mfa_error'),
         ]);
 
@@ -186,7 +201,11 @@ class AuthController
 
     public function processSetup2fa(Request $request): Response
     {
-        $this->session->start();
+        $csrfErr = $this->verifyCsrf($request, '/auth/2fa/setup/', 'mfa_error');
+        if ($csrfErr !== null) {
+            return $csrfErr;
+        }
+
         $userId = $this->session->get('pending_auth_user_id');
         $secret = $this->session->get('pending_totp_secret');
         $code = trim($request->getString('code', ''));
@@ -200,13 +219,38 @@ class AuthController
             return Response::error('Session expired. Please log in again.', 401);
         }
 
-        if (empty($code) || !$this->mfa->verifyCode($secret, $code)) {
+        $user = $this->userRepo->findById($userId);
+        if ($user === null) {
+            if (!$request->wantsJson()) {
+                $this->session->flash('auth_error', 'User identity not found.');
+                return Response::redirect($appBase . '/auth/login/');
+            }
+            return Response::error('User identity not found.', 404);
+        }
+
+        if ($this->lockout->isLocked($user['email'])) {
+            $rem = $this->lockout->getLockoutRemainingSeconds($user['email']);
+            $mins = ceil($rem / 60);
+            $msg = "Account is locked due to repeated failed verification attempts. Try again in {$mins} minutes.";
+            if (!$request->wantsJson()) {
+                $this->session->flash('mfa_error', $msg);
+                return Response::redirect($appBase . '/auth/2fa/setup/');
+            }
+            return Response::error($msg, 423, 'ACCOUNT_LOCKED');
+        }
+
+        $isReplay = $this->session->get('last_verified_totp_code') === $code;
+        if (empty($code) || $isReplay || !$this->mfa->verifyCode($secret, $code)) {
+            $this->lockout->recordFailedAttempt($user['email'], $request->getClientIp());
             if (!$request->wantsJson()) {
                 $this->session->flash('mfa_error', 'Invalid verification code from Google Authenticator.');
                 return Response::redirect($appBase . '/auth/2fa/setup/');
             }
             return Response::error('Invalid verification code from Google Authenticator.', 422);
         }
+
+        $this->lockout->resetAttempts($user['email']);
+        $this->session->set('last_verified_totp_code', $code);
 
         $recoveryCodes = $this->mfa->generateRecoveryCodes(8);
         $this->userRepo->update($userId, [
@@ -263,7 +307,7 @@ class AuthController
         $html = $this->view->render('auth.totp', [
             'appBase' => Request::getAppBase(),
             'user' => $user,
-            'csrfToken' => $this->csrf->generate(),
+            'csrfToken' => $this->csrf->generate($this->session->getId()),
             'error' => $this->session->getFlash('mfa_error'),
         ]);
 
@@ -272,7 +316,11 @@ class AuthController
 
     public function verifyTotp(Request $request): Response
     {
-        $this->session->start();
+        $csrfErr = $this->verifyCsrf($request, '/auth/2fa/', 'mfa_error');
+        if ($csrfErr !== null) {
+            return $csrfErr;
+        }
+
         $userId = $this->session->get('pending_auth_user_id');
         $code = trim($request->getString('code', ''));
         $appBase = Request::getAppBase();
@@ -294,11 +342,24 @@ class AuthController
             return Response::error('User identity not found.', 404);
         }
 
+        if ($this->lockout->isLocked($user['email'])) {
+            $rem = $this->lockout->getLockoutRemainingSeconds($user['email']);
+            $mins = ceil($rem / 60);
+            $msg = "Account is locked due to repeated failed verification attempts. Try again in {$mins} minutes.";
+            if (!$request->wantsJson()) {
+                $this->session->flash('mfa_error', $msg);
+                return Response::redirect($appBase . '/auth/2fa/');
+            }
+            return Response::error($msg, 423, 'ACCOUNT_LOCKED');
+        }
+
         $secret = $user['totp_secret'] ?? '';
         $verified = false;
+        $isReplay = $this->session->get('last_verified_totp_code') === $code;
 
-        if (!empty($secret) && $this->mfa->verifyCode($secret, $code)) {
+        if (!empty($secret) && !$isReplay && $this->mfa->verifyCode($secret, $code)) {
             $verified = true;
+            $this->session->set('last_verified_totp_code', $code);
         } else {
             // Check emergency recovery codes
             $recCodes = $user['recovery_codes'] ?? [];
@@ -311,12 +372,15 @@ class AuthController
         }
 
         if (!$verified) {
+            $this->lockout->recordFailedAttempt($user['email'], $request->getClientIp());
             if (!$request->wantsJson()) {
                 $this->session->flash('mfa_error', 'Invalid Google Authenticator verification code.');
                 return Response::redirect($appBase . '/auth/2fa/');
             }
             return Response::error('Invalid Google Authenticator verification code.', 401);
         }
+
+        $this->lockout->resetAttempts($user['email']);
 
         $this->session->remove('pending_auth_user_id');
         $mustChange = !empty($user['must_change_password']);
@@ -353,10 +417,11 @@ class AuthController
             return Response::redirect(Request::getAppBase() . '/auth/login/');
         }
 
+        $this->session->start();
         $html = $this->view->render('auth.change_password', [
             'appBase' => Request::getAppBase(),
             'user' => $user,
-            'csrfToken' => $this->csrf->generate(),
+            'csrfToken' => $this->csrf->generate($this->session->getId()),
             'error' => $this->session->getFlash('pwd_error'),
         ]);
 
@@ -365,6 +430,11 @@ class AuthController
 
     public function changePassword(Request $request): Response
     {
+        $csrfErr = $this->verifyCsrf($request, '/auth/password/change/', 'pwd_error');
+        if ($csrfErr !== null) {
+            return $csrfErr;
+        }
+
         $user = $this->auth->user($request);
         $appBase = Request::getAppBase();
 
@@ -496,7 +566,13 @@ class AuthController
                 return Response::redirect(Request::getAppBase() . '/auth/login/');
             }
 
-            // Sign in directly (OAuth handles external MFA)
+            if (!empty($user['is_2fa_enabled'])) {
+                $this->session->start();
+                $this->session->set('pending_auth_user_id', $user['id']);
+                return Response::redirect(Request::getAppBase() . '/auth/2fa/');
+            }
+
+            $mustChange = !empty($user['must_change_password']);
             $this->auth->loginWithSession(
                 $user['id'],
                 $user['email'],
@@ -504,7 +580,7 @@ class AuthController
                 $user['roles'] ?? ['Member'],
                 $user['avatar_url'] ?? '',
                 $user['auth_provider'] ?? 'email',
-                false,
+                $mustChange,
                 $user['username'] ?? '',
                 $user['display_preference'] ?? 'name',
                 $user['groups'] ?? []
@@ -512,7 +588,7 @@ class AuthController
 
             $roles = (array)($user['roles'] ?? ['Member']);
             $isAdmin = in_array('SuperAdmin', $roles, true) || in_array('Admin', $roles, true) || in_array('SecurityOfficer', $roles, true);
-            $destination = $isAdmin ? '/admin/' : '/account/';
+            $destination = $mustChange ? '/auth/password/change/' : ($isAdmin ? '/admin/' : '/account/');
 
             return Response::redirect(Request::getAppBase() . $destination);
         } catch (\Throwable $e) {
