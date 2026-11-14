@@ -76,8 +76,8 @@ class App
 
         // 6. Register Default Global Defense-in-Depth Middleware Stack
         $this->globalMiddleware = [
-            new Cors(),
             new Headers(),
+            new Cors(),
             new RateLimiter($db, 120, 60),
         ];
     }

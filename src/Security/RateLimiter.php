@@ -103,25 +103,43 @@ class RateLimiter implements MiddlewareInterface
 
         if (!$this->db->isSql()) {
             try {
-                $row = $this->db->mongoFindOne('rate_limits', ['key_id' => $key]);
-                if (!$row) {
-                    $this->db->mongoInsert('rate_limits', [
+                // 1. Atomically increment an active (non-expired) window if one exists
+                $res = $this->db->mongoCommand([
+                    'findAndModify' => 'rate_limits',
+                    'query' => [
                         'key_id' => $key,
-                        'hits' => 1,
-                        'reset_at' => $resetAt,
-                    ]);
-                    return ['hits' => 1, 'reset_at' => $resetAt];
-                }
-
-                $isExpired = (int)($row['reset_at'] ?? 0) < $now;
-                $hits = $isExpired ? 1 : ((int)($row['hits'] ?? 0) + 1);
-                $newResetAt = $isExpired ? $resetAt : (int)($row['reset_at'] ?? $resetAt);
-
-                $this->db->mongoUpdate('rate_limits', ['key_id' => $key], [
-                    '$set' => ['hits' => $hits, 'reset_at' => $newResetAt]
+                        'reset_at' => ['$gte' => $now],
+                    ],
+                    'update' => [
+                        '$inc' => ['hits' => 1],
+                    ],
+                    'new' => true,
                 ]);
 
-                return ['hits' => $hits, 'reset_at' => $newResetAt];
+                $doc = isset($res[0]->value) && $res[0]->value !== null ? (array)$res[0]->value : null;
+
+                // 2. If no active window exists (missing or expired), atomically reset/upsert the window
+                if ($doc === null) {
+                    $res = $this->db->mongoCommand([
+                        'findAndModify' => 'rate_limits',
+                        'query' => ['key_id' => $key],
+                        'update' => [
+                            '$set' => [
+                                'key_id' => $key,
+                                'hits' => 1,
+                                'reset_at' => $resetAt,
+                            ],
+                        ],
+                        'upsert' => true,
+                        'new' => true,
+                    ]);
+                    $doc = isset($res[0]->value) && $res[0]->value !== null ? (array)$res[0]->value : null;
+                }
+
+                return [
+                    'hits' => (int)($doc['hits'] ?? 1),
+                    'reset_at' => (int)($doc['reset_at'] ?? $resetAt),
+                ];
             } catch (\Throwable) {
                 return $this->fileIncrement($key, $now);
             }

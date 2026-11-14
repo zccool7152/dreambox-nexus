@@ -130,12 +130,14 @@ class AuditLogger
                 'created_at' => $timestamp,
             ];
 
-            // 4. Persist to active database if online
-            $this->persistToDatabase($entry);
+            // 4. Persist to active database if online and keep file ledger strictly synchronized
+            $dbOnline = $this->db !== null && $this->db->isAlive();
+            $dbPersisted = $dbOnline ? $this->persistToDatabase($entry) : false;
 
-            // 5. Persist to resilient local ledger file
-            $existing[] = $entry;
-            $this->saveFileLedger($existing);
+            if (!$dbOnline || $dbPersisted) {
+                $existing[] = $entry;
+                $this->saveFileLedger($existing);
+            }
 
             return $currentHash;
         });
@@ -221,47 +223,80 @@ class AuditLogger
     }
 
     /**
-     * Retrieve all audit logs ordered ascending by sequence/ID.
+     * Retrieve all audit logs ordered ascending by sequence/ID and keep file & DB ledgers synchronized.
      */
     private function getAllLogsAscending(): array
     {
-        // 1. Try relational SQL if alive
-        if ($this->db !== null && $this->db->isAlive() && $this->db->isSql()) {
-            try {
-                $rows = $this->db->fetchAll("SELECT * FROM audit_logs ORDER BY id ASC");
-                if (!empty($rows)) {
-                    return $rows;
-                }
-            } catch (\Throwable) {}
-        }
+        $fileLogs = $this->getFileLedger();
 
-        // 2. Try MongoDB if alive
-        if ($this->db !== null && $this->db->isAlive() && $this->db->getDriver() === 'mongodb') {
-            try {
-                $docs = $this->db->mongoFind('audit_logs', [], ['sort' => ['id' => 1]]);
-                if (!empty($docs)) {
-                    return array_map(fn($d) => (array)$d, $docs);
+        if ($this->db !== null && $this->db->isAlive()) {
+            $dbLogs = [];
+            $dbQueried = false;
+
+            // 1. Try relational SQL if alive
+            if ($this->db->isSql()) {
+                try {
+                    $dbLogs = $this->db->fetchAll("SELECT * FROM audit_logs ORDER BY id ASC");
+                    $dbQueried = true;
+                } catch (\Throwable) {}
+            // 2. Try MongoDB if alive
+            } elseif ($this->db->getDriver() === 'mongodb') {
+                try {
+                    $docs = $this->db->mongoFind('audit_logs', [], ['sort' => ['id' => 1]]);
+                    $dbLogs = array_map(fn($d) => (array)$d, $docs);
+                    $dbQueried = true;
+                } catch (\Throwable) {}
+            }
+
+            if ($dbQueried) {
+                $lastDb = !empty($dbLogs) ? end($dbLogs) : null;
+                $lastFile = !empty($fileLogs) ? end($fileLogs) : null;
+                $maxDbId = $lastDb ? (int)($lastDb['id'] ?? 0) : 0;
+                $maxFileId = $lastFile ? (int)($lastFile['id'] ?? 0) : 0;
+
+                // Replay any offline-recorded file entries into DB so sequence IDs never fork
+                if ($maxFileId > $maxDbId) {
+                    foreach ($fileLogs as $entry) {
+                        if ((int)($entry['id'] ?? 0) > $maxDbId) {
+                            if (!$this->persistToDatabase($entry)) {
+                                return $fileLogs;
+                            }
+                        }
+                    }
+                    return $fileLogs;
                 }
-            } catch (\Throwable) {}
+
+                // Sync file ledger up to DB state if DB is ahead
+                if ($maxDbId > $maxFileId && !empty($dbLogs)) {
+                    $this->saveFileLedger($dbLogs);
+                }
+
+                if (!empty($dbLogs)) {
+                    return $dbLogs;
+                }
+            }
         }
 
         // 3. Fallback to resilient file-backed ledger
-        return $this->getFileLedger();
+        return $fileLogs;
     }
 
     /**
-     * Persist record to SQL or MongoDB.
+     * Persist record to SQL or MongoDB. Returns true only if actually persisted.
      */
-    private function persistToDatabase(array $entry): void
+    private function persistToDatabase(array $entry): bool
     {
         if ($this->db === null || !$this->db->isAlive()) {
-            return;
+            return false;
         }
 
         try {
             if ($this->db->getDriver() === 'mongodb') {
                 $this->db->mongoInsert('audit_logs', $entry);
-            } elseif ($this->db->isSql()) {
+                return true;
+            }
+
+            if ($this->db->isSql()) {
                 $sql = "INSERT INTO audit_logs (
                     trace_id, user_id, action, resource, resource_id,
                     ip_address, user_agent, payload_before, payload_after,
@@ -281,8 +316,13 @@ class AuditLogger
                     $entry['hash'],
                     $entry['created_at'],
                 ]);
+                return true;
             }
-        } catch (\Throwable) {}
+        } catch (\Throwable) {
+            return false;
+        }
+
+        return false;
     }
 
     /**

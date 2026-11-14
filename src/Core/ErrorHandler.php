@@ -87,6 +87,7 @@ class ErrorHandler
     public static function redactSensitiveData(string $content): string
     {
         $patterns = [
+            '/([a-zA-Z][a-zA-Z0-9+.-]*:\/\/)([^:\/\s@]+):([^@\s\/]+)@/i' => '$1[REDACTED]:[REDACTED]@',
             '/(password|secret|token|key|authorization|pan|ssn|dsn)\s*[=:]\s*[\'"][^\'"]+[\'"]/i' => '$1="[REDACTED]"',
             '/(password|secret|token|key|authorization|pan|ssn|dsn)\s*[=:]\s*[^,\s&]+/i' => '$1=[REDACTED]',
             '/Bearer\s+[A-Za-z0-9\-\._~\+\/]+=*/i' => 'Bearer [REDACTED]',

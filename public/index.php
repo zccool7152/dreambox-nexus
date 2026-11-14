@@ -22,8 +22,8 @@ $app = new \Nexus\Core\App($baseDir);
 
 // 3. Attach Global Defense-in-Depth Middleware Stack
 $trustedProxies = explode(',', (string)\Nexus\Core\Env::get('TRUSTED_PROXIES', '127.0.0.1,::1'));
-$app->use(new \Nexus\Security\Cors());
 $app->use(new \Nexus\Security\Headers());
+$app->use(new \Nexus\Security\Cors());
 $app->use(new \Nexus\Security\RateLimiter($app->getContainer()->make(\Nexus\Database\Database::class), 120, 60));
 
 // 4. Capture Ingress Request

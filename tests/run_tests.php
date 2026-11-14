@@ -1133,6 +1133,100 @@ $assertTest(
     !str_contains($healthSrc, 'new Database(') && $healthHtmlRes->getStatusCode() === 200
 );
 
+// 18.17 Headers middleware wraps Cors on OPTIONS preflight responses
+$preflightReq = new \Nexus\Core\Request(
+    'OPTIONS',
+    '/api/v1/health',
+    ['origin' => 'http://localhost', 'access-control-request-method' => 'POST'],
+    [],
+    [],
+    '',
+    '127.0.0.1'
+);
+$preflightRes = $app->handle($preflightReq);
+$assertTest(
+    'App OPTIONS preflight includes both CORS headers and Headers security headers',
+    $preflightRes->getStatusCode() === 204
+    && $preflightRes->getHeader('access-control-allow-methods') !== null
+    && $preflightRes->getHeader('x-content-type-options') === 'nosniff'
+    && $preflightRes->getHeader('x-frame-options') === 'DENY'
+);
+
+// 18.18 RateLimiter uses atomic MongoDB findAndModify instead of mongoFindOne + mongoUpdate
+$rateLimiterSrc = (string)file_get_contents($baseDir . '/src/Security/RateLimiter.php');
+$assertTest(
+    'RateLimiter::dbIncrement uses atomic findAndModify via mongoCommand without mongoFindOne',
+    str_contains($rateLimiterSrc, "'findAndModify' => 'rate_limits'")
+    && str_contains($rateLimiterSrc, 'mongoCommand(')
+    && !str_contains($rateLimiterSrc, 'mongoFindOne(')
+);
+
+// 18.19 ErrorHandler URI credential redaction and .env.example safe debug default
+$redactedDsn = \Nexus\Core\ErrorHandler::redactSensitiveData(
+    'Connection failed for mongodb://admin:superSecret123@127.0.0.1:27017/nexus and mysql://root:dbPass!99@localhost/app'
+);
+$envExampleRaw = file_exists($baseDir . '/.env.example') ? (string)file_get_contents($baseDir . '/.env.example') : '';
+$assertTest(
+    'ErrorHandler scrubs URI credentials and .env.example defaults APP_DEBUG=false',
+    str_contains($redactedDsn, 'mongodb://[REDACTED]:[REDACTED]@127.0.0.1:27017/nexus')
+    && str_contains($redactedDsn, 'mysql://[REDACTED]:[REDACTED]@localhost/app')
+    && !str_contains($redactedDsn, 'superSecret123')
+    && !str_contains($redactedDsn, 'dbPass!99')
+    && ($envExampleRaw === '' || str_contains($envExampleRaw, 'APP_DEBUG=false'))
+);
+
+// 18.20 AuditLogger file/DB ledger synchronization without sequence ID forks
+$syncLedgerFile = $baseDir . '/storage/logs/audit_chain_sync_test.json';
+@unlink($syncLedgerFile);
+@unlink($syncLedgerFile . '.lock');
+// Step A: Log while offline to create file entry
+$offlineLogger = new \Nexus\Events\AuditLogger(null, $syncLedgerFile);
+$offlineLogger->log('trace-sync-1', 'usr_1', 'OFFLINE_EVENT', 'audit', '1', '127.0.0.1', 'TestAgent');
+// Step B: Active DB comes online with empty audit_logs -> reconciles offline file entry
+$mockMongoAuditDb = new class(['driver' => 'mongodb']) extends \Nexus\Database\Database {
+    public bool $failWrites = false;
+    public array $docs = [];
+    public function isAlive(): bool { return true; }
+    public function isSql(): bool { return false; }
+    public function getDriver(): string { return 'mongodb'; }
+    public function mongoCount(string $collection, array $filter = []): int {
+        return count($this->docs);
+    }
+    public function mongoFind(string $collection, array $filter = [], array $options = []): array {
+        return array_map(fn($d) => (object)$d, $this->docs);
+    }
+    public function mongoInsert(string $collection, array $document): string {
+        if ($this->failWrites) {
+            throw new \RuntimeException('Simulated transient MongoDB write failure');
+        }
+        $this->docs[] = $document;
+        return (string)count($this->docs);
+    }
+};
+$onlineLogger = new \Nexus\Events\AuditLogger($mockMongoAuditDb, $syncLedgerFile);
+$onlineLogger->log('trace-sync-2', 'usr_1', 'ONLINE_EVENT', 'audit', '2', '127.0.0.1', 'TestAgent');
+$dbRowsAfterSync = $mockMongoAuditDb->docs;
+$fileRowsAfterSync = json_decode((string)file_get_contents($syncLedgerFile), true);
+$chainCheck = $onlineLogger->verifyChain();
+// Step C: Simulate active DB failure -> file ledger must NOT advance ahead of active DB
+$mockMongoAuditDb->failWrites = true;
+$onlineLogger->log('trace-sync-3', 'usr_1', 'SHOULD_NOT_FORK', 'audit', '3', '127.0.0.1', 'TestAgent');
+$fileRowsAfterDbError = json_decode((string)file_get_contents($syncLedgerFile), true);
+$assertTest(
+    'AuditLogger reconciles offline file entries into DB and prevents file/DB sequence forks on DB error',
+    count($dbRowsAfterSync) === 7
+    && count($fileRowsAfterSync) === 7
+    && (int)($dbRowsAfterSync[6]['id'] ?? 0) === 7
+    && ($dbRowsAfterSync[6]['trace_id'] ?? '') === 'trace-sync-2'
+    && ($dbRowsAfterSync[6]['previous_hash'] ?? '') === ($dbRowsAfterSync[5]['hash'] ?? '')
+    && ($chainCheck['intact'] ?? false) === true
+    && ($chainCheck['total_verified'] ?? 0) === 7
+    && count($mockMongoAuditDb->docs) === 7
+    && count($fileRowsAfterDbError) === 7
+);
+@unlink($syncLedgerFile);
+@unlink($syncLedgerFile . '.lock');
+
 // Clean temporary session/rate artifacts created during test run
 foreach (glob($baseDir . '/storage/sessions/sess_*') ?: [] as $sf) {
     @unlink($sf);
