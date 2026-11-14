@@ -51,6 +51,17 @@ class QueryBuilder
         return $this;
     }
 
+    public static function escapeLike(string $value): string
+    {
+        return str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $value);
+    }
+
+    public function whereLike(string $column, string $search, bool $not = false): static
+    {
+        $escaped = '%' . self::escapeLike($search) . '%';
+        return $this->where($column, $not ? 'NOT LIKE' : 'LIKE', $escaped);
+    }
+
     public function whereIn(string $column, array $values): static
     {
         if (empty($values)) {
@@ -86,8 +97,11 @@ class QueryBuilder
     public function orderBy(string $column, string $direction = 'ASC'): static
     {
         $quotedCol = $this->db->assertIdentifier($column);
-        $dir = strtoupper($direction) === 'DESC' ? 'DESC' : 'ASC';
-        $this->orderBy = "{$quotedCol} {$dir}";
+        $upperDir = strtoupper(trim($direction));
+        if (!in_array($upperDir, ['ASC', 'DESC'], true)) {
+            throw new InvalidArgumentException("Invalid ORDER BY direction: '{$direction}'");
+        }
+        $this->orderBy = "{$quotedCol} {$upperDir}";
         return $this;
     }
 

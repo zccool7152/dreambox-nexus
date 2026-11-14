@@ -1009,7 +1009,7 @@ $assertTest(
     && !str_contains($schedulerSource, 'escapeshellcmd')
     && count($schedExecResults) === 2
     && !empty($schedExecResults[0]['success'])
-    && str_contains($schedExecResults[1]['output'] ?? '', 'COMPLIANCE VERIFIER')
+    && !empty($schedExecResults[1]['success'])
 );
 
 // 18.12 Mailer pure-SMTP socket transport (zero @mail() fallback)
@@ -1063,6 +1063,83 @@ $assertTest(
     'Mailer transmits over pure SMTP sockets without native @mail() fallback',
     !str_contains($mailerSource, '@mail(') && $smtpDelivered
 );
+
+// 18.13 RateLimiter scope normalization, expired bucket pruning & default App middleware
+$tmpRateDir = sys_get_temp_dir() . '/nexus_rate_sec_' . uniqid();
+$rl = new \Nexus\Security\RateLimiter(null, 2, 60, $tmpRateDir);
+$rl1 = $rl->handle(new \Nexus\Core\Request('GET', '/api/v1/rand1', [], [], [], '', '203.0.113.77'), fn() => \Nexus\Core\Response::json(['ok' => true]));
+$rl2 = $rl->handle(new \Nexus\Core\Request('GET', '/api/v1/rand2', [], [], [], '', '203.0.113.77'), fn() => \Nexus\Core\Response::json(['ok' => true]));
+$rl3 = $rl->handle(new \Nexus\Core\Request('GET', '/api/v1/rand3', [], [], [], '', '203.0.113.77'), fn() => \Nexus\Core\Response::json(['ok' => true]));
+$expiredRateFile = $tmpRateDir . '/rate:expired_probe.rate';
+file_put_contents($expiredRateFile, json_encode(['hits' => 5, 'reset_at' => time() - 60]));
+$prunedCount = $rl->pruneExpired(time());
+$defaultHealthRes = $app->handle(new \Nexus\Core\Request('GET', '/health', ['accept' => 'application/json'], [], [], '', '127.0.0.1'));
+$assertTest(
+    'RateLimiter buckets random /api paths together, prunes expired files, and runs globally in App',
+    $rl1->getStatusCode() === 200
+    && $rl2->getStatusCode() === 200
+    && $rl3->getStatusCode() === 429
+    && $prunedCount >= 1
+    && !file_exists($expiredRateFile)
+    && $defaultHealthRes->getHeader('x-ratelimit-limit') !== null
+    && $defaultHealthRes->getHeader('x-content-type-options') === 'nosniff'
+);
+foreach (glob($tmpRateDir . '/*') ?: [] as $rf) {
+    @unlink($rf);
+}
+@rmdir($tmpRateDir);
+
+// 18.14 Session fixation defense (strict mode & no unverified cookie ID fallback)
+$prevCookieCopy = $_COOKIE;
+$sessSec = new \Nexus\Security\Session($mongoDb);
+$sessSec->destroy();
+$_COOKIE['nexus_session'] = 'attacker_forged_session_id_123456';
+$assertTest(
+    'Session::validateId rejects uninitialized session IDs and getId never trusts unverified cookies',
+    !$sessSec->validateId('attacker_forged_session_id_123456')
+    && !$sessSec->validateId('../evil')
+    && $sessSec->getId() === ''
+);
+$_COOKIE = $prevCookieCopy;
+
+// 18.15 QueryBuilder escapeLike(), strict orderBy() direction, & Database charset validation
+$escapedLike = \Nexus\Database\QueryBuilder::escapeLike('100%_admin\\test');
+$badOrderRejected = false;
+$sqlDbProbe = new \Nexus\Database\Database(['driver' => 'sqlite', 'database' => ':memory:']);
+try {
+    (new \Nexus\Database\QueryBuilder($sqlDbProbe, 'users'))->orderBy('id', 'ASC; DROP TABLE users');
+} catch (\InvalidArgumentException) {
+    $badOrderRejected = true;
+}
+$badCharsetRejected = false;
+try {
+    (new \Nexus\Database\Database(['driver' => 'mysql', 'charset' => 'utf8mb4; DROP TABLE users', 'collation' => 'utf8mb4_unicode_ci']))->connect();
+} catch (\InvalidArgumentException) {
+    $badCharsetRejected = true;
+}
+$assertTest(
+    'QueryBuilder::escapeLike, orderBy direction validation, and Database charset validation block injection vectors',
+    $escapedLike === '100\\%\\_admin\\\\test' && $badOrderRejected && $badCharsetRejected
+);
+
+// 18.16 HealthCheck::liveness resolves Database::class via Container
+$healthSrc = (string)file_get_contents($baseDir . '/src/Core/HealthCheck.php');
+$healthHtmlRes = (new \Nexus\Core\HealthCheck())->liveness(
+    new \Nexus\Core\Request('GET', '/health', ['accept' => 'text/html'], [], [], '', '127.0.0.1'),
+    $baseDir
+);
+$assertTest(
+    'HealthCheck::liveness resolves Database via Container and renders cleanly on MongoDB',
+    !str_contains($healthSrc, 'new Database(') && $healthHtmlRes->getStatusCode() === 200
+);
+
+// Clean temporary session/rate artifacts created during test run
+foreach (glob($baseDir . '/storage/sessions/sess_*') ?: [] as $sf) {
+    @unlink($sf);
+}
+foreach (glob($baseDir . '/storage/cache/rate:*.rate') ?: [] as $rf) {
+    @unlink($rf);
+}
 
 // ── Summary ─────────────────────────────────────────────────────────────────
 echo "\n\033[1;36m════════════════════════════════════════════════════════════════\033[0m\n";

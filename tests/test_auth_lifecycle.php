@@ -177,6 +177,13 @@ $userRepo->update('usr_admin_tim', [
     'totp_secret' => null,
     'recovery_codes' => [],
 ]);
+$session->destroy();
+foreach (glob(dirname(__DIR__) . '/storage/sessions/sess_*') ?: [] as $sf) {
+    @unlink($sf);
+}
+foreach (glob(dirname(__DIR__) . '/storage/cache/rate:*.rate') ?: [] as $rf) {
+    @unlink($rf);
+}
 echo "  ℹ Reset admin@nexus.local back to temporary password (123qweasd, must_change_password=true, is_2fa_enabled=0) for user browser testing\n";
 
 echo "════════════════════════════════════════════════════════════════\n";

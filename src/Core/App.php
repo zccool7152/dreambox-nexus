@@ -73,6 +73,13 @@ class App
         // 5. Register Translator
         $translator = new Translator($this->basePath . '/lang', (string)Env::get('APP_LOCALE', 'en'));
         $this->container->instance(Translator::class, $translator);
+
+        // 6. Register Default Global Defense-in-Depth Middleware Stack
+        $this->globalMiddleware = [
+            new Cors(),
+            new Headers(),
+            new RateLimiter($db, 120, 60),
+        ];
     }
 
     public function getContainer(): Container
@@ -92,6 +99,15 @@ class App
 
     public function use(mixed $middleware): static
     {
+        if (is_object($middleware)) {
+            $class = get_class($middleware);
+            foreach ($this->globalMiddleware as $idx => $existing) {
+                if (is_object($existing) && get_class($existing) === $class) {
+                    $this->globalMiddleware[$idx] = $middleware;
+                    return $this;
+                }
+            }
+        }
         $this->globalMiddleware[] = $middleware;
         return $this;
     }

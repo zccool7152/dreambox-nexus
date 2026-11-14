@@ -20,7 +20,8 @@ class HealthCheck
         if (!$wantsJson && str_contains($accept, 'text/html') && $baseDir !== null) {
             $user = null;
             try {
-                $db = new Database();
+                /** @var Database $db */
+                $db = Container::getInstance()->make(Database::class);
                 $session = new \Nexus\Security\Session($db);
                 $hasher = new \Nexus\Crypto\Hasher();
                 $auth = new \Nexus\Auth\Auth($session, $hasher, $db);

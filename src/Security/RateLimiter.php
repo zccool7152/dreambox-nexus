@@ -30,10 +30,33 @@ class RateLimiter implements MiddlewareInterface
         $this->storagePath = $storagePath ?? dirname(__DIR__, 2) . '/storage/cache';
     }
 
+    public function resolveBucketScope(string $path): string
+    {
+        $normalized = '/' . ltrim(strtolower($path), '/');
+        if (str_starts_with($normalized, '/api/') || $normalized === '/api') {
+            return 'api';
+        }
+        if (str_starts_with($normalized, '/auth/') || $normalized === '/auth') {
+            return 'auth';
+        }
+        if (str_starts_with($normalized, '/admin/') || $normalized === '/admin') {
+            return 'admin';
+        }
+        if (str_starts_with($normalized, '/nexus/') || $normalized === '/nexus') {
+            return 'monitor';
+        }
+        return 'web';
+    }
+
     public function handle(Request $request, callable $next): Response
     {
-        $key = 'rate:' . hash('sha256', $request->getClientIp() . '|' . $request->getPath());
+        $scope = $this->resolveBucketScope($request->getPath());
+        $key = 'rate:' . hash('sha256', $request->getClientIp() . '|' . $scope);
         $now = time();
+
+        if (random_int(1, 50) === 1) {
+            $this->pruneExpired($now);
+        }
 
         $rateData = $this->incrementAndGetHits($key, $now);
         $remaining = max(0, $this->maxAttempts - $rateData['hits']);
@@ -166,6 +189,38 @@ class RateLimiter implements MiddlewareInterface
         fclose($fp);
 
         return ['hits' => $hits, 'reset_at' => $resetAt];
+    }
+
+    public function pruneExpired(?int $now = null): int
+    {
+        $now = $now ?? time();
+        $pruned = 0;
+
+        if ($this->db !== null && $this->db->isAlive()) {
+            try {
+                if (!$this->db->isSql()) {
+                    $pruned += $this->db->mongoDelete('rate_limits', ['reset_at' => ['$lt' => $now]]);
+                } else {
+                    $pruned += $this->db->execute("DELETE FROM rate_limits WHERE reset_at < ?", [$now]);
+                }
+            } catch (\Throwable) {
+                // Continue file pruning even if DB prune fails
+            }
+        }
+
+        if (is_dir($this->storagePath)) {
+            foreach (glob($this->storagePath . '/rate:*.rate') ?: [] as $file) {
+                $raw = (string)@file_get_contents($file);
+                $data = json_decode($raw, true);
+                if (!is_array($data) || ((int)($data['reset_at'] ?? 0)) < $now) {
+                    if (@unlink($file)) {
+                        $pruned++;
+                    }
+                }
+            }
+        }
+
+        return $pruned;
     }
 }
 

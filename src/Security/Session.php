@@ -13,11 +13,13 @@ use SessionHandlerInterface;
  * automated session fixation regeneration, and database-backed (MongoDB/SQL)
  * session persistence compliant with PCI-DSS Req 3.5 & NIST PR.DS-1.
  */
-class Session implements SessionHandlerInterface
+class Session implements SessionHandlerInterface, \SessionUpdateTimestampHandlerInterface
 {
     private ?Database $db;
     private int $idleTimeoutSeconds;
     private bool $secureCookie;
+    private bool $uninitializedSessionRead = false;
+    private static string $cliSessionId = '';
 
     /**
      * Dynamically evaluate whether the incoming request or deployment is secure.
@@ -82,7 +84,7 @@ class Session implements SessionHandlerInterface
     {
         if (session_status() === PHP_SESSION_ACTIVE) {
             if (session_id() !== '') {
-                $_COOKIE['nexus_session'] = session_id();
+                self::$cliSessionId = session_id();
             }
             return;
         }
@@ -113,12 +115,12 @@ class Session implements SessionHandlerInterface
             ]);
 
             @session_name('nexus_session');
-
-            if (!empty($_COOKIE['nexus_session']) && preg_match('/^[a-zA-Z0-9,-]{16,128}$/', (string)$_COOKIE['nexus_session'])) {
-                @session_id((string)$_COOKIE['nexus_session']);
-            }
-
             @session_start();
+
+            if ($this->uninitializedSessionRead && session_status() === PHP_SESSION_ACTIVE) {
+                @session_regenerate_id(true);
+                $this->uninitializedSessionRead = false;
+            }
         }
 
         if (!isset($_SESSION) || !is_array($_SESSION)) {
@@ -126,9 +128,9 @@ class Session implements SessionHandlerInterface
         }
 
         if (session_id() !== '') {
-            $_COOKIE['nexus_session'] = session_id();
-        } elseif (empty($_COOKIE['nexus_session']) || !preg_match('/^[a-zA-Z0-9,-]{16,128}$/', (string)$_COOKIE['nexus_session'])) {
-            $_COOKIE['nexus_session'] = bin2hex(random_bytes(16));
+            self::$cliSessionId = session_id();
+        } elseif (self::$cliSessionId === '') {
+            self::$cliSessionId = bin2hex(random_bytes(16));
         }
 
         // Enforce HIPAA Inactivity Timeout
@@ -143,18 +145,14 @@ class Session implements SessionHandlerInterface
             if (!isset($_SESSION) || !is_array($_SESSION)) {
                 $_SESSION = [];
             }
-            if (session_id() !== '') {
-                $_COOKIE['nexus_session'] = session_id();
-            } else {
-                $_COOKIE['nexus_session'] = bin2hex(random_bytes(16));
-            }
+            self::$cliSessionId = session_id() ?: bin2hex(random_bytes(16));
             $_SESSION['__timeout_expired'] = true;
         }
 
         $_SESSION['__last_activity'] = $now;
     }
 
-    // ── SessionHandlerInterface Methods ──────────────────────────────────────────
+    // ── SessionHandlerInterface & SessionUpdateTimestampHandlerInterface Methods ─
 
     public function open(string $path, string $name): bool
     {
@@ -166,12 +164,44 @@ class Session implements SessionHandlerInterface
         return true;
     }
 
+    public function validateId(string $id): bool
+    {
+        if (!preg_match('/^[a-zA-Z0-9,-]{16,128}$/', $id)) {
+            return false;
+        }
+
+        if ($this->isDbActive() && $this->db->getDriver() === 'mongodb') {
+            try {
+                return $this->db->mongoFindOne('sessions', ['session_id' => $id]) !== null;
+            } catch (\Throwable) {
+                return false;
+            }
+        }
+
+        $file = dirname(__DIR__, 2) . '/storage/sessions/sess_' . $id;
+        return is_file($file);
+    }
+
+    public function updateTimestamp(string $id, string $data): bool
+    {
+        return $this->write($id, $data);
+    }
+
     public function read(string $id): string|false
     {
         if ($this->isDbActive() && $this->db->getDriver() === 'mongodb') {
             try {
                 $doc = $this->db->mongoFindOne('sessions', ['session_id' => $id]);
-                return $doc ? (string)($doc['data'] ?? '') : '';
+                if (!$doc) {
+                    if ((bool)ini_get('session.use_strict_mode')) {
+                        $this->uninitializedSessionRead = true;
+                        if (session_status() === PHP_SESSION_ACTIVE && !headers_sent()) {
+                            @session_regenerate_id(true);
+                        }
+                    }
+                    return '';
+                }
+                return (string)($doc['data'] ?? '');
             } catch (\Throwable) {
                 return '';
             }
@@ -232,7 +262,7 @@ class Session implements SessionHandlerInterface
         if (session_status() === PHP_SESSION_ACTIVE) {
             $currentId = session_id();
             $_SESSION = [];
-            if (ini_get("session.use_cookies")) {
+            if (ini_get("session.use_cookies") && !headers_sent()) {
                 $params = session_get_cookie_params();
                 setcookie(
                     session_name(),
@@ -251,6 +281,7 @@ class Session implements SessionHandlerInterface
             }
         }
 
+        self::$cliSessionId = '';
         unset($_COOKIE['nexus_session']);
 
         return true;
@@ -282,11 +313,9 @@ class Session implements SessionHandlerInterface
     {
         if (session_status() === PHP_SESSION_ACTIVE && !headers_sent()) {
             @session_regenerate_id(true);
-            if (session_id() !== '') {
-                $_COOKIE['nexus_session'] = session_id();
-            }
-        } elseif (!empty($_COOKIE['nexus_session'])) {
-            $_COOKIE['nexus_session'] = bin2hex(random_bytes(16));
+            self::$cliSessionId = session_id();
+        } else {
+            self::$cliSessionId = bin2hex(random_bytes(16));
         }
     }
 
@@ -326,6 +355,6 @@ class Session implements SessionHandlerInterface
 
     public function getId(): string
     {
-        return session_id() ?: (string)($_COOKIE['nexus_session'] ?? '');
+        return session_id() ?: self::$cliSessionId;
     }
 }

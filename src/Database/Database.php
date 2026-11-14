@@ -89,7 +89,12 @@ class Database
                 $host = $this->config['host'] ?? '127.0.0.1';
                 $port = $this->config['port'] ?? 3306;
                 $database = $this->config['database'] ?? 'dreambox_nexus';
-                $charset = $this->config['charset'] ?? 'utf8mb4';
+                $charset = (string)($this->config['charset'] ?? 'utf8mb4');
+                $collation = (string)($this->config['collation'] ?? 'utf8mb4_unicode_ci');
+
+                if (!preg_match('/^[a-zA-Z0-9_]+$/', $charset) || !preg_match('/^[a-zA-Z0-9_]+$/', $collation)) {
+                    throw new InvalidArgumentException("Invalid database charset or collation identifier.");
+                }
 
                 $dsn = "mysql:host={$host};port={$port};dbname={$database};charset={$charset}";
 
@@ -107,7 +112,6 @@ class Database
                     $options
                 );
 
-                $collation = $this->config['collation'] ?? 'utf8mb4_unicode_ci';
                 $this->pdo->exec("SET NAMES {$charset} COLLATE {$collation}");
             }
         } catch (PDOException $e) {
