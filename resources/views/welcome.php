@@ -64,23 +64,6 @@ $cspNonce = (string)($nonce ?? (\Nexus\Security\Headers::getNonce() ?: ''));
                         </button>
                     </div>
                 </div>
-
-                <div class="rx-contact-bar">
-                    <span class="rx-contact-pill" title="Location">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-                        <span>Kansas City, MO</span>
-                    </span>
-                    <?php if (!empty($contactPhone)): ?>
-                    <a href="tel:<?= htmlspecialchars(preg_replace('/[^0-9+]/', '', $contactPhone)) ?>" class="rx-contact-pill rx-contact-link" title="Phone">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
-                        <span><?= htmlspecialchars($contactPhone) ?></span>
-                    </a>
-                    <?php endif; ?>
-                    <a href="mailto:<?= htmlspecialchars($contactEmail) ?>" class="rx-contact-pill rx-contact-link" title="Email">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
-                        <span><?= htmlspecialchars($contactEmail) ?></span>
-                    </a>
-                </div>
             </header>
 
             <!-- 2. Full-Width Professional Summary & Key Impact Strip -->
@@ -93,29 +76,6 @@ $cspNonce = (string)($nonce ?? (\Nexus\Security\Headers::getNonce() ?: ''));
                     <p class="rx-summary-copy">
                         As an experienced Systems Architect, I specialize in building secure, high-performance platforms, automated CI/CD pipelines, and cloud infrastructures, integrating AI tools daily to enhance software delivery. Currently pursuing an M.S. in Cybersecurity and Information Assurance, I bring advanced expertise in DevSecOps practices, container security, cloud infrastructure orchestration, and robust API orchestration to deliver resilient, enterprise-scale solutions.
                     </p>
-
-                    <div class="rx-kpi-strip">
-                        <div class="rx-kpi-item">
-                            <div class="rx-kpi-val">99.9%</div>
-                            <div class="rx-kpi-lbl">High-Availability ATS Uptime</div>
-                            <div class="rx-kpi-sub">ApplicantPro REST Integrations</div>
-                        </div>
-                        <div class="rx-kpi-item">
-                            <div class="rx-kpi-val">+25%</div>
-                            <div class="rx-kpi-lbl">Responsiveness Gain</div>
-                            <div class="rx-kpi-sub">Cloud-Native Skill Platform</div>
-                        </div>
-                        <div class="rx-kpi-item">
-                            <div class="rx-kpi-val">L11 &bull; V3 &bull; PHP 8.5</div>
-                            <div class="rx-kpi-lbl">Full-Stack &amp; Zero-Dep Core</div>
-                            <div class="rx-kpi-sub">Aether &amp; Dreambox Nexus</div>
-                        </div>
-                        <div class="rx-kpi-item">
-                            <div class="rx-kpi-val">M.S. Cyber</div>
-                            <div class="rx-kpi-lbl">Information Assurance (WGU)</div>
-                            <div class="rx-kpi-sub">Expected Completion Mar 2027</div>
-                        </div>
-                    </div>
                 </div>
             </section>
 

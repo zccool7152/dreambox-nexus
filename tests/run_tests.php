@@ -798,9 +798,12 @@ foreach ($trackedFiles as $relPath) {
 }
 
 $assertTest('Zero occurrences of personal email or username in tracked files', empty($piiViolations));
+$assertTest('Sensitive meta files (.env.example, .gitignore, .githooks/pre-commit) are not tracked in Git', !in_array('.env.example', $trackedFiles, true) && !in_array('.gitignore', $trackedFiles, true) && !in_array('.githooks/pre-commit', $trackedFiles, true));
 $assertTest('Git core.hooksPath is configured to .githooks', trim((string)shell_exec('git -C ' . escapeshellarg($baseDir) . ' config core.hooksPath')) === '.githooks');
 $envIgnored = trim((string)shell_exec('git -C ' . escapeshellarg($baseDir) . ' check-ignore .env'));
 $assertTest('Local .env file is protected by .gitignore', $envIgnored === '.env');
+$ignoredMetaList = array_filter(explode("\n", trim((string)shell_exec('git -C ' . escapeshellarg($baseDir) . ' check-ignore .env .env.example .gitignore .githooks'))));
+$assertTest('Local .env, .env.example, .gitignore, and .githooks are ignored by Git', count(array_intersect(['.env', '.env.example', '.gitignore', '.githooks'], $ignoredMetaList)) === 4);
 $assertTest('Welcome resume view loads contact details dynamically via Env::get', str_contains($welcomeHtml, "Env::get('CONTACT_EMAIL')") && str_contains($welcomeHtml, "Env::get('CONTACT_PHONE')"));
 
 // ── Summary ─────────────────────────────────────────────────────────────────

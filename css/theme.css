@@ -4378,7 +4378,7 @@ main.resume-wrapper {
 .rx-header {
     background: linear-gradient(135deg, #ffffff 0%, #f0f9ff 62%, #ecfdf5 100%);
     color: #09111f;
-    padding: 34px 36px 26px;
+    padding: 28px 36px;
     position: relative;
     border-bottom: 1px solid #cbd5e1;
 }
@@ -4623,7 +4623,7 @@ main.resume-wrapper {
     font-size: 0.98rem;
     line-height: 1.72;
     color: #1e293b;
-    margin: 0 0 20px 0;
+    margin: 0;
 }
 
 .rx-kpi-strip {
@@ -5022,14 +5022,21 @@ main.resume-wrapper {
 .rx-highlight-row {
     display: flex;
     align-items: flex-start;
-    gap: 10px;
+    gap: 12px;
     font-size: 0.87rem;
     line-height: 1.5;
     color: #1e293b;
 }
 
 .rx-highlight-row .badge {
-    flex-shrink: 0;
+    flex: 0 0 164px;
+    width: 164px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    white-space: nowrap;
+    box-sizing: border-box;
     margin-top: 1px;
 }
 
@@ -5586,7 +5593,7 @@ footer.rx-footer {
     .rx-summary-copy {
         font-size: 9.2pt !important;
         line-height: 1.5 !important;
-        margin-bottom: 14px !important;
+        margin-bottom: 0 !important;
     }
 
     .rx-kpi-strip {
