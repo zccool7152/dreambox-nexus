@@ -146,6 +146,7 @@ class AdminController
         $name = trim($request->getString('name', ''));
         $role = $request->getString('role', 'Member');
         $password = $request->getString('password', '');
+        $mailAccess = !empty($request->get('mail_access'));
         $appBase = Request::getAppBase();
 
         if (empty($email) || empty($name)) {
@@ -181,6 +182,7 @@ class AdminController
             'roles' => [$role],
             'status' => 'active',
             'is_2fa_enabled' => false,
+            'mail_access' => $mailAccess,
         ]);
 
         $this->recordAudit(
@@ -247,6 +249,10 @@ class AdminController
             $fields['recovery_codes'] = [];
         }
 
+        if ($request->has('toggle_mail_access')) {
+            $fields['mail_access'] = $request->getString('toggle_mail_access') === '1';
+        }
+
         if (!empty($fields)) {
             $this->userRepo->update($id, $fields);
             $this->recordAudit(
@@ -270,6 +276,10 @@ class AdminController
                 $msg = "User {$user['email']} status changed to {$fields['status']}.";
             } elseif (isset($fields['is_2fa_enabled']) && $fields['is_2fa_enabled'] === 0) {
                 $msg = "Two-factor authentication reset for {$user['email']}.";
+            } elseif (array_key_exists('mail_access', $fields)) {
+                $msg = $fields['mail_access']
+                    ? "Webmail access granted to {$user['email']}."
+                    : "Webmail access revoked for {$user['email']}.";
             }
             $this->session->flash('admin_success', $msg);
         }

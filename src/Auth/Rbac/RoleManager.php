@@ -16,7 +16,7 @@ class RoleManager
         ],
         'SecurityOfficer' => [
             'description' => 'SecOps administration, MFA resets, account lockouts, and audit monitoring.',
-            'permissions' => ['users.manage', 'users.view', 'roles.view', 'groups.view', 'audit.view', 'compliance.view'],
+            'permissions' => ['users.manage', 'users.view', 'roles.view', 'groups.view', 'audit.view', 'compliance.view', 'mail.access'],
         ],
         'ComplianceAuditor' => [
             'description' => 'Read-only access to regulatory compliance matrices, audit logs, and reports.',
@@ -46,6 +46,7 @@ class RoleManager
         'routes.view' => 'Inspect active route registry.',
         'telemetry.view' => 'View SecOps vital telemetry.',
         'jobs.manage' => 'Dispatch and retry asynchronous jobs.',
+        'mail.access' => 'Provision and access Dreambox Nexus Webmail client and ephemeral reader jail.',
         'profile.manage' => 'Update personal credentials and MFA tokens.',
     ];
 
@@ -97,6 +98,10 @@ class RoleManager
 
     public function userHasPermission(array $user, string $permission): bool
     {
+        if ($permission === 'mail.access' && !empty($user['mail_access'])) {
+            return true;
+        }
+
         $roles = (array)($user['roles'] ?? ['Member']);
         if (in_array('SuperAdmin', $roles, true)) {
             return true;

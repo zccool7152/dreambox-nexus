@@ -82,6 +82,8 @@ class Auth
                 'avatar_url' => $this->session->get('user_avatar', ''),
                 'auth_provider' => $this->session->get('auth_provider', 'email'),
                 'must_change_password' => !empty($this->session->get('must_change_password')),
+                'mail_access' => !empty($this->session->get('mail_access')),
+                'mailbox_address' => $this->session->get('mailbox_address'),
                 'guard' => 'session',
             ];
             return $this->currentUser;
@@ -100,7 +102,9 @@ class Auth
         bool $mustChangePassword = false,
         string $username = '',
         string $displayPreference = 'name',
-        array $groups = []
+        array $groups = [],
+        bool $mailAccess = false,
+        ?string $mailboxAddress = null
     ): void {
         $this->session->start();
         $this->session->regenerate();
@@ -114,6 +118,8 @@ class Auth
         $this->session->set('user_username', $username !== '' ? $username : (strstr($email, '@', true) ?: 'user'));
         $this->session->set('user_display_preference', in_array($displayPreference, ['name', 'username'], true) ? $displayPreference : 'name');
         $this->session->set('user_groups', $groups);
+        $this->session->set('mail_access', $mailAccess);
+        $this->session->set('mailbox_address', $mailboxAddress);
 
         $this->currentUser = [
             'id' => $userId,
@@ -126,6 +132,8 @@ class Auth
             'avatar_url' => $avatar,
             'auth_provider' => $provider,
             'must_change_password' => $mustChangePassword,
+            'mail_access' => $mailAccess,
+            'mailbox_address' => $mailboxAddress,
             'guard' => 'session'
         ];
     }
@@ -150,6 +158,12 @@ class Auth
         }
         if (isset($fields['groups'])) {
             $this->session->set('user_groups', $fields['groups']);
+        }
+        if (array_key_exists('mail_access', $fields)) {
+            $this->session->set('mail_access', !empty($fields['mail_access']));
+        }
+        if (array_key_exists('mailbox_address', $fields)) {
+            $this->session->set('mailbox_address', $fields['mailbox_address']);
         }
 
         $this->currentUser = null; // force reload from session on next check

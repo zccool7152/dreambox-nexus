@@ -655,7 +655,7 @@ $accountSource = file_get_contents($baseDir . '/resources/views/account/index.ph
 $assertTest('Account settings page links to centralized theme.css', str_contains($accountSource, '/css/theme.css'));
 $assertTest('Topbar partial links to centralized theme.css', str_contains($topbarHtml, '/css/theme.css'));
 
-// Universal UI Framework validation across all 14 view templates
+// Universal UI Framework validation across all 16 view templates
 $allViewFiles = [];
 $rdi = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($baseDir . '/resources/views'));
 foreach ($rdi as $file) {
@@ -663,7 +663,7 @@ foreach ($rdi as $file) {
         $allViewFiles[] = $file->getPathname();
     }
 }
-$assertTest('Total view templates discovered equals 15', count($allViewFiles) === 15);
+$assertTest('Total view templates discovered equals 16', count($allViewFiles) === 16);
 
 $viewsMissingTheme = [];
 $viewsMissingTopbar = [];
@@ -680,8 +680,8 @@ foreach ($allViewFiles as $vPath) {
         $viewsWithInlineStyle[] = basename($vPath);
     }
 }
-$assertTest('All 15 view templates link to centralized theme.css', empty($viewsMissingTheme));
-$assertTest('All 15 view templates embed universal topbar.php', empty($viewsMissingTopbar));
+$assertTest('All 16 view templates link to centralized theme.css', empty($viewsMissingTheme));
+$assertTest('All 16 view templates embed universal topbar.php', empty($viewsMissingTopbar));
 $assertTest('Zero view templates contain legacy inline <style> tags', empty($viewsWithInlineStyle));
 
 $viewsWithInlineAttributes = [];
@@ -1226,6 +1226,241 @@ $assertTest(
 );
 @unlink($syncLedgerFile);
 @unlink($syncLedgerFile . '.lock');
+
+// ── Test 19: Nexus Webmail, Virus Scanner & Controlled Reader Jail ──────────
+echo "\n\033[1;37m[19] Nexus Webmail, Virus Scanner & Controlled Reader Jail\033[0m\n";
+
+$tmpMailStore = sys_get_temp_dir() . '/nexus_mail_store_' . uniqid();
+$tmpJailStore = sys_get_temp_dir() . '/nexus_jail_store_' . uniqid();
+$mailDomain = \Nexus\Mail\MailRepository::getMailDomain();
+$mailScanner = new \Nexus\Mail\MailScanner();
+$mailRepo = new \Nexus\Mail\MailRepository(null, $tmpMailStore);
+$mailJail = new \Nexus\Mail\MailJail($tmpJailStore, 900);
+$mailRoleMgr = new \Nexus\Auth\Rbac\RoleManager($mongoDb);
+$mailUserRepo = new \Nexus\Auth\UserRepository($mongoDb, $hasher);
+$mailSession = new \Nexus\Security\Session($mongoDb);
+$mailSession->start();
+$mailCsrf = new \Nexus\Security\Csrf((string)\Nexus\Core\Env::get('APP_KEY', ''));
+$mailToken = $mailCsrf->generate($mailSession->getId());
+$mailView = new \Nexus\View\View($baseDir . '/resources/views');
+
+// 19.1 RoleManager includes mail.access and UserRepository toggles per-user permission
+$perms = $mailRoleMgr->getPermissions();
+$aliceEmail = 'alice.mail.' . bin2hex(random_bytes(3)) . '@example.test';
+$bobEmail = 'bob.mail.' . bin2hex(random_bytes(3)) . '@example.test';
+$aliceUser = $mailUserRepo->create([
+    'email' => $aliceEmail,
+    'name' => 'Alice Tester',
+    'password' => 'TempPass!2026',
+    'roles' => ['Member'],
+    'must_change_password' => false,
+    'mail_access' => false,
+]);
+$bobUser = $mailUserRepo->create([
+    'email' => $bobEmail,
+    'name' => 'Bob Tester',
+    'password' => 'TempPass!2026',
+    'roles' => ['Member'],
+    'must_change_password' => false,
+    'mail_access' => true,
+]);
+
+$initialDenied = !$mailRoleMgr->userHasPermission($aliceUser, 'mail.access');
+$mailUserRepo->update($aliceUser['id'], ['mail_access' => true]);
+$aliceGranted = $mailUserRepo->findById($aliceUser['id']);
+$grantedAllowed = $aliceGranted !== null && $mailRoleMgr->userHasPermission($aliceGranted, 'mail.access');
+$mailUserRepo->update($aliceUser['id'], ['mail_access' => false]);
+$aliceRevoked = $mailUserRepo->findById($aliceUser['id']);
+$revokedDenied = $aliceRevoked !== null && !$mailRoleMgr->userHasPermission($aliceRevoked, 'mail.access');
+
+$assertTest(
+    'RoleManager includes mail.access and UserRepository grants/revokes per-user permission',
+    isset($perms['mail.access']) && $initialDenied && $grantedAllowed && $revokedDenied
+);
+
+// Helper to instantiate MailController pinned to a given user identity
+$makeMailControllerFor = function (array $actUser) use ($mailUserRepo, $mailRoleMgr, $mailRepo, $mailScanner, $mailJail, $mongoDb, $mailView, $mailCsrf, $mailSession): \Nexus\Mail\MailController {
+    $stubAuth = new class($actUser) extends \Nexus\Auth\Auth {
+        private array $u;
+        public function __construct(array $u) { $this->u = $u; }
+        public function user(\Nexus\Core\Request $request): ?array { return $this->u; }
+        public function updateSessionUser(array $fields): void {}
+    };
+    return new \Nexus\Mail\MailController(
+        $stubAuth,
+        $mailUserRepo,
+        $mailRoleMgr,
+        $mailRepo,
+        $mailScanner,
+        $mailJail,
+        $mongoDb,
+        $mailView,
+        $mailCsrf,
+        $mailSession
+    );
+};
+
+// 19.2 User without mail.access receives 403 Forbidden (both HTML & API); unauthenticated API receives 401
+$aliceCtrl = $makeMailControllerFor($aliceUser);
+$deniedHtmlRes = $aliceCtrl->index(new \Nexus\Core\Request('GET', '/mail', ['accept' => 'text/html'], [], [], '', '127.0.0.1'));
+$deniedApiRes = $aliceCtrl->listMessages(new \Nexus\Core\Request('GET', '/api/v1/mail/messages', ['accept' => 'application/json'], [], [], '', '127.0.0.1'));
+$unauthMailRes = $app->handle(new \Nexus\Core\Request('GET', '/api/v1/mail/messages', ['accept' => 'application/json'], [], [], '', '127.0.0.1'));
+$assertTest(
+    'Webmail enforces mail.access (403 for unpermitted Member, 401 for unauthenticated visitor)',
+    $deniedHtmlRes->getStatusCode() === 403
+    && $deniedApiRes->getStatusCode() === 403
+    && $unauthMailRes->getStatusCode() === 401
+);
+
+// 19.3 First-visit onboarding prompts granted user to choose @MAIL_DOMAIN email address
+$mailUserRepo->update($aliceUser['id'], ['mail_access' => true]);
+$aliceGranted = $mailUserRepo->findById($aliceUser['id']) ?? $aliceUser;
+$aliceCtrl = $makeMailControllerFor($aliceGranted);
+$onboardHtmlRes = $aliceCtrl->index(new \Nexus\Core\Request('GET', '/mail', ['accept' => 'text/html'], [], [], '', '127.0.0.1'));
+$onboardBody = $onboardHtmlRes->getContent();
+$assertTest(
+    'First-visit Webmail onboarding asks user to choose their @' . $mailDomain . ' email address',
+    $onboardHtmlRes->getStatusCode() === 200
+    && str_contains($onboardBody, 'Choose Your Nexus Email Address')
+    && str_contains($onboardBody, '@' . $mailDomain)
+);
+
+// 19.4 Claiming mailbox creates address on configured domain, blocks duplicates, and seeds starter mail
+$claimHandleAlice = 'alice.' . bin2hex(random_bytes(3));
+$claimReqAlice = new \Nexus\Core\Request(
+    'POST',
+    '/api/v1/mail/claim',
+    ['accept' => 'application/json', 'x-csrf-token' => $mailToken],
+    [],
+    ['local_part' => $claimHandleAlice],
+    '',
+    '127.0.0.1'
+);
+$claimResAlice = $aliceCtrl->claim($claimReqAlice);
+$claimJsonAlice = json_decode($claimResAlice->getContent(), true);
+$aliceAddress = $claimHandleAlice . '@' . $mailDomain;
+
+$bobCtrl = $makeMailControllerFor($bobUser);
+$dupClaimRes = $bobCtrl->claim(new \Nexus\Core\Request(
+    'POST',
+    '/api/v1/mail/claim',
+    ['accept' => 'application/json', 'x-csrf-token' => $mailToken],
+    [],
+    ['local_part' => $claimHandleAlice],
+    '',
+    '127.0.0.1'
+));
+$aliceInbox = $mailRepo->getMessages($aliceUser['id'], 'inbox');
+$assertTest(
+    'Mailbox claim creates unique @' . $mailDomain . ' mailbox, rejects duplicates, and seeds starter messages',
+    $claimResAlice->getStatusCode() === 201
+    && ($claimJsonAlice['data']['mailbox']['address'] ?? '') === $aliceAddress
+    && $dupClaimRes->getStatusCode() === 409
+    && count($aliceInbox) === 3
+);
+
+// 19.5 Antivirus scanner detects EICAR + script/exe payloads and sanitizes dangerous HTML
+$badScan = $mailScanner->scan(
+    'Urgent Invoice.exe',
+    'Test payload ' . \Nexus\Mail\MailScanner::EICAR_SIGNATURE,
+    '<p onclick="evil()">Read me</p><script>alert(1)</script><a href="javascript:alert(2)">Click</a>',
+    [['name' => 'Invoice.exe']]
+);
+$goodScan = $mailScanner->scan('Weekly Sync', 'Everything looks good for Friday.', '<p>See you Friday!</p>');
+$assertTest(
+    'MailScanner flags EICAR/script/executable payloads as infected, strips active HTML, and passes clean mail',
+    $badScan['status'] === 'infected'
+    && !empty($badScan['threats'])
+    && !str_contains($badScan['sanitized_html'], '<script')
+    && !str_contains($badScan['sanitized_html'], 'onclick')
+    && !str_contains($badScan['sanitized_html'], 'javascript:')
+    && $goodScan['status'] === 'clean'
+);
+
+// 19.6 Opening an email spins up an isolated ephemeral jail and closing it shreds the jail directory
+$infectedSeed = null;
+foreach ($aliceInbox as $m) {
+    if (($m['scan_status'] ?? '') === 'infected') {
+        $infectedSeed = $m;
+        break;
+    }
+}
+$openJailRes = $infectedSeed ? $aliceCtrl->openJail(
+    new \Nexus\Core\Request('POST', '/api/v1/mail/messages/' . $infectedSeed['id'] . '/open-jail', ['accept' => 'application/json', 'x-csrf-token' => $mailToken], [], [], '', '127.0.0.1'),
+    $infectedSeed['id']
+) : null;
+$openJailJson = $openJailRes ? json_decode($openJailRes->getContent(), true) : [];
+$createdJailId = (string)($openJailJson['data']['jail']['jail_id'] ?? '');
+$jailDirExistsOnOpen = $createdJailId !== '' && is_dir($tmpJailStore . '/' . $createdJailId) && is_file($tmpJailStore . '/' . $createdJailId . '/content.html');
+$sandboxDoc = (string)($openJailJson['data']['jail']['sandbox_html'] ?? '');
+
+$closeJailRes = $createdJailId !== '' ? $aliceCtrl->closeJail(
+    new \Nexus\Core\Request('POST', '/api/v1/mail/jail/' . $createdJailId . '/close', ['accept' => 'application/json', 'x-csrf-token' => $mailToken], [], [], '', '127.0.0.1'),
+    $createdJailId
+) : null;
+$jailDirRemovedOnClose = $createdJailId !== '' && !is_dir($tmpJailStore . '/' . $createdJailId);
+
+$assertTest(
+    'Opening mail creates isolated Reader Jail with sandboxed HTML, and closing immediately shreds the jail',
+    $openJailRes !== null
+    && $openJailRes->getStatusCode() === 200
+    && $jailDirExistsOnOpen
+    && !str_contains($sandboxDoc, '<script')
+    && str_contains($sandboxDoc, "default-src 'none'")
+    && $closeJailRes !== null
+    && $closeJailRes->getStatusCode() === 200
+    && $jailDirRemovedOnClose
+);
+
+// 19.7 Sending delivers scanned in-app mail to recipient inbox and blocks outbound infected payloads
+$claimHandleBob = 'bob.' . bin2hex(random_bytes(3));
+$bobCtrl->claim(new \Nexus\Core\Request('POST', '/api/v1/mail/claim', ['accept' => 'application/json', 'x-csrf-token' => $mailToken], [], ['local_part' => $claimHandleBob], '', '127.0.0.1'));
+$bobAddress = $claimHandleBob . '@' . $mailDomain;
+
+$sendCleanRes = $aliceCtrl->send(new \Nexus\Core\Request(
+    'POST',
+    '/api/v1/mail/send',
+    ['accept' => 'application/json', 'x-csrf-token' => $mailToken],
+    [],
+    ['to' => $bobAddress, 'subject' => 'Quarterly Security Brief', 'body' => 'All systems nominal.', '_action' => 'send'],
+    '',
+    '127.0.0.1'
+));
+$sendInfectedRes = $aliceCtrl->send(new \Nexus\Core\Request(
+    'POST',
+    '/api/v1/mail/send',
+    ['accept' => 'application/json', 'x-csrf-token' => $mailToken],
+    [],
+    ['to' => $bobAddress, 'subject' => 'Bad Payload', 'body' => \Nexus\Mail\MailScanner::EICAR_SIGNATURE, '_action' => 'send'],
+    '',
+    '127.0.0.1'
+));
+$bobSearch = $mailRepo->getMessages($bobUser['id'], 'inbox', 'Quarterly Security Brief');
+$aliceSent = $mailRepo->getMessages($aliceUser['id'], 'sent', 'Quarterly Security Brief');
+
+$assertTest(
+    'In-app send delivers clean mail to recipient Inbox + sender Sent while blocking infected outbound payloads',
+    $sendCleanRes->getStatusCode() === 200
+    && count($bobSearch) === 1
+    && count($aliceSent) === 1
+    && $sendInfectedRes->getStatusCode() === 422
+);
+
+// Clean up temporary users & test mail/jail directories
+$mailUserRepo->delete($aliceUser['id']);
+$mailUserRepo->delete($bobUser['id']);
+foreach ([$tmpMailStore, $tmpJailStore] as $tmpCleanDir) {
+    if (is_dir($tmpCleanDir)) {
+        $it = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($tmpCleanDir, \FilesystemIterator::SKIP_DOTS),
+            \RecursiveIteratorIterator::CHILD_FIRST
+        );
+        foreach ($it as $item) {
+            $item->isDir() ? @rmdir($item->getPathname()) : @unlink($item->getPathname());
+        }
+        @rmdir($tmpCleanDir);
+    }
+}
 
 // Clean temporary session/rate artifacts created during test run
 foreach (glob($baseDir . '/storage/sessions/sess_*') ?: [] as $sf) {

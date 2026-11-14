@@ -6064,4 +6064,533 @@ body > footer {
     }
 }
 
+/* ══════════════════════════════════════════════════════════════════════════════
+   Dreambox Nexus Webmail Client, Virus Scanner & Controlled Reader Jail
+   ══════════════════════════════════════════════════════════════════════════════ */
+.nx-mail-wrap {
+    max-width: 1440px;
+    margin: 0 auto;
+    padding: 1.25rem 1.5rem 2.5rem;
+}
+
+.nx-mail-onboarding-card {
+    max-width: 620px;
+    margin: 2.5rem auto;
+    background: var(--bg2);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    padding: 2rem;
+    box-shadow: var(--shadow-md);
+}
+
+.nx-mail-onboarding-badge {
+    display: inline-block;
+    padding: 0.25rem 0.65rem;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    border-radius: var(--radius-full);
+    background: var(--primary-subtle);
+    color: var(--pri);
+    border: 1px solid var(--primary-border);
+}
+
+.nx-mail-onboarding-badge.nx-badge-danger {
+    background: var(--danger-subtle);
+    color: var(--danger);
+    border-color: var(--danger-border);
+}
+
+.nx-mail-label {
+    display: block;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--tx);
+    margin-bottom: 0.4rem;
+}
+
+.nx-mail-claim-row {
+    display: flex;
+    align-items: stretch;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    background: #ffffff;
+}
+
+.nx-mail-claim-input {
+    border: none !important;
+    border-radius: 0 !important;
+    margin: 0 !important;
+    flex: 1;
+}
+
+.nx-mail-domain-addon {
+    display: inline-flex;
+    align-items: center;
+    padding: 0 1rem;
+    background: #f1f5f9;
+    border-left: 1px solid var(--line);
+    font-family: var(--mono);
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--pri);
+}
+
+.nx-mail-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+    background: #ffffff;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    padding: 0.75rem 1.1rem;
+    margin-bottom: 1rem;
+    box-shadow: var(--shadow-sm);
+}
+
+.nx-mail-topbar-left,
+.nx-mail-topbar-right {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+.nx-mail-brand-pill {
+    font-weight: 800;
+    font-size: 1rem;
+    color: var(--tx);
+}
+
+.nx-mail-address-pill {
+    font-family: var(--mono);
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--pri);
+    background: var(--primary-subtle);
+    border: 1px solid var(--primary-border);
+    padding: 0.22rem 0.65rem;
+    border-radius: var(--radius-full);
+}
+
+.nx-mail-search-form {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    flex: 1;
+    max-width: 520px;
+}
+
+.nx-mail-search-input {
+    flex: 1;
+    padding: 0.5rem 0.9rem;
+    border-radius: var(--radius-full);
+    border: 1px solid var(--line);
+    background: #f8fafc;
+    font-size: 0.88rem;
+    color: var(--tx);
+}
+
+.nx-mail-search-input:focus {
+    outline: none;
+    background: #ffffff;
+    border-color: var(--pri);
+}
+
+.nx-mail-search-btn {
+    padding: 0.48rem 0.9rem !important;
+    border-radius: var(--radius-full) !important;
+}
+
+.nx-mail-shield-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #065f46;
+    background: var(--success-subtle);
+    border: 1px solid var(--success-border);
+    padding: 0.25rem 0.7rem;
+    border-radius: var(--radius-full);
+}
+
+.nx-shield-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--ok);
+}
+
+.nx-mail-shell {
+    display: grid;
+    grid-template-columns: 220px minmax(310px, 0.95fr) minmax(380px, 1.35fr);
+    gap: 1rem;
+    min-height: 580px;
+}
+
+@media (max-width: 1024px) {
+    .nx-mail-shell {
+        grid-template-columns: 1fr;
+    }
+}
+
+.nx-mail-sidebar {
+    background: #ffffff;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    box-shadow: var(--shadow-sm);
+}
+
+.nx-mail-compose-btn {
+    width: 100%;
+    padding: 0.72rem 1rem;
+    border-radius: var(--radius-md);
+    border: none;
+    background: var(--pri);
+    color: #ffffff;
+    font-size: 0.92rem;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(3, 105, 161, 0.25);
+    transition: background 0.15s ease;
+}
+
+.nx-mail-compose-btn:hover {
+    background: var(--pri2);
+}
+
+.nx-mail-folders {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.nx-mail-folder-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.52rem 0.78rem;
+    border-radius: var(--radius-md);
+    color: var(--mu);
+    text-decoration: none;
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+
+.nx-mail-folder-item:hover {
+    background: #f1f5f9;
+    color: var(--tx);
+}
+
+.nx-mail-folder-item.active {
+    background: var(--primary-subtle);
+    color: var(--pri);
+}
+
+.nx-mail-folder-badge {
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 0.12rem 0.48rem;
+    border-radius: var(--radius-full);
+    background: rgba(3, 105, 161, 0.14);
+    color: var(--pri);
+}
+
+.nx-mail-security-card {
+    margin-top: auto;
+    padding: 0.75rem;
+    border-radius: var(--radius-md);
+    background: #f8fafc;
+    border: 1px solid var(--line);
+}
+
+.nx-mail-sec-title {
+    font-size: 0.74rem;
+    font-weight: 700;
+    color: var(--tx);
+    margin-bottom: 0.3rem;
+}
+
+.nx-mail-sec-copy {
+    font-size: 0.72rem;
+    color: var(--mu);
+    line-height: 1.45;
+    margin: 0;
+}
+
+.nx-mail-list-pane,
+.nx-mail-reader-pane {
+    background: #ffffff;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    box-shadow: var(--shadow-sm);
+}
+
+.nx-mail-list-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.8rem 1rem;
+    border-bottom: 1px solid var(--line);
+    background: #f8fafc;
+}
+
+.nx-mail-folder-title {
+    font-weight: 700;
+    font-size: 0.92rem;
+    color: var(--tx);
+}
+
+.nx-mail-rows {
+    flex: 1;
+    overflow-y: auto;
+    max-height: 620px;
+}
+
+.nx-mail-empty {
+    padding: 2.5rem 1.25rem;
+    text-align: center;
+    color: var(--mu);
+    font-size: 0.88rem;
+}
+
+.nx-mail-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.65rem;
+    padding: 0.75rem 0.95rem;
+    border-bottom: 1px solid var(--line);
+    cursor: pointer;
+    transition: background 0.12s ease;
+}
+
+.nx-mail-row:hover {
+    background: #f8fafc;
+}
+
+.nx-mail-row.is-active {
+    background: #eff6ff;
+    border-left: 3px solid var(--pri);
+}
+
+.nx-mail-row.is-unread .nx-mail-sender,
+.nx-mail-row.is-unread .nx-mail-subject {
+    font-weight: 700;
+    color: var(--tx);
+}
+
+.nx-mail-star-btn {
+    border: none;
+    background: transparent;
+    color: #cbd5e1;
+    font-size: 1rem;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0.15rem;
+}
+
+.nx-mail-star-btn.is-starred {
+    color: #f59e0b;
+}
+
+.nx-mail-row-main {
+    flex: 1;
+    min-width: 0;
+}
+
+.nx-mail-row-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+}
+
+.nx-mail-sender {
+    font-size: 0.84rem;
+    color: var(--mu);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.nx-mail-subject {
+    font-size: 0.88rem;
+    color: var(--tx);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-top: 0.12rem;
+}
+
+.nx-mail-snippet {
+    font-size: 0.78rem;
+    color: var(--mu);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-top: 0.1rem;
+}
+
+.nx-mail-row-time {
+    font-size: 0.72rem;
+    color: var(--mu);
+    white-space: nowrap;
+}
+
+.nx-mail-scan-pill {
+    display: inline-block;
+    padding: 0.12rem 0.48rem;
+    border-radius: var(--radius-full);
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    white-space: nowrap;
+}
+
+.nx-scan-clean {
+    background: var(--success-subtle);
+    color: #065f46;
+    border: 1px solid var(--success-border);
+}
+
+.nx-scan-suspicious {
+    background: var(--warning-subtle);
+    color: #92400e;
+    border: 1px solid var(--warning-border);
+}
+
+.nx-scan-infected {
+    background: var(--danger-subtle);
+    color: #9f1239;
+    border: 1px solid var(--danger-border);
+}
+
+.nx-mail-reader-placeholder {
+    padding: 3.5rem 2rem;
+    text-align: center;
+    margin: auto;
+    max-width: 420px;
+}
+
+.nx-mail-placeholder-icon {
+    font-size: 2rem;
+    margin-bottom: 0.75rem;
+}
+
+.nx-mail-reader-active {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.nx-mail-reader-placeholder.hidden,
+.nx-mail-reader-active.hidden {
+    display: none;
+}
+
+.nx-mail-jail-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    padding: 0.65rem 1rem;
+    background: #f1f5f9;
+    border-bottom: 1px solid var(--line);
+}
+
+.nx-mail-jail-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    font-size: 0.78rem;
+    color: var(--tx);
+}
+
+.nx-mail-jail-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--ok);
+}
+
+.nx-mail-jail-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.btn-xs {
+    padding: 0.28rem 0.62rem !important;
+    font-size: 0.74rem !important;
+}
+
+.nx-mail-message-head {
+    padding: 1rem 1.2rem;
+    border-bottom: 1px solid var(--line);
+}
+
+.nx-mail-parties > div {
+    margin-bottom: 0.15rem;
+}
+
+.nx-mail-iframe-wrap {
+    flex: 1;
+    min-height: 380px;
+    background: #ffffff;
+}
+
+.nx-mail-jail-frame {
+    width: 100%;
+    height: 100%;
+    min-height: 380px;
+    border: none;
+    display: block;
+    background: #ffffff;
+}
+
+.nx-mail-modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.48);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    z-index: 1200;
+}
+
+.nx-mail-modal.show {
+    display: flex;
+}
+
+.nx-mail-modal-card {
+    width: 100%;
+    max-width: 580px;
+    background: #ffffff;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--line);
+    padding: 1.5rem;
+    box-shadow: var(--shadow-lg);
+}
+
+.nx-mail-modal-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+}
+
+
 

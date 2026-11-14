@@ -68,11 +68,18 @@
                         <th>Groups</th>
                         <th>2FA Status</th>
                         <th>Account State</th>
+                        <th>Mail Access</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     <?php foreach ($users as $u): ?>
+                        <?php
+                            $uRoles = (array)($u['roles'] ?? ['Member']);
+                            $uRoleGrantsMail = in_array('SuperAdmin', $uRoles, true) || in_array('SecurityOfficer', $uRoles, true);
+                            $uHasMail = $uRoleGrantsMail || !empty($u['mail_access']);
+                            $uMailbox = (string)($u['mailbox_address'] ?? '');
+                        ?>
                         <tr>
                             <td>
                                 <div class="fw-semibold text-dark"><?= htmlspecialchars($u['name']) ?></div>
@@ -110,6 +117,18 @@
                                 <?php endif; ?>
                             </td>
                             <td>
+                                <?php if ($uHasMail): ?>
+                                    <span class="badge badge-2fa-on">GRANTED</span>
+                                    <?php if ($uMailbox !== ''): ?>
+                                        <div class="small text-muted"><?= htmlspecialchars($uMailbox) ?></div>
+                                    <?php elseif ($uRoleGrantsMail): ?>
+                                        <div class="small text-muted">Via RBAC Role</div>
+                                    <?php endif; ?>
+                                <?php else: ?>
+                                    <span class="badge badge-2fa-off">REVOKED</span>
+                                <?php endif; ?>
+                            </td>
+                            <td>
                                 <form method="POST" action="<?= $appBase ?>/admin/users/" class="d-inline">
                                     <input type="hidden" name="csrf_token" value="<?= $csrfToken ?>">
                                     <input type="hidden" name="_action" value="update">
@@ -119,6 +138,17 @@
                                         <?= $u['status'] === 'active' ? 'Suspend' : 'Activate' ?>
                                     </button>
                                 </form>
+                                <?php if (!$uRoleGrantsMail): ?>
+                                    <form method="POST" action="<?= $appBase ?>/admin/users/" class="d-inline">
+                                        <input type="hidden" name="csrf_token" value="<?= $csrfToken ?>">
+                                        <input type="hidden" name="_action" value="update">
+                                        <input type="hidden" name="user_id" value="<?= htmlspecialchars($u['id']) ?>">
+                                        <input type="hidden" name="toggle_mail_access" value="<?= $uHasMail ? '0' : '1' ?>">
+                                        <button type="submit" class="btn-table">
+                                            <?= $uHasMail ? 'Revoke Mail' : 'Grant Mail' ?>
+                                        </button>
+                                    </form>
+                                <?php endif; ?>
                                 <?php if ($u['is_2fa_enabled']): ?>
                                     <form method="POST" action="<?= $appBase ?>/admin/users/" class="d-inline">
                                         <input type="hidden" name="csrf_token" value="<?= $csrfToken ?>">
@@ -168,6 +198,11 @@
 
                 <label for="password">Initial Password</label>
                 <input type="password" id="password" name="password" class="form-input" placeholder="Enter secure initial password" required autocomplete="new-password">
+
+                <label class="d-flex align-items-center gap-2 mt-2 mb-2">
+                    <input type="checkbox" name="mail_access" value="1">
+                    <span>Grant Nexus Webmail Access (<code>mail.access</code>)</span>
+                </label>
 
                 <div class="d-flex gap-2 mt-3">
                     <button type="submit" class="btn-action btn-primary flex-grow-1">Provision</button>

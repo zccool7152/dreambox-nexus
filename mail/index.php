@@ -1,0 +1,9 @@
+<?php
+declare(strict_types=1);
+
+/**
+ * Dreambox Nexus: Physical Route Bridge for /mail/
+ */
+
+$_GET['r'] = '/mail';
+require_once dirname(__DIR__) . '/public/index.php';

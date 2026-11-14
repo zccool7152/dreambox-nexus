@@ -54,6 +54,7 @@ $isSuperAdmin = in_array('SuperAdmin', $userRoles, true);
 $isAdmin = $isSuperAdmin || in_array('Admin', $userRoles, true);
 $isSecOps = $isSuperAdmin || in_array('SecurityOfficer', $userRoles, true) || in_array('SecOps', $userGroups, true);
 $isDeveloper = $isSuperAdmin || in_array('Developer', $userRoles, true) || in_array('Engineering', $userGroups, true);
+$hasMailAccess = $isSuperAdmin || in_array('SecurityOfficer', $userRoles, true) || !empty($user['mail_access']) || !empty($_SESSION['mail_access']);
 ?>
 
 <link rel="icon" type="image/x-icon" href="<?= htmlspecialchars($appBase) ?>/favicon.ico">
@@ -184,7 +185,18 @@ $isDeveloper = $isSuperAdmin || in_array('Developer', $userRoles, true) || in_ar
                             <div class="nexus-divider"></div>
                         <?php endif; ?>
 
-                        <!-- Link to Accounts Page ("where they can edit there password and update there info") -->
+                        <!-- Link to Nexus Webmail & Accounts Page -->
+                        <?php if ($hasMailAccess): ?>
+                            <div class="nexus-dropdown-section">
+                                <div class="nexus-section-label">Messaging &amp; Containment</div>
+                                <a href="<?= $appBase ?>/mail/" class="nexus-menu-item" role="menuitem">
+                                    <svg class="nexus-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+                                    <span>Nexus Webmail</span>
+                                </a>
+                            </div>
+                            <div class="nexus-divider"></div>
+                        <?php endif; ?>
+
                         <div class="nexus-dropdown-section">
                             <a href="<?= $appBase ?>/account/" class="nexus-menu-item" role="menuitem">
                                 <svg class="nexus-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>

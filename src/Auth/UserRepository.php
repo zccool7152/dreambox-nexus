@@ -52,7 +52,8 @@ class UserRepository
             return $this->normalizeUser(self::$memoryStore[$id]);
         }
 
-        return $this->getFallbackMemoryUser($id);
+        $fallback = $this->getFallbackMemoryUser($id);
+        return $fallback ? $this->normalizeUser($fallback) : null;
     }
 
     public function findByEmail(string $email): ?array
@@ -79,7 +80,8 @@ class UserRepository
             }
         }
 
-        return $this->getFallbackMemoryUserByEmail($email);
+        $fallback = $this->getFallbackMemoryUserByEmail($email);
+        return $fallback ? $this->normalizeUser($fallback) : null;
     }
 
     public function findByUsername(string $username): ?array
@@ -106,8 +108,9 @@ class UserRepository
             }
         }
 
-        if ($username === 'nexus_admin' || $username === 'admin') {
-            return $this->getFallbackMemoryUser('usr_admin_tim');
+        if (strpos($username, '@') === false && ($username === 'nexus_admin' || $username === 'admin')) {
+            $fallback = $this->getFallbackMemoryUser('usr_admin_tim');
+            return $fallback ? $this->normalizeUser($fallback) : null;
         }
 
         return null;
@@ -156,7 +159,11 @@ class UserRepository
             return $users;
         }
 
-        return [$this->getFallbackMemoryUser('usr_admin_001')];
+        $users = ['usr_admin_tim' => $this->normalizeUser($this->getFallbackMemoryUser('usr_admin_tim'))];
+        foreach (self::$memoryStore as $mId => $mUser) {
+            $users[$mId] = $this->normalizeUser($mUser);
+        }
+        return array_values($users);
     }
 
     public function create(array $data): array
@@ -177,6 +184,11 @@ class UserRepository
         $groups = $data['groups'] ?? [];
         $is2fa = !empty($data['is_2fa_enabled']) ? 1 : 0;
         $mustChange = !empty($data['must_change_password']) ? 1 : 0;
+        $defaultMail = in_array('SuperAdmin', $roles, true) || in_array('SecurityOfficer', $roles, true);
+        $mailAccess = array_key_exists('mail_access', $data) ? (!empty($data['mail_access']) ? 1 : 0) : ($defaultMail ? 1 : 0);
+        $mailboxAddress = isset($data['mailbox_address']) && trim((string)$data['mailbox_address']) !== ''
+            ? strtolower(trim((string)$data['mailbox_address']))
+            : null;
 
         $passwordHash = null;
         if (!empty($data['password'])) {
@@ -200,6 +212,8 @@ class UserRepository
                 'provider_id' => $providerId,
                 'avatar_url' => $data['avatar_url'] ?? '',
                 'status' => $status,
+                'mail_access' => $mailAccess,
+                'mailbox_address' => $mailboxAddress,
                 'is_2fa_enabled' => $is2fa,
                 'must_change_password' => $mustChange,
                 'totp_secret' => $totpSecret,
@@ -210,6 +224,7 @@ class UserRepository
                 'updated_at' => date('Y-m-d H:i:s'),
             ];
             $this->db->mongoInsert('users', $doc);
+            $this->writeMailOverlay($id, ['mail_access' => (bool)$mailAccess, 'mailbox_address' => $mailboxAddress]);
             return $this->normalizeUser($doc);
         }
 
@@ -237,6 +252,11 @@ class UserRepository
                 }
             }
 
+            try {
+                $this->db->execute("UPDATE users SET mail_access = ?, mailbox_address = ? WHERE id = ?", [$mailAccess, $mailboxAddress, $id]);
+            } catch (\Throwable) {}
+            $this->writeMailOverlay($id, ['mail_access' => (bool)$mailAccess, 'mailbox_address' => $mailboxAddress]);
+
             return $this->findById($id);
         }
 
@@ -252,6 +272,8 @@ class UserRepository
             'provider_id' => $providerId,
             'avatar_url' => $data['avatar_url'] ?? '',
             'status' => $status,
+            'mail_access' => $mailAccess,
+            'mailbox_address' => $mailboxAddress,
             'is_2fa_enabled' => $is2fa,
             'must_change_password' => $mustChange,
             'totp_secret' => $totpSecret,
@@ -262,6 +284,7 @@ class UserRepository
             'updated_at' => date('Y-m-d H:i:s'),
         ];
         self::$memoryStore[$id] = $doc;
+        $this->writeMailOverlay($id, ['mail_access' => (bool)$mailAccess, 'mailbox_address' => $mailboxAddress]);
         return $this->normalizeUser($doc);
     }
 
@@ -269,10 +292,21 @@ class UserRepository
     {
         $fields['updated_at'] = date('Y-m-d H:i:s');
 
+        $overlayPatch = [];
+        if (array_key_exists('mail_access', $fields)) {
+            $overlayPatch['mail_access'] = !empty($fields['mail_access']);
+        }
+        if (array_key_exists('mailbox_address', $fields)) {
+            $overlayPatch['mailbox_address'] = $fields['mailbox_address'];
+        }
+        if (!empty($overlayPatch)) {
+            $this->writeMailOverlay($id, $overlayPatch);
+        }
+
         if ($this->isMongo()) {
             $updateSet = [];
             foreach ($fields as $k => $v) {
-                $updateSet[$k] = $v;
+                $updateSet[$k] = $k === 'mail_access' ? (!empty($v) ? 1 : 0) : $v;
             }
             $mod = $this->db->mongoUpdate('users', ['id' => $id], ['$set' => $updateSet]);
             if ($mod === 0 && strlen($id) === 24 && ctype_xdigit($id)) {
@@ -295,6 +329,25 @@ class UserRepository
             if (!empty($sets)) {
                 $params[] = $id;
                 $this->db->execute("UPDATE users SET " . implode(', ', $sets) . " WHERE id = ?", $params);
+            }
+
+            if (!empty($overlayPatch)) {
+                try {
+                    $mSets = [];
+                    $mParams = [];
+                    if (array_key_exists('mail_access', $fields)) {
+                        $mSets[] = 'mail_access = ?';
+                        $mParams[] = !empty($fields['mail_access']) ? 1 : 0;
+                    }
+                    if (array_key_exists('mailbox_address', $fields)) {
+                        $mSets[] = 'mailbox_address = ?';
+                        $mParams[] = $fields['mailbox_address'];
+                    }
+                    if (!empty($mSets)) {
+                        $mParams[] = $id;
+                        $this->db->execute("UPDATE users SET " . implode(', ', $mSets) . " WHERE id = ?", $mParams);
+                    }
+                } catch (\Throwable) {}
             }
 
             if (isset($fields['roles']) && is_array($fields['roles'])) {
@@ -322,6 +375,8 @@ class UserRepository
 
     public function delete(string $id): bool
     {
+        $this->deleteMailOverlay($id);
+
         if ($this->isMongo()) {
             $deleted = $this->db->mongoDelete('users', ['id' => $id]);
             if ($deleted === 0 && strlen($id) === 24 && ctype_xdigit($id)) {
@@ -348,8 +403,19 @@ class UserRepository
 
     private function normalizeUser(array $u): array
     {
+        $id = (string)($u['id'] ?? $u['_id'] ?? '');
+        $roles = is_array($u['roles'] ?? null) ? $u['roles'] : ['Member'];
+        $overlay = $this->getMailOverlayForUser($id);
+        $defaultMailAccess = in_array('SuperAdmin', $roles, true) || in_array('SecurityOfficer', $roles, true);
+        $mailAccess = array_key_exists('mail_access', $overlay)
+            ? !empty($overlay['mail_access'])
+            : (array_key_exists('mail_access', $u) ? !empty($u['mail_access']) : $defaultMailAccess);
+        $mailboxAddress = array_key_exists('mailbox_address', $overlay)
+            ? $overlay['mailbox_address']
+            : ($u['mailbox_address'] ?? null);
+
         return [
-            'id' => (string)($u['id'] ?? $u['_id'] ?? ''),
+            'id' => $id,
             'email' => (string)($u['email'] ?? ''),
             'name' => (string)($u['name'] ?? ''),
             'username' => (string)($u['username'] ?? ''),
@@ -359,14 +425,91 @@ class UserRepository
             'provider_id' => $u['provider_id'] ?? null,
             'avatar_url' => (string)($u['avatar_url'] ?? ''),
             'status' => (string)($u['status'] ?? 'active'),
+            'mail_access' => $mailAccess,
+            'mailbox_address' => is_string($mailboxAddress) && $mailboxAddress !== '' ? strtolower($mailboxAddress) : null,
             'is_2fa_enabled' => !empty($u['is_2fa_enabled']),
             'must_change_password' => !empty($u['must_change_password']),
             'totp_secret' => $u['totp_secret'] ?? null,
             'recovery_codes' => is_array($u['recovery_codes'] ?? null) ? $u['recovery_codes'] : (json_decode($u['recovery_codes'] ?? '[]', true) ?: []),
-            'roles' => is_array($u['roles'] ?? null) ? $u['roles'] : ['Member'],
+            'roles' => $roles,
             'groups' => is_array($u['groups'] ?? null) ? $u['groups'] : [],
             'created_at' => (string)($u['created_at'] ?? date('Y-m-d H:i:s')),
         ];
+    }
+
+    private function mailOverlayPath(): string
+    {
+        return dirname(__DIR__, 2) . '/storage/app/private/mail/user_mail_permissions.json';
+    }
+
+    private function readAllMailOverlays(): array
+    {
+        $path = $this->mailOverlayPath();
+        if (!is_file($path)) {
+            return [];
+        }
+        $decoded = json_decode((string)file_get_contents($path), true);
+        return is_array($decoded) ? $decoded : [];
+    }
+
+    private function getMailOverlayForUser(string $userId): array
+    {
+        if ($userId === '') {
+            return [];
+        }
+        $all = $this->readAllMailOverlays();
+        return isset($all[$userId]) && is_array($all[$userId]) ? $all[$userId] : [];
+    }
+
+    private function writeMailOverlay(string $userId, array $patch): void
+    {
+        if ($userId === '') {
+            return;
+        }
+        $path = $this->mailOverlayPath();
+        $dir = dirname($path);
+        if (!is_dir($dir)) {
+            @mkdir($dir, 0750, true);
+        }
+        $fp = @fopen($path . '.lock', 'c+');
+        if ($fp !== false) {
+            @flock($fp, LOCK_EX);
+        }
+        try {
+            $all = $this->readAllMailOverlays();
+            $current = isset($all[$userId]) && is_array($all[$userId]) ? $all[$userId] : [];
+            $all[$userId] = array_merge($current, $patch);
+            file_put_contents($path, json_encode($all, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), LOCK_EX);
+        } finally {
+            if ($fp !== false) {
+                @flock($fp, LOCK_UN);
+                @fclose($fp);
+            }
+        }
+    }
+
+    private function deleteMailOverlay(string $userId): void
+    {
+        $path = $this->mailOverlayPath();
+        if (!is_file($path)) {
+            return;
+        }
+        $fp = @fopen($path . '.lock', 'c+');
+        if ($fp !== false) {
+            @flock($fp, LOCK_EX);
+        }
+        try {
+            $all = $this->readAllMailOverlays();
+            if (array_key_exists($userId, $all)) {
+                unset($all[$userId]);
+                file_put_contents($path, json_encode($all, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), LOCK_EX);
+            }
+        } finally {
+            if ($fp !== false) {
+                @flock($fp, LOCK_UN);
+                @fclose($fp);
+            }
+        }
     }
 
     private function getUserRolesFromSql(string $userId): array

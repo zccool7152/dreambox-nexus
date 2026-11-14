@@ -145,6 +145,25 @@ $getAccountController = function () use ($app): \Nexus\Auth\AccountController {
     );
 };
 
+$getMailController = function () use ($app): \Nexus\Mail\MailController {
+    /** @var Database $db */
+    $db = $app->getContainer()->make(Database::class);
+    $session = new \Nexus\Security\Session($db);
+    $hasher = new \Nexus\Crypto\Hasher();
+    $auth = new \Nexus\Auth\Auth($session, $hasher, $db);
+    $userRepo = new \Nexus\Auth\UserRepository($db, $hasher);
+    $roleMgr = new \Nexus\Auth\Rbac\RoleManager($db);
+    $mailRepo = new \Nexus\Mail\MailRepository($db, $app->getBasePath() . '/storage/app/private/mail');
+    $scanner = new \Nexus\Mail\MailScanner();
+    $jail = new \Nexus\Mail\MailJail($app->getBasePath() . '/storage/cache/jails');
+    $view = new View($app->getBasePath() . '/resources/views');
+    $csrf = new Csrf((string)\Nexus\Core\Env::get('APP_KEY', ''));
+
+    return new \Nexus\Mail\MailController(
+        $auth, $userRepo, $roleMgr, $mailRepo, $scanner, $jail, $db, $view, $csrf, $session
+    );
+};
+
 // Auth Views & Actions
 $router->get('/auth/login', function (Request $req) use ($getAuthController) {
     return $getAuthController()->showLogin($req);
@@ -266,6 +285,55 @@ $router->post('/api/v1/account/password', function (Request $req) use ($getAccou
 $router->get('/api/v1/account', function (Request $req) use ($getAccountController) {
     return $getAccountController()->show($req);
 }, [], 'account.api_get');
+
+// ── Nexus Gmail-Style Webmail, Virus Scanner & Controlled Reader Jail ────────
+$router->get('/mail', function (Request $req) use ($getMailController) {
+    return $getMailController()->index($req);
+}, [], 'mail.index');
+
+$router->post('/mail/claim', function (Request $req) use ($getMailController) {
+    return $getMailController()->claim($req);
+}, [], 'mail.claim');
+
+$router->post('/mail/send', function (Request $req) use ($getMailController) {
+    return $getMailController()->send($req);
+}, [], 'mail.send');
+
+$router->post('/mail/messages/{id}', function (Request $req, string $id) use ($getMailController) {
+    return $getMailController()->mutateMessage($req, $id);
+}, [], 'mail.message_mutate');
+
+$router->get('/mail/jail/{jail_id}', function (Request $req, string $jailId) use ($getMailController) {
+    return $getMailController()->serveJailFrame($req, $jailId);
+}, [], 'mail.jail_frame');
+
+$router->post('/mail/jail/{jail_id}/close', function (Request $req, string $jailId) use ($getMailController) {
+    return $getMailController()->closeJail($req, $jailId);
+}, [], 'mail.jail_close_web');
+
+$router->get('/api/v1/mail/messages', function (Request $req) use ($getMailController) {
+    return $getMailController()->listMessages($req);
+}, [], 'mail.api_messages');
+
+$router->post('/api/v1/mail/claim', function (Request $req) use ($getMailController) {
+    return $getMailController()->claim($req);
+}, [], 'mail.api_claim');
+
+$router->post('/api/v1/mail/send', function (Request $req) use ($getMailController) {
+    return $getMailController()->send($req);
+}, [], 'mail.api_send');
+
+$router->post('/api/v1/mail/messages/{id}/open-jail', function (Request $req, string $id) use ($getMailController) {
+    return $getMailController()->openJail($req, $id);
+}, [], 'mail.api_open_jail');
+
+$router->post('/api/v1/mail/messages/{id}', function (Request $req, string $id) use ($getMailController) {
+    return $getMailController()->mutateMessage($req, $id);
+}, [], 'mail.api_mutate');
+
+$router->post('/api/v1/mail/jail/{jail_id}/close', function (Request $req, string $jailId) use ($getMailController) {
+    return $getMailController()->closeJail($req, $jailId);
+}, [], 'mail.api_close_jail');
 
 // ── Admin Area & IAM Management Console ──────────────────────────────────────
 $router->get('/admin', function (Request $req) use ($getAdminController) {

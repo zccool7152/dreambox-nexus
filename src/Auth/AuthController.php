@@ -274,7 +274,9 @@ class AuthController
             $mustChange,
             $user['username'] ?? '',
             $user['display_preference'] ?? 'name',
-            $user['groups'] ?? []
+            $user['groups'] ?? [],
+            !empty($user['mail_access']),
+            $user['mailbox_address'] ?? null
         );
 
         $redirectUrl = $mustChange ? ($appBase . '/auth/password/change/') : ($appBase . '/admin/');
@@ -394,7 +396,9 @@ class AuthController
             $mustChange,
             $user['username'] ?? '',
             $user['display_preference'] ?? 'name',
-            $user['groups'] ?? []
+            $user['groups'] ?? [],
+            !empty($user['mail_access']),
+            $user['mailbox_address'] ?? null
         );
 
         $redirectUrl = $mustChange ? ($appBase . '/auth/password/change/') : ($appBase . '/admin/');
@@ -583,7 +587,9 @@ class AuthController
                 $mustChange,
                 $user['username'] ?? '',
                 $user['display_preference'] ?? 'name',
-                $user['groups'] ?? []
+                $user['groups'] ?? [],
+                !empty($user['mail_access']),
+                $user['mailbox_address'] ?? null
             );
 
             $roles = (array)($user['roles'] ?? ['Member']);

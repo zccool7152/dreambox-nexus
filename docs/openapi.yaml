@@ -934,4 +934,255 @@ paths:
               schema:
                 $ref: '#/components/schemas/StandardErrorResponse'
 
+  # ── Nexus Webmail, Virus Scanner & Controlled Reader Jail ───────────────────
+  /mail:
+    get:
+      summary: Dreambox Nexus Gmail-Style Webmail Client
+      description: Renders the permission-gated Webmail onboarding prompt (on first visit before claiming an email address) or the Gmail-like Webmail interface.
+      security:
+        - SessionCookie: []
+      parameters:
+        - in: query
+          name: folder
+          schema:
+            type: string
+            enum: [inbox, starred, sent, drafts, trash]
+        - in: query
+          name: q
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Webmail HTML view or onboarding page rendered.
+          content:
+            text/html:
+              schema:
+                type: string
+        '401':
+          description: Unauthenticated visitor redirected or rejected.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardErrorResponse'
+        '403':
+          description: Missing mail.access permission.
+          content:
+            text/html:
+              schema:
+                type: string
+
+  /api/v1/mail/claim:
+    post:
+      summary: Claim Personal Webmail Address on First Visit
+      description: Assigns a unique <local_part>@<MAIL_DOMAIN> mailbox (default domain nexus.local) to a user holding mail.access permission and seeds starter messages.
+      security:
+        - SessionCookie: []
+        - CsrfToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - local_part
+              properties:
+                local_part:
+                  type: string
+                  example: timothy.dunn
+      responses:
+        '201':
+          description: Mailbox claimed and provisioned.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardSuccessResponse'
+        '401':
+          description: Unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardErrorResponse'
+        '403':
+          description: Forbidden - mail.access permission required.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardErrorResponse'
+        '409':
+          description: Address already claimed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardErrorResponse'
+        '422':
+          description: Invalid email handle format.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardErrorResponse'
+
+  /api/v1/mail/messages:
+    get:
+      summary: List Webmail Messages by Folder
+      description: Returns AV-scanned messages in the selected folder matching optional search query.
+      security:
+        - SessionCookie: []
+      parameters:
+        - in: query
+          name: folder
+          schema:
+            type: string
+            enum: [inbox, starred, sent, drafts, trash]
+        - in: query
+          name: q
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Mailbox messages retrieved.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardSuccessResponse'
+        '401':
+          description: Unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardErrorResponse'
+        '403':
+          description: Forbidden - mail.access permission required.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardErrorResponse'
+
+  /api/v1/mail/send:
+    post:
+      summary: Scan and Send Email (or Save Draft)
+      description: Scans composed message content via MailScanner; blocks infected outbound payloads and delivers clean/suspicious messages internally or over SMTP.
+      security:
+        - SessionCookie: []
+        - CsrfToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - to
+                - subject
+                - body
+              properties:
+                to:
+                  type: string
+                  format: email
+                subject:
+                  type: string
+                body:
+                  type: string
+                _action:
+                  type: string
+                  enum: [send, draft]
+      responses:
+        '200':
+          description: Message sent or draft saved.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardSuccessResponse'
+        '401':
+          description: Unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardErrorResponse'
+        '403':
+          description: Forbidden - mail.access permission required.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardErrorResponse'
+        '422':
+          description: Validation failure or antivirus scanner blocked infected outbound payload.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardErrorResponse'
+
+  /api/v1/mail/messages/{id}/open-jail:
+    post:
+      summary: Open Email Inside Controlled Ephemeral Reader Jail
+      description: Re-scans message via MailScanner, spins up a temporary isolated container in storage/cache/jails/<jail_id>, and returns zero-privilege sandbox HTML.
+      security:
+        - SessionCookie: []
+        - CsrfToken: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Ephemeral reader jail started.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardSuccessResponse'
+        '401':
+          description: Unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardErrorResponse'
+        '403':
+          description: Forbidden - mail.access permission required.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardErrorResponse'
+        '404':
+          description: Message not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardErrorResponse'
+
+  /api/v1/mail/jail/{jail_id}/close:
+    post:
+      summary: End and Shred Controlled Reader Jail
+      description: Immediately overwrites and deletes storage/cache/jails/<jail_id> when the user finishes reading the message.
+      security:
+        - SessionCookie: []
+        - CsrfToken: []
+      parameters:
+        - in: path
+          name: jail_id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Reader jail torn down and shredded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardSuccessResponse'
+        '401':
+          description: Unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardErrorResponse'
+        '403':
+          description: Forbidden - mail.access permission required.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardErrorResponse'
+
+
 
