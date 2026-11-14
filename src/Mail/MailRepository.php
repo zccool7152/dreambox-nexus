@@ -559,12 +559,14 @@ class MailRepository
     private function withStoreLock(string $filename, callable $mutator): void
     {
         if (!is_dir($this->storeDir)) {
-            @mkdir($this->storeDir, 0750, true);
+            @mkdir($this->storeDir, 0777, true);
         }
+        @chmod($this->storeDir, 0777);
 
         $path = $this->storeDir . '/' . $filename;
         $lockPath = $path . '.lock';
         $fp = @fopen($lockPath, 'c+');
+        @chmod($lockPath, 0666);
         if ($fp !== false) {
             @flock($fp, LOCK_EX);
         }
@@ -577,6 +579,7 @@ class MailRepository
                 json_encode($next, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
                 LOCK_EX
             );
+            @chmod($path, 0666);
         } finally {
             if ($fp !== false) {
                 @flock($fp, LOCK_UN);
@@ -585,3 +588,4 @@ class MailRepository
         }
     }
 }
+

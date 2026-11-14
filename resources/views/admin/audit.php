@@ -26,10 +26,11 @@
         </header>
 
         <nav class="admin-nav">
-            <a href="<?= $appBase ?>/admin/users" class="nav-link">👥 Users</a>
-            <a href="<?= $appBase ?>/admin/roles" class="nav-link">🛡️ Roles & Permissions</a>
-            <a href="<?= $appBase ?>/admin/groups" class="nav-link">🏛️ Groups</a>
-            <a href="<?= $appBase ?>/admin/audit" class="nav-link active">📜 Cryptographic Audit Trail</a>
+            <a href="<?= $appBase ?>/admin/users/" class="nav-link">👥 Users</a>
+            <a href="<?= $appBase ?>/admin/roles/" class="nav-link">🛡️ Roles & Permissions</a>
+            <a href="<?= $appBase ?>/admin/groups/" class="nav-link">🏛️ Groups</a>
+            <a href="<?= $appBase ?>/admin/audit/" class="nav-link active">📜 Cryptographic Audit Trail</a>
+            <a href="<?= $appBase ?>/mail/" class="nav-link">✉️ Webmail</a>
             <a href="<?= $appBase ?>/compliance/" class="nav-link">⚖️ Compliance Matrix</a>
             <a href="<?= $appBase ?>/health/" class="nav-link">💖 Health Probe</a>
             <a href="<?= $appBase ?>/nexus/monitor/" class="nav-link">🔒 SecOps Cockpit</a>

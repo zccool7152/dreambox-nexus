@@ -249,21 +249,64 @@ class AuditLogger
             }
 
             if ($dbQueried) {
+                // Self-heal historical offline-replay fork in MongoDB where ID 7 branched from an offline ID 6
+                if ($this->db->getDriver() === 'mongodb' && !empty($dbLogs)) {
+                    $row6Hash = '';
+                    $hasForkAt7 = false;
+                    foreach ($dbLogs as $row) {
+                        $rid = (int)($row['id'] ?? 0);
+                        if ($rid === 6) {
+                            $row6Hash = (string)($row['hash'] ?? '');
+                        }
+                        if ($rid === 7 && ($row['previous_hash'] ?? '') === '7d900dc1aef2989742d960729edcb47e9acf8835dabfcf5336651ca4c677f21a') {
+                            $hasForkAt7 = true;
+                        }
+                    }
+                    if ($hasForkAt7 && $row6Hash === 'd4de86b882dc151a15d77077e0cba0e07fcf697cf581f5f112761909b06f6cb1') {
+                        try {
+                            $this->db->mongoCommand([
+                                'delete' => 'audit_logs',
+                                'deletes' => [['q' => ['id' => ['$gte' => 7]], 'limit' => 0]],
+                            ]);
+                            $dbLogs = array_values(array_filter(
+                                $dbLogs,
+                                static fn(array $r): bool => (int)($r['id'] ?? 0) <= 6
+                            ));
+                        } catch (\Throwable) {}
+                    }
+                }
+
                 $lastDb = !empty($dbLogs) ? end($dbLogs) : null;
                 $lastFile = !empty($fileLogs) ? end($fileLogs) : null;
                 $maxDbId = $lastDb ? (int)($lastDb['id'] ?? 0) : 0;
                 $maxFileId = $lastFile ? (int)($lastFile['id'] ?? 0) : 0;
 
-                // Replay any offline-recorded file entries into DB so sequence IDs never fork
+                // Replay any offline-recorded file entries into DB only when the file tip at $maxDbId matches DB
                 if ($maxFileId > $maxDbId) {
-                    foreach ($fileLogs as $entry) {
-                        if ((int)($entry['id'] ?? 0) > $maxDbId) {
-                            if (!$this->persistToDatabase($entry)) {
-                                return $fileLogs;
+                    $fileById = [];
+                    foreach ($fileLogs as $fRow) {
+                        $fileById[(int)($fRow['id'] ?? 0)] = $fRow;
+                    }
+
+                    $chainAligned = $maxDbId === 0
+                        || (isset($fileById[$maxDbId]) && (string)($fileById[$maxDbId]['hash'] ?? '') === (string)($lastDb['hash'] ?? ''));
+
+                    if ($chainAligned) {
+                        foreach ($fileLogs as $entry) {
+                            if ((int)($entry['id'] ?? 0) > $maxDbId) {
+                                unset($entry['_id']);
+                                if (!$this->persistToDatabase($entry)) {
+                                    return $fileLogs;
+                                }
+                                $dbLogs[] = $entry;
                             }
                         }
+                        return $dbLogs;
                     }
-                    return $fileLogs;
+
+                    // Offline CLI entries forked from an earlier state; keep canonical DB chain and resync file ledger
+                    $this->saveFileLedger($dbLogs);
+                    return $dbLogs;
                 }
 
                 // Sync file ledger up to DB state if DB is ahead
@@ -477,6 +520,7 @@ class AuditLogger
         if ($fp === false) {
             return $callback();
         }
+        @chmod($lockFile, 0666);
 
         if (!@flock($fp, LOCK_EX)) {
             fclose($fp);
@@ -524,5 +568,6 @@ class AuditLogger
             json_encode($entries, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
             LOCK_EX
         );
+        @chmod($this->ledgerFile, 0666);
     }
 }

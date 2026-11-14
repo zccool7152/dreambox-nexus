@@ -49,8 +49,9 @@
                     scanning, and enable the Ephemeral Reader Jail.
                 </p>
 
-                <form method="POST" action="<?= htmlspecialchars($appBase) ?>/mail/claim" class="nx-mail-claim-form">
+                <form method="POST" action="<?= htmlspecialchars($appBase) ?>/mail/" class="nx-mail-claim-form">
                     <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
+                    <input type="hidden" name="_action" value="claim">
                     <label for="claimLocalPart" class="nx-mail-label">Desired Email Address</label>
                     <div class="nx-mail-claim-row">
                         <input
@@ -258,7 +259,7 @@
                         <h3 class="h5 mb-0">New Message <span class="small text-muted fw-normal">(AV Scanned on Send)</span></h3>
                         <button type="button" class="btn btn-secondary btn-xs" id="btnCloseCompose">✕</button>
                     </div>
-                    <form method="POST" action="<?= htmlspecialchars($appBase) ?>/mail/send" id="composeForm">
+                    <form method="POST" action="<?= htmlspecialchars($appBase) ?>/mail/" id="composeForm">
                         <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
                         <div class="mb-3">
                             <label for="composeTo" class="nx-mail-label">To</label>
@@ -346,7 +347,7 @@
             document.querySelectorAll('.nx-mail-row.is-active').forEach(r => r.classList.remove('is-active'));
 
             try {
-                await fetch(appBase + '/api/v1/mail/jail/' + encodeURIComponent(targetId) + '/close', {
+                await fetch(appBase + '/mail/', {
                     method: 'POST',
                     keepalive: Boolean(useKeepalive),
                     headers: {
@@ -354,7 +355,7 @@
                         'Content-Type': 'application/json',
                         'X-CSRF-Token': csrf
                     },
-                    body: JSON.stringify({ csrf_token: csrf })
+                    body: JSON.stringify({ _action: 'close_jail', jail_id: targetId, csrf_token: csrf })
                 });
             } catch (e) {}
         }
@@ -365,14 +366,14 @@
             }
 
             try {
-                const res = await fetch(appBase + '/api/v1/mail/messages/' + encodeURIComponent(msgId) + '/open-jail', {
+                const res = await fetch(appBase + '/mail/', {
                     method: 'POST',
                     headers: {
                         'Accept': 'application/json',
                         'Content-Type': 'application/json',
                         'X-CSRF-Token': csrf
                     },
-                    body: JSON.stringify({ csrf_token: csrf })
+                    body: JSON.stringify({ _action: 'open_jail', message_id: msgId, csrf_token: csrf })
                 });
 
                 const json = await res.json();
@@ -426,14 +427,14 @@
                 const id = btn.dataset.starId;
                 if (!id) return;
                 try {
-                    const res = await fetch(appBase + '/api/v1/mail/messages/' + encodeURIComponent(id), {
+                    const res = await fetch(appBase + '/mail/', {
                         method: 'POST',
                         headers: {
                             'Accept': 'application/json',
                             'Content-Type': 'application/json',
                             'X-CSRF-Token': csrf
                         },
-                        body: JSON.stringify({ _action: 'toggle_star', csrf_token: csrf })
+                        body: JSON.stringify({ _action: 'toggle_star', message_id: id, csrf_token: csrf })
                     });
                     const json = await res.json();
                     if (res.ok && json.data && json.data.message) {
@@ -470,14 +471,14 @@
                 const action = folder === 'trash' ? 'delete_forever' : 'trash';
                 await closeActiveJail(false);
                 try {
-                    await fetch(appBase + '/api/v1/mail/messages/' + encodeURIComponent(msgId), {
+                    await fetch(appBase + '/mail/', {
                         method: 'POST',
                         headers: {
                             'Accept': 'application/json',
                             'Content-Type': 'application/json',
                             'X-CSRF-Token': csrf
                         },
-                        body: JSON.stringify({ _action: action, csrf_token: csrf })
+                        body: JSON.stringify({ _action: action, message_id: msgId, csrf_token: csrf })
                     });
                     window.location.href = appBase + '/mail/?folder=' + encodeURIComponent(folder);
                 } catch (err) {}
@@ -494,3 +495,4 @@
     </script>
 </body>
 </html>
+

@@ -54,7 +54,17 @@ $isSuperAdmin = in_array('SuperAdmin', $userRoles, true);
 $isAdmin = $isSuperAdmin || in_array('Admin', $userRoles, true);
 $isSecOps = $isSuperAdmin || in_array('SecurityOfficer', $userRoles, true) || in_array('SecOps', $userGroups, true);
 $isDeveloper = $isSuperAdmin || in_array('Developer', $userRoles, true) || in_array('Engineering', $userGroups, true);
-$hasMailAccess = $isSuperAdmin || in_array('SecurityOfficer', $userRoles, true) || !empty($user['mail_access']) || !empty($_SESSION['mail_access']);
+$hasMailAccess = $isAdmin || $isSecOps || !empty($user['mail_access']) || !empty($_SESSION['mail_access']);
+if (!$hasMailAccess && $isLoggedIn) {
+    $topbarUid = (string)($user['id'] ?? $_SESSION['user_id'] ?? '');
+    $overlayFile = dirname(__DIR__, 3) . '/storage/app/private/mail/user_mail_permissions.json';
+    if ($topbarUid !== '' && is_file($overlayFile)) {
+        $overlayMap = json_decode((string)file_get_contents($overlayFile), true);
+        if (is_array($overlayMap) && !empty($overlayMap[$topbarUid]['mail_access'])) {
+            $hasMailAccess = true;
+        }
+    }
+}
 ?>
 
 <link rel="icon" type="image/x-icon" href="<?= htmlspecialchars($appBase) ?>/favicon.ico">
@@ -130,26 +140,10 @@ $hasMailAccess = $isSuperAdmin || in_array('SecurityOfficer', $userRoles, true) 
                         <!-- Group's & Role's Dynamic Navigation Menus -->
                         <?php if ($isAdmin): ?>
                             <div class="nexus-dropdown-section">
-                                <div class="nexus-section-label">IAM Administration</div>
+                                <div class="nexus-section-label">Administration</div>
                                 <a href="<?= $appBase ?>/admin/" class="nexus-menu-item" role="menuitem">
                                     <svg class="nexus-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
-                                    <span>IAM Console</span>
-                                </a>
-                                <a href="<?= $appBase ?>/admin/users/" class="nexus-menu-item" role="menuitem">
-                                    <svg class="nexus-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
-                                    <span>User Management</span>
-                                </a>
-                                <a href="<?= $appBase ?>/admin/roles/" class="nexus-menu-item" role="menuitem">
-                                    <svg class="nexus-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
-                                    <span>Roles & Permissions</span>
-                                </a>
-                                <a href="<?= $appBase ?>/admin/groups/" class="nexus-menu-item" role="menuitem">
-                                    <svg class="nexus-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
-                                    <span>Groups Management</span>
-                                </a>
-                                <a href="<?= $appBase ?>/admin/audit/" class="nexus-menu-item" role="menuitem">
-                                    <svg class="nexus-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-                                    <span>Audit Hash Chain</span>
+                                    <span>Admin Area</span>
                                 </a>
                             </div>
                             <div class="nexus-divider"></div>

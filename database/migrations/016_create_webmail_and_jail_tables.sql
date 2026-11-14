@@ -39,3 +39,4 @@ CREATE TABLE IF NOT EXISTS mail_messages (
     INDEX idx_mail_created (created_at),
     CONSTRAINT fk_mail_owner FOREIGN KEY (owner_user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+

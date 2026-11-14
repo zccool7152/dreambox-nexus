@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace Nexus\Security;
 
+use Nexus\Core\Logger;
 use Nexus\Core\MiddlewareInterface;
 use Nexus\Core\Request;
 use Nexus\Core\Response;
@@ -75,11 +76,29 @@ class Csrf implements MiddlewareInterface
         }
 
         $token = $request->getHeader('x-csrf-token') ?? (string)($request->get('csrf_token') ?: $request->get('_token', ''));
+        $resolvedId = $sessionId !== ''
+            ? $sessionId
+            : (session_id() ?: (string)($_COOKIE['nexus_session'] ?? ''));
+
         if ($token === '') {
+            (new Logger())->warning('CSRF verification failed: missing token', [
+                'method' => $request->getMethod(),
+                'path' => $request->getPath(),
+                'has_session' => $resolvedId !== '',
+            ], $request->getTraceId());
             return false;
         }
 
-        return $this->validateToken($token, $sessionId);
+        $valid = $this->validateToken($token, $resolvedId);
+        if (!$valid) {
+            (new Logger())->warning('CSRF verification failed: token mismatch or missing session', [
+                'method' => $request->getMethod(),
+                'path' => $request->getPath(),
+                'has_session' => $resolvedId !== '',
+            ], $request->getTraceId());
+        }
+
+        return $valid;
     }
 
     public function handle(Request $request, callable $next): Response

@@ -28,7 +28,8 @@ class Logger
     {
         $dir = dirname($this->logPath);
         if (!is_dir($dir)) {
-            mkdir($dir, 0755, true);
+            @mkdir($dir, 0777, true);
+            @chmod($dir, 0777);
         }
 
         $timestamp = gmdate('Y-m-d H:i:s');
@@ -38,7 +39,8 @@ class Logger
         $contextJson = !empty($context) ? ' ' . json_encode($context, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) : '';
         $line = "[{$timestamp} UTC] [{$level}] [{$trace}] {$message}{$contextJson}\n";
 
-        $fp = fopen($this->logPath, 'ab');
+        $isNew = !file_exists($this->logPath);
+        $fp = @fopen($this->logPath, 'ab');
         if ($fp !== false) {
             if (flock($fp, LOCK_EX)) {
                 fwrite($fp, $line);
@@ -46,6 +48,9 @@ class Logger
                 flock($fp, LOCK_UN);
             }
             fclose($fp);
+            if ($isNew) {
+                @chmod($this->logPath, 0666);
+            }
         }
     }
 

@@ -5,9 +5,12 @@ namespace Nexus\Auth;
 
 use Nexus\Auth\OAuth\OAuthManager;
 use Nexus\Auth\Rbac\RoleManager;
+use Nexus\Core\Logger;
 use Nexus\Core\Request;
 use Nexus\Core\Response;
 use Nexus\Crypto\Hasher;
+use Nexus\Database\Database;
+use Nexus\Events\AuditLogger;
 use Nexus\Security\Csrf;
 use Nexus\Security\Session;
 use Nexus\View\QrCodeGenerator;
@@ -24,6 +27,8 @@ class AuthController
     private View $view;
     private Session $session;
     private Csrf $csrf;
+    private ?Database $db;
+    private Logger $logger;
 
     public function __construct(
         Auth $auth,
@@ -34,7 +39,9 @@ class AuthController
         RoleManager $rbac,
         View $view,
         Session $session,
-        Csrf $csrf
+        Csrf $csrf,
+        ?Database $db = null,
+        ?Logger $logger = null
     ) {
         $this->auth = $auth;
         $this->userRepo = $userRepo;
@@ -45,12 +52,42 @@ class AuthController
         $this->view = $view;
         $this->session = $session;
         $this->csrf = $csrf;
+        $this->db = $db;
+        $this->logger = $logger ?? new Logger();
+    }
+
+    private function logEvent(string $level, string $message, array $context, Request $request): void
+    {
+        $context['ip'] = $request->getClientIp();
+        $this->logger->log($level, $message, $context, $request->getTraceId());
+    }
+
+    private function audit(Request $request, ?string $userId, string $action, string $resourceId, ?array $after = null): void
+    {
+        try {
+            (new AuditLogger($this->db))->log(
+                $request->getTraceId(),
+                $userId,
+                $action,
+                'auth',
+                $resourceId,
+                $request->getClientIp(),
+                $request->getHeader('user-agent', 'Browser'),
+                null,
+                $after
+            );
+        } catch (\Throwable) {}
     }
 
     private function verifyCsrf(Request $request, string $redirectPath, string $flashKey = 'auth_error'): ?Response
     {
         $this->session->start();
         if (!$this->csrf->verifyRequest($request, $this->session->getId())) {
+            $this->logEvent(Logger::WARNING, 'auth.csrf_failed', [
+                'path' => $request->getPath(),
+                'has_session' => $this->session->getId() !== '',
+            ], $request);
+            $this->audit($request, null, 'auth.csrf_failed', $request->getPath());
             if ($request->wantsJson()) {
                 return Response::error('CSRF token validation failed.', 419, 'CSRF_INVALID');
             }
@@ -93,6 +130,7 @@ class AuthController
         $appBase = Request::getAppBase();
 
         if (empty($email) || empty($password)) {
+            $this->logEvent(Logger::WARNING, 'auth.login.validation_failed', ['email_present' => $email !== ''], $request);
             if (!$request->wantsJson()) {
                 $this->session->flash('auth_error', 'Email and password are required.');
                 return Response::redirect($appBase . '/auth/login/');
@@ -105,6 +143,8 @@ class AuthController
             $rem = $this->lockout->getLockoutRemainingSeconds($email);
             $mins = ceil($rem / 60);
             $msg = "Account is locked due to repeated failed login attempts. Try again in {$mins} minutes.";
+            $this->logEvent(Logger::WARNING, 'auth.login.locked', ['email' => $email, 'remaining_sec' => $rem], $request);
+            $this->audit($request, null, 'auth.login.locked', $email);
             if (!$request->wantsJson()) {
                 $this->session->flash('auth_error', $msg);
                 return Response::redirect($appBase . '/auth/login/');
@@ -122,6 +162,11 @@ class AuthController
 
         if (!$validPassword) {
             $this->lockout->recordFailedAttempt($email, $ip);
+            $this->logEvent(Logger::WARNING, 'auth.login.failed', [
+                'email' => $email,
+                'user_found' => $user !== null,
+            ], $request);
+            $this->audit($request, $user['id'] ?? null, 'auth.login.failed', $email);
             if (!$request->wantsJson()) {
                 $this->session->flash('auth_error', 'Invalid email or password.');
                 return Response::redirect($appBase . '/auth/login/');
@@ -130,6 +175,8 @@ class AuthController
         }
 
         if ($user['status'] === 'suspended') {
+            $this->logEvent(Logger::WARNING, 'auth.login.suspended', ['user_id' => $user['id'], 'email' => $email], $request);
+            $this->audit($request, $user['id'], 'auth.login.suspended', $user['id']);
             if (!$request->wantsJson()) {
                 $this->session->flash('auth_error', 'This account has been administratively suspended.');
                 return Response::redirect($appBase . '/auth/login/');
@@ -143,7 +190,15 @@ class AuthController
         $this->session->start();
         $this->session->set('pending_auth_user_id', $user['id']);
 
-        if (empty($user['is_2fa_enabled']) || empty($user['totp_secret'])) {
+        $needsSetup = empty($user['is_2fa_enabled']) || empty($user['totp_secret']);
+        $this->logEvent(Logger::INFO, 'auth.login.verified', [
+            'user_id' => $user['id'],
+            'email' => $email,
+            'next_step' => $needsSetup ? '2fa_setup' : '2fa_totp',
+        ], $request);
+        $this->audit($request, $user['id'], 'auth.login.verified', $user['id'], ['next_step' => $needsSetup ? '2fa_setup' : '2fa_totp']);
+
+        if ($needsSetup) {
             // First time email login: Mandate Google Authenticator 2FA Setup
             if (!$request->wantsJson()) {
                 return Response::redirect($appBase . '/auth/2fa/setup/');
@@ -212,6 +267,7 @@ class AuthController
         $appBase = Request::getAppBase();
 
         if (empty($userId) || empty($secret)) {
+            $this->logEvent(Logger::WARNING, 'auth.2fa.setup_session_expired', ['has_user' => !empty($userId)], $request);
             if (!$request->wantsJson()) {
                 $this->session->flash('mfa_error', 'Session expired. Please log in again.');
                 return Response::redirect($appBase . '/auth/login/');
@@ -242,6 +298,8 @@ class AuthController
         $isReplay = $this->session->get('last_verified_totp_code') === $code;
         if (empty($code) || $isReplay || !$this->mfa->verifyCode($secret, $code)) {
             $this->lockout->recordFailedAttempt($user['email'], $request->getClientIp());
+            $this->logEvent(Logger::WARNING, 'auth.2fa.setup_failed', ['user_id' => $userId, 'replay' => $isReplay], $request);
+            $this->audit($request, $userId, 'auth.2fa.setup_failed', $userId);
             if (!$request->wantsJson()) {
                 $this->session->flash('mfa_error', 'Invalid verification code from Google Authenticator.');
                 return Response::redirect($appBase . '/auth/2fa/setup/');
@@ -278,6 +336,8 @@ class AuthController
             !empty($user['mail_access']),
             $user['mailbox_address'] ?? null
         );
+        $this->logEvent(Logger::INFO, 'auth.2fa.setup_succeeded', ['user_id' => $user['id'], 'must_change_password' => $mustChange], $request);
+        $this->audit($request, $user['id'], 'auth.2fa.setup_succeeded', $user['id']);
 
         $redirectUrl = $mustChange ? ($appBase . '/auth/password/change/') : ($appBase . '/admin/');
 
@@ -375,6 +435,8 @@ class AuthController
 
         if (!$verified) {
             $this->lockout->recordFailedAttempt($user['email'], $request->getClientIp());
+            $this->logEvent(Logger::WARNING, 'auth.2fa.failed', ['user_id' => $user['id']], $request);
+            $this->audit($request, $user['id'], 'auth.2fa.failed', $user['id']);
             if (!$request->wantsJson()) {
                 $this->session->flash('mfa_error', 'Invalid Google Authenticator verification code.');
                 return Response::redirect($appBase . '/auth/2fa/');
@@ -400,6 +462,8 @@ class AuthController
             !empty($user['mail_access']),
             $user['mailbox_address'] ?? null
         );
+        $this->logEvent(Logger::INFO, 'auth.2fa.verified', ['user_id' => $user['id'], 'email' => $user['email']], $request);
+        $this->audit($request, $user['id'], 'auth.2fa.verified', $user['id']);
 
         $redirectUrl = $mustChange ? ($appBase . '/auth/password/change/') : ($appBase . '/admin/');
 
@@ -465,6 +529,7 @@ class AuthController
         }
 
         if ($err !== null) {
+            $this->logEvent(Logger::WARNING, 'auth.password.validation_failed', ['user_id' => $user['id'], 'reason' => $err], $request);
             if (!$request->wantsJson()) {
                 $this->session->flash('pwd_error', $err);
                 return Response::redirect($appBase . '/auth/password/change/');
@@ -476,6 +541,8 @@ class AuthController
         $hasher = new Hasher();
         if ($fullUser === null || empty($fullUser['password_hash']) || !$hasher->verify($currentPassword, $fullUser['password_hash'])) {
             $err = 'Current password verification failed.';
+            $this->logEvent(Logger::WARNING, 'auth.password.failed', ['user_id' => $user['id']], $request);
+            $this->audit($request, $user['id'], 'auth.password.failed', $user['id']);
             if (!$request->wantsJson()) {
                 $this->session->flash('pwd_error', $err);
                 return Response::redirect($appBase . '/auth/password/change/');
@@ -489,6 +556,8 @@ class AuthController
         ]);
 
         $this->session->set('must_change_password', false);
+        $this->logEvent(Logger::INFO, 'auth.password.changed', ['user_id' => $user['id']], $request);
+        $this->audit($request, $user['id'], 'auth.password.changed', $user['id']);
 
         if (!$request->wantsJson()) {
             return Response::redirect($appBase . '/admin/');
@@ -506,8 +575,16 @@ class AuthController
             $state = $this->oauth->generateState();
             $oauthProvider = $this->oauth->getProvider($provider);
             $url = $oauthProvider->getAuthorizationUrl($state);
+            $this->logEvent(Logger::INFO, 'auth.oauth.redirect', [
+                'provider' => $provider,
+                'has_session' => $this->session->getId() !== '',
+            ], $request);
             return Response::redirect($url);
         } catch (\Throwable $e) {
+            $this->logEvent(Logger::ERROR, 'auth.oauth.redirect_failed', [
+                'provider' => $provider,
+                'error' => $e->getMessage(),
+            ], $request);
             $this->session->flash('auth_error', $e->getMessage());
             return Response::redirect(Request::getAppBase() . '/auth/login/');
         }
@@ -518,6 +595,10 @@ class AuthController
         $error = $request->getString('error', '');
         if ($error !== '') {
             $errorDesc = $request->getString('error_description', $error);
+            $this->logEvent(Logger::WARNING, 'auth.oauth.declined', [
+                'provider' => $provider,
+                'error' => $error,
+            ], $request);
             $this->session->flash('auth_error', 'OAuth authorization was cancelled or declined: ' . $errorDesc);
             return Response::redirect(Request::getAppBase() . '/auth/login/');
         }
@@ -526,7 +607,12 @@ class AuthController
         $state = $request->getString('state', '');
 
         if (!$this->oauth->validateState($state)) {
-            error_log("[OAuth Debug] State mismatch on {$provider} callback. Inbound state: '{$state}', Session state: '" . ($this->session->get('oauth_state') ?? 'NULL') . "'");
+            $this->logEvent(Logger::WARNING, 'auth.oauth.state_mismatch', [
+                'provider' => $provider,
+                'inbound_state_present' => $state !== '',
+                'session_id_present' => $this->session->getId() !== '',
+            ], $request);
+            $this->audit($request, null, 'auth.oauth.state_mismatch', $provider);
             $this->session->flash('auth_error', 'Invalid OAuth state parameter (CSRF detected). Please try again.');
             return Response::redirect(Request::getAppBase() . '/auth/login/');
         }
@@ -591,6 +677,12 @@ class AuthController
                 !empty($user['mail_access']),
                 $user['mailbox_address'] ?? null
             );
+            $this->logEvent(Logger::INFO, 'auth.oauth.succeeded', [
+                'provider' => $provider,
+                'user_id' => $user['id'],
+                'email' => $user['email'],
+            ], $request);
+            $this->audit($request, $user['id'], 'auth.oauth.succeeded', $provider, ['email' => $user['email']]);
 
             $roles = (array)($user['roles'] ?? ['Member']);
             $isAdmin = in_array('SuperAdmin', $roles, true) || in_array('Admin', $roles, true) || in_array('SecurityOfficer', $roles, true);
@@ -598,6 +690,11 @@ class AuthController
 
             return Response::redirect(Request::getAppBase() . $destination);
         } catch (\Throwable $e) {
+            $this->logEvent(Logger::ERROR, 'auth.oauth.failed', [
+                'provider' => $provider,
+                'error' => $e->getMessage(),
+            ], $request);
+            $this->audit($request, null, 'auth.oauth.failed', $provider, ['error' => $e->getMessage()]);
             $this->session->flash('auth_error', 'OAuth authentication failed: ' . $e->getMessage());
             return Response::redirect(Request::getAppBase() . '/auth/login/');
         }
@@ -605,6 +702,11 @@ class AuthController
 
     public function logout(Request $request): Response
     {
+        $user = $this->auth->user($request);
+        $this->logEvent(Logger::INFO, 'auth.logout', ['user_id' => $user['id'] ?? null], $request);
+        if ($user !== null) {
+            $this->audit($request, $user['id'], 'auth.logout', $user['id']);
+        }
         $this->auth->logout();
         if ($request->wantsJson()) {
             return Response::json([], 200, 'Successfully logged out.');

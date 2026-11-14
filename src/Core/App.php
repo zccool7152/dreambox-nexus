@@ -152,7 +152,20 @@ class App
             $destination
         );
 
-        return $pipeline($request);
+        $response = $pipeline($request);
+
+        try {
+            /** @var Logger $logger */
+            $logger = $this->container->make(Logger::class);
+            $status = $response->getStatusCode();
+            $level = $status >= 500 ? Logger::ERROR : ($status >= 400 ? Logger::WARNING : Logger::INFO);
+            $logger->log($level, sprintf('%s %s -> HTTP %d', $request->getMethod(), $request->getPath(), $status), [
+                'ip' => $request->getClientIp(),
+                'wants_json' => $request->wantsJson(),
+            ], $request->getTraceId());
+        } catch (\Throwable) {}
+
+        return $response;
     }
 
     public function run(?Request $request = null): void

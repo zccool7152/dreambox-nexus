@@ -715,3 +715,4 @@ class MailController
         } catch (\Throwable) {}
     }
 }
+

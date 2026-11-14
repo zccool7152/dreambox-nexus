@@ -18,7 +18,6 @@ class Session implements SessionHandlerInterface, \SessionUpdateTimestampHandler
     private ?Database $db;
     private int $idleTimeoutSeconds;
     private bool $secureCookie;
-    private bool $uninitializedSessionRead = false;
     private static string $cliSessionId = '';
 
     /**
@@ -80,6 +79,23 @@ class Session implements SessionHandlerInterface, \SessionUpdateTimestampHandler
         return $this->db !== null && $this->db->isAlive();
     }
 
+    private function resolveSessionDir(): string
+    {
+        $primary = dirname(__DIR__, 2) . '/storage/sessions';
+        if (!is_dir($primary)) {
+            @mkdir($primary, 0700, true);
+        }
+        if (is_dir($primary) && is_writable($primary)) {
+            return $primary;
+        }
+        $uid = function_exists('posix_geteuid') ? (string)posix_geteuid() : (string)getmyuid();
+        $fallback = rtrim(sys_get_temp_dir(), '/\\') . '/nexus_sessions_' . $uid;
+        if (!is_dir($fallback)) {
+            @mkdir($fallback, 0700, true);
+        }
+        return $fallback;
+    }
+
     public function start(): void
     {
         if (session_status() === PHP_SESSION_ACTIVE) {
@@ -89,10 +105,7 @@ class Session implements SessionHandlerInterface, \SessionUpdateTimestampHandler
             return;
         }
 
-        $sessionPath = dirname(__DIR__, 2) . '/storage/sessions';
-        if (!is_dir($sessionPath)) {
-            @mkdir($sessionPath, 0700, true);
-        }
+        $sessionPath = $this->resolveSessionDir();
 
         if (!headers_sent()) {
             if ($this->isDbActive() && $this->db->getDriver() === 'mongodb') {
@@ -116,11 +129,6 @@ class Session implements SessionHandlerInterface, \SessionUpdateTimestampHandler
 
             @session_name('nexus_session');
             @session_start();
-
-            if ($this->uninitializedSessionRead && session_status() === PHP_SESSION_ACTIVE) {
-                @session_regenerate_id(true);
-                $this->uninitializedSessionRead = false;
-            }
         }
 
         if (!isset($_SESSION) || !is_array($_SESSION)) {
@@ -173,12 +181,13 @@ class Session implements SessionHandlerInterface, \SessionUpdateTimestampHandler
         if ($this->isDbActive() && $this->db->getDriver() === 'mongodb') {
             try {
                 return $this->db->mongoFindOne('sessions', ['session_id' => $id]) !== null;
-            } catch (\Throwable) {
+            } catch (\Throwable $e) {
+                (new \Nexus\Core\Logger())->error('Session validateId MongoDB failure: ' . $e->getMessage(), ['session_id_prefix' => substr($id, 0, 8)]);
                 return false;
             }
         }
 
-        $file = dirname(__DIR__, 2) . '/storage/sessions/sess_' . $id;
+        $file = $this->resolveSessionDir() . '/sess_' . $id;
         return is_file($file);
     }
 
@@ -193,21 +202,16 @@ class Session implements SessionHandlerInterface, \SessionUpdateTimestampHandler
             try {
                 $doc = $this->db->mongoFindOne('sessions', ['session_id' => $id]);
                 if (!$doc) {
-                    if ((bool)ini_get('session.use_strict_mode')) {
-                        $this->uninitializedSessionRead = true;
-                        if (session_status() === PHP_SESSION_ACTIVE && !headers_sent()) {
-                            @session_regenerate_id(true);
-                        }
-                    }
                     return '';
                 }
                 return (string)($doc['data'] ?? '');
-            } catch (\Throwable) {
+            } catch (\Throwable $e) {
+                (new \Nexus\Core\Logger())->error('Session read MongoDB failure: ' . $e->getMessage(), ['session_id_prefix' => substr($id, 0, 8)]);
                 return '';
             }
         }
 
-        $file = dirname(__DIR__, 2) . '/storage/sessions/sess_' . $id;
+        $file = $this->resolveSessionDir() . '/sess_' . $id;
         return file_exists($file) ? (string)file_get_contents($file) : '';
     }
 
@@ -227,17 +231,18 @@ class Session implements SessionHandlerInterface, \SessionUpdateTimestampHandler
                     ['upsert' => true]
                 );
                 return true;
-            } catch (\Throwable) {
-                // fallback to disk if mongo write encounters error
+            } catch (\Throwable $e) {
+                (new \Nexus\Core\Logger())->error('Session write MongoDB failure (falling back to file): ' . $e->getMessage(), ['session_id_prefix' => substr($id, 0, 8)]);
             }
         }
 
-        $sessionPath = dirname(__DIR__, 2) . '/storage/sessions';
-        if (!is_dir($sessionPath)) {
-            @mkdir($sessionPath, 0700, true);
-        }
+        $sessionPath = $this->resolveSessionDir();
         $file = $sessionPath . '/sess_' . $id;
-        return (bool)@file_put_contents($file, $data);
+        $ok = (bool)@file_put_contents($file, $data);
+        if (!$ok) {
+            (new \Nexus\Core\Logger())->error('Session write file failure', ['file' => basename($file), 'dir' => $sessionPath]);
+        }
+        return $ok;
     }
 
     public function destroy(string $id = ''): bool

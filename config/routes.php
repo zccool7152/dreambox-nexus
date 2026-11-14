@@ -109,7 +109,7 @@ $getAuthController = function () use ($app): \Nexus\Auth\AuthController {
     $csrf = new Csrf((string)\Nexus\Core\Env::get('APP_KEY', ''));
 
     return new \Nexus\Auth\AuthController(
-        $auth, $userRepo, $mfa, $lockout, $oauth, $rbac, $view, $session, $csrf
+        $auth, $userRepo, $mfa, $lockout, $oauth, $rbac, $view, $session, $csrf, $db
     );
 };
 
@@ -290,6 +290,18 @@ $router->get('/api/v1/account', function (Request $req) use ($getAccountControll
 $router->get('/mail', function (Request $req) use ($getMailController) {
     return $getMailController()->index($req);
 }, [], 'mail.index');
+
+$router->post('/mail', function (Request $req) use ($getMailController) {
+    $action = strtolower(trim($req->getString('_action', '')));
+    return match ($action) {
+        'claim' => $getMailController()->claim($req),
+        'send', 'draft' => $getMailController()->send($req),
+        'open_jail' => $getMailController()->openJail($req, $req->getString('message_id')),
+        'close_jail' => $getMailController()->closeJail($req, $req->getString('jail_id')),
+        'toggle_star', 'mark_read', 'mark_unread', 'trash', 'restore', 'delete_forever' => $getMailController()->mutateMessage($req, $req->getString('message_id')),
+        default => Response::error('Unknown mail action.', ['_action' => ['Unsupported mail action.']], 422, [], $req->getTraceId()),
+    };
+}, [], 'mail.post_dispatch');
 
 $router->post('/mail/claim', function (Request $req) use ($getMailController) {
     return $getMailController()->claim($req);

@@ -7,6 +7,17 @@ declare(strict_types=1);
 
 $baseDir = dirname(__DIR__);
 
+// Snapshot audit_chain.json so offline CLI test runs never fork live audit logs
+$auditChainFile = $baseDir . '/storage/logs/audit_chain.json';
+$auditChainSnapshot = is_file($auditChainFile) ? file_get_contents($auditChainFile) : null;
+$restoreAuditChain = static function () use ($auditChainFile, $auditChainSnapshot): void {
+    if ($auditChainSnapshot !== null) {
+        @file_put_contents($auditChainFile, $auditChainSnapshot, LOCK_EX);
+        @chmod($auditChainFile, 0666);
+    }
+};
+register_shutdown_function($restoreAuditChain);
+
 // 1. Register Native Autoloader
 require_once $baseDir . '/src/Core/Autoloader.php';
 $autoloader = new \Nexus\Core\Autoloader($baseDir);
@@ -1227,6 +1238,88 @@ $assertTest(
 @unlink($syncLedgerFile);
 @unlink($syncLedgerFile . '.lock');
 
+// 18.21 Session + MongoDB save handler persistence across consecutive HTTP requests (headers_sent === false)
+$probeScript = $baseDir . '/storage/cache/session_probe_' . uniqid() . '.php';
+$probeStoreFile = $baseDir . '/storage/cache/session_probe_' . uniqid() . '.json';
+file_put_contents($probeStoreFile, '{}');
+$probeCode = <<<'PHP'
+<?php
+require $argv[1] . '/src/Core/Autoloader.php';
+$loader = new \Nexus\Core\Autoloader($argv[1]);
+$loader->addNamespace('Nexus', $argv[1] . '/src');
+$loader->register();
+$storeFile = $argv[2];
+$fakeMongo = new class(['driver' => 'mongodb'], $storeFile) extends \Nexus\Database\Database {
+    private string $file;
+    public function __construct(array $c, string $file) { $this->file = $file; }
+    public function isAlive(): bool { return true; }
+    public function isSql(): bool { return false; }
+    public function getDriver(): string { return 'mongodb'; }
+    public function mongoFindOne(string $collection, array $filter = [], array $options = []): ?array {
+        $all = json_decode((string)@file_get_contents($this->file), true) ?: [];
+        $sid = $filter['session_id'] ?? '';
+        return $all[$sid] ?? null;
+    }
+    public function mongoUpdate(string $collection, array $filter, array $newObj, array $updateOptions = []): int {
+        $all = json_decode((string)@file_get_contents($this->file), true) ?: [];
+        $sid = $filter['session_id'] ?? '';
+        $all[$sid] = $newObj['$set'] ?? [];
+        file_put_contents($this->file, json_encode($all), LOCK_EX);
+        return 1;
+    }
+    public function mongoDelete(string $collection, array $filter = []): int {
+        $all = json_decode((string)@file_get_contents($this->file), true) ?: [];
+        $sid = $filter['session_id'] ?? '';
+        unset($all[$sid]);
+        file_put_contents($this->file, json_encode($all), LOCK_EX);
+        return 1;
+    }
+};
+$warnings = [];
+set_error_handler(function ($sev, $msg) use (&$warnings) { $warnings[] = $msg; return true; });
+$csrf = new \Nexus\Security\Csrf('test_secret_key_for_session_123456');
+$mode = $argv[3];
+if ($mode === 'req1') {
+    $session = new \Nexus\Security\Session($fakeMongo, 15, false);
+    $session->start();
+    $session->set('oauth_state', 'state_abc_123');
+    $token = $csrf->generate($session->getId());
+    $sid = $session->getId();
+    session_write_close();
+    echo json_encode(['sid' => $sid, 'csrf' => $token, 'warnings' => $warnings]);
+} else {
+    $_COOKIE['nexus_session'] = $argv[4];
+    $session = new \Nexus\Security\Session($fakeMongo, 15, false);
+    $session->start();
+    $req = new \Nexus\Core\Request('POST', '/auth/login', ['x-csrf-token' => $argv[5]]);
+    $csrfOk = $csrf->verifyRequest($req, $session->getId());
+    $oauthState = $session->get('oauth_state');
+    $sid2 = $session->getId();
+    session_write_close();
+    echo json_encode(['sid2' => $sid2, 'csrf_ok' => $csrfOk, 'oauth_state' => $oauthState, 'warnings' => $warnings]);
+}
+PHP;
+file_put_contents($probeScript, $probeCode);
+$out1Raw = (string)shell_exec('php ' . escapeshellarg($probeScript) . ' ' . escapeshellarg($baseDir) . ' ' . escapeshellarg($probeStoreFile) . ' req1');
+$out1 = json_decode($out1Raw, true) ?: [];
+$sid1 = (string)($out1['sid'] ?? '');
+$csrf1 = (string)($out1['csrf'] ?? '');
+$out2Raw = $sid1 !== ''
+    ? (string)shell_exec('php ' . escapeshellarg($probeScript) . ' ' . escapeshellarg($baseDir) . ' ' . escapeshellarg($probeStoreFile) . ' req2 ' . escapeshellarg($sid1) . ' ' . escapeshellarg($csrf1))
+    : '{}';
+$out2 = json_decode($out2Raw, true) ?: [];
+$assertTest(
+    'Session persists across HTTP requests with MongoDB handler without recursive regenerate warnings',
+    $sid1 !== ''
+    && ($out2['sid2'] ?? '') === $sid1
+    && ($out2['csrf_ok'] ?? false) === true
+    && ($out2['oauth_state'] ?? '') === 'state_abc_123'
+    && empty($out1['warnings'])
+    && empty($out2['warnings'])
+);
+@unlink($probeScript);
+@unlink($probeStoreFile);
+
 // ── Test 19: Nexus Webmail, Virus Scanner & Controlled Reader Jail ──────────
 echo "\n\033[1;37m[19] Nexus Webmail, Virus Scanner & Controlled Reader Jail\033[0m\n";
 
@@ -1469,6 +1562,7 @@ foreach (glob($baseDir . '/storage/sessions/sess_*') ?: [] as $sf) {
 foreach (glob($baseDir . '/storage/cache/rate:*.rate') ?: [] as $rf) {
     @unlink($rf);
 }
+$restoreAuditChain();
 
 // ── Summary ─────────────────────────────────────────────────────────────────
 echo "\n\033[1;36m════════════════════════════════════════════════════════════════\033[0m\n";

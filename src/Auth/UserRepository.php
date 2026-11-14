@@ -469,9 +469,11 @@ class UserRepository
         $path = $this->mailOverlayPath();
         $dir = dirname($path);
         if (!is_dir($dir)) {
-            @mkdir($dir, 0750, true);
+            @mkdir($dir, 0777, true);
         }
+        @chmod($dir, 0777);
         $fp = @fopen($path . '.lock', 'c+');
+        @chmod($path . '.lock', 0666);
         if ($fp !== false) {
             @flock($fp, LOCK_EX);
         }
@@ -480,6 +482,7 @@ class UserRepository
             $current = isset($all[$userId]) && is_array($all[$userId]) ? $all[$userId] : [];
             $all[$userId] = array_merge($current, $patch);
             file_put_contents($path, json_encode($all, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), LOCK_EX);
+            @chmod($path, 0666);
         } finally {
             if ($fp !== false) {
                 @flock($fp, LOCK_UN);

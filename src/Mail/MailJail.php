@@ -31,8 +31,9 @@ class MailJail
         $this->pruneExpired();
 
         if (!is_dir($this->jailRoot)) {
-            @mkdir($this->jailRoot, 0700, true);
+            @mkdir($this->jailRoot, 0777, true);
         }
+        @chmod($this->jailRoot, 0777);
 
         $now = time();
         $expiresAt = $now + $this->ttlSeconds;
@@ -40,8 +41,9 @@ class MailJail
         $dir = $this->jailRoot . '/' . $jailId;
 
         if (!is_dir($dir)) {
-            @mkdir($dir, 0700, true);
+            @mkdir($dir, 0777, true);
         }
+        @chmod($dir, 0777);
 
         $sandboxHtml = $this->buildSandboxedDocument($message, $scanReport);
 
@@ -62,10 +64,10 @@ class MailJail
         $contentPath = $dir . '/content.html';
 
         file_put_contents($metaPath, json_encode($meta, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), LOCK_EX);
-        @chmod($metaPath, 0600);
+        @chmod($metaPath, 0666);
 
         file_put_contents($contentPath, $sandboxHtml, LOCK_EX);
-        @chmod($contentPath, 0600);
+        @chmod($contentPath, 0666);
 
         return [
             'jail_id' => $jailId,
@@ -273,3 +275,4 @@ class MailJail
         return @rmdir($dir);
     }
 }
+
