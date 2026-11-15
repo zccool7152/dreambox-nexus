@@ -85,6 +85,10 @@ class MailJail
             'ttl_seconds' => $this->ttlSeconds,
             'scan_status' => (string)($scanReport['status'] ?? 'clean'),
             'threats' => (array)($scanReport['threats'] ?? []),
+            'clamav' => (array)($scanReport['clamav'] ?? []),
+            'rspamd' => (array)($scanReport['rspamd'] ?? []),
+            'spam_score' => (float)($scanReport['spam_score'] ?? 0.0),
+            'spam_action' => (string)($scanReport['spam_action'] ?? 'no action'),
         ];
 
         $metaPath = $dir . '/meta.json';
@@ -222,6 +226,20 @@ class MailJail
         $threats = (array)($scanReport['threats'] ?? []);
         $sanitizedBody = (string)($scanReport['sanitized_html'] ?? '<p>(Empty message)</p>');
 
+        $clam = is_array($scanReport['clamav'] ?? null) ? $scanReport['clamav'] : [];
+        $rspamd = is_array($scanReport['rspamd'] ?? null) ? $scanReport['rspamd'] : [];
+        $clamState = !empty($clam['infected']) ? 'INFECTED' : 'CLEAN';
+        $clamDriver = (string)($clam['driver'] ?? 'builtin_signatures');
+        $spamScore = number_format((float)($scanReport['spam_score'] ?? ($rspamd['score'] ?? 0.0)), 1);
+        $reqScore = number_format((float)($rspamd['required_score'] ?? 6.0), 1);
+        $spamAction = (string)($scanReport['spam_action'] ?? ($rspamd['action'] ?? 'no action'));
+        $rspamdDriver = (string)($rspamd['driver'] ?? 'heuristic_fallback');
+
+        $telemetryHtml = '<div style="margin:0 0 12px 0;padding:6px 10px;border-radius:6px;background:#f8fafc;border:1px solid #e2e8f0;color:#475569;font-size:11.5px;font-family:Consolas,Menlo,monospace;">'
+            . '<strong>Engines:</strong> ClamAV (' . htmlspecialchars($clamState . ' / ' . $clamDriver, ENT_QUOTES | ENT_HTML5, 'UTF-8') . ')'
+            . ' &middot; Rspamd (' . htmlspecialchars($spamScore . ' / ' . $reqScore . ' [' . $spamAction . '] / ' . $rspamdDriver, ENT_QUOTES | ENT_HTML5, 'UTF-8') . ')'
+            . '</div>';
+
         $warningHtml = '';
         if ($status !== 'clean' && !empty($threats)) {
             $items = '';
@@ -269,6 +287,7 @@ class MailJail
             . 'pre{padding:12px;overflow-x:auto;}'
             . 'blockquote{margin:12px 0;padding:8px 14px;border-left:3px solid #94a3b8;color:#475569;background:#f8fafc;}'
             . '</style></head><body>'
+            . $telemetryHtml
             . $warningHtml
             . $sanitizedBody
             . $attHtml

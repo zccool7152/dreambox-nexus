@@ -2616,13 +2616,14 @@ tbody tr:hover {
 
 .hash-code {
     font-family: var(--mono);
-    font-size: 0.75rem;
+    font-size: 0.72rem;
     background: #f1f5f9;
     padding: 2px 6px;
     border-radius: 4px;
     color: #0f172a;
     border: 1px solid var(--line);
-    word-break: break-all;
+    white-space: nowrap;
+    word-break: normal;
 }
 
 /* ══════════════════════════════════════════════════════════════════════════════
@@ -6591,6 +6592,53 @@ body > footer {
     justify-content: space-between;
     margin-bottom: 1rem;
 }
+
+/* Compact Cryptographic Audit Trail Table */
+.audit-table-card {
+    overflow-x: hidden;
+}
+
+.audit-table-card table,
+#tbl-audit {
+    width: 100%;
+    table-layout: auto;
+    font-size: 0.74rem;
+}
+
+.audit-table-card thead th,
+#tbl-audit thead th {
+    font-size: 0.66rem;
+    padding: 0.45rem 0.55rem;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+}
+
+.audit-table-card tbody td,
+#tbl-audit tbody td {
+    font-size: 0.74rem;
+    padding: 0.38rem 0.55rem;
+    line-height: 1.25;
+    white-space: nowrap;
+}
+
+.audit-table-card .hash-code,
+#tbl-audit .hash-code {
+    font-size: 0.68rem;
+    padding: 1px 5px;
+    white-space: nowrap;
+    word-break: normal;
+}
+
+.audit-table-card .badge-verified,
+.badge-verified {
+    display: inline-block;
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: var(--radius-full);
+    white-space: nowrap;
+}
+
 
 
 

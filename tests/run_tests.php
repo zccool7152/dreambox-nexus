@@ -1659,6 +1659,121 @@ $assertTest(
     && str_contains($mailerUpdatedSource, "'verify_peer_name' => true")
 );
 
+// 19.13 ClamAV clamd zINSTREAM & Rspamd /checkv2 live TCP protocol + offline heuristic fallback
+$clamMockCode = <<<'PHP'
+$srv = @stream_socket_server('tcp://127.0.0.1:0', $errno, $errstr);
+if (!$srv) exit(1);
+echo stream_socket_get_name($srv, false) . "\n";
+fflush(STDOUT);
+$conn = @stream_socket_accept($srv, 5);
+if (!$conn) exit(1);
+$readExact = static function ($s, int $n): string {
+    $buf = '';
+    while (strlen($buf) < $n && !feof($s)) {
+        $chunk = fread($s, $n - strlen($buf));
+        if ($chunk === false || $chunk === '') break;
+        $buf .= $chunk;
+    }
+    return $buf;
+};
+$cmd = $readExact($conn, 10);
+$body = '';
+while (true) {
+    $lenRaw = $readExact($conn, 4);
+    if (strlen($lenRaw) < 4) break;
+    $len = unpack('N', $lenRaw)[1];
+    if ($len === 0) break;
+    $body .= $readExact($conn, $len);
+}
+if ($cmd === "zINSTREAM\0" && str_contains($body, 'Mock clamd zINSTREAM payload')) {
+    fwrite($conn, "stream: Nexus.Mock.Virus-1 FOUND\0");
+} else {
+    fwrite($conn, "stream: OK\0");
+}
+fclose($conn);
+fclose($srv);
+PHP;
+
+$rspamdMockCode = <<<'PHP'
+$srv = @stream_socket_server('tcp://127.0.0.1:0', $errno, $errstr);
+if (!$srv) exit(1);
+echo stream_socket_get_name($srv, false) . "\n";
+fflush(STDOUT);
+$conn = @stream_socket_accept($srv, 5);
+if (!$conn) exit(1);
+$raw = '';
+$contentLen = 0;
+while (!str_contains($raw, "\r\n\r\n") && !feof($conn)) {
+    $buf = fread($conn, 4096);
+    if ($buf === false || $buf === '') break;
+    $raw .= $buf;
+}
+[$head, $bodySoFar] = explode("\r\n\r\n", $raw, 2) + ['', ''];
+if (preg_match('/Content-Length:\s*(\d+)/i', $head, $m)) {
+    $contentLen = (int)$m[1];
+}
+while (strlen($bodySoFar) < $contentLen && !feof($conn)) {
+    $buf = fread($conn, $contentLen - strlen($bodySoFar));
+    if ($buf === false || $buf === '') break;
+    $bodySoFar .= $buf;
+}
+$payload = str_starts_with($head, 'POST /checkv2 ')
+    ? '{"score":9.5,"required_score":6.0,"action":"add header","symbols":{"RSPAMD_MOCK_PHISH":{"name":"RSPAMD_MOCK_PHISH","score":9.5}}}'
+    : '{"score":0.0,"required_score":6.0,"action":"no action","symbols":{}}';
+fwrite($conn, "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: " . strlen($payload) . "\r\nConnection: close\r\n\r\n" . $payload);
+fclose($conn);
+fclose($srv);
+PHP;
+
+$clamProc = proc_open([PHP_BINARY, '-r', $clamMockCode], [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $clamPipes);
+$rspamdProc = proc_open([PHP_BINARY, '-r', $rspamdMockCode], [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $rspamdPipes);
+
+$clamAddr = is_resource($clamProc) ? trim((string)fgets($clamPipes[1])) : '';
+$rspamdAddr = is_resource($rspamdProc) ? trim((string)fgets($rspamdPipes[1])) : '';
+
+$liveEngineRes = [];
+if (str_contains($clamAddr, ':') && str_contains($rspamdAddr, ':')) {
+    [$cHost, $cPort] = explode(':', $clamAddr, 2);
+    [$rHost, $rPort] = explode(':', $rspamdAddr, 2);
+    $liveScanner = new \Nexus\Mail\MailScanner($cHost, (int)$cPort, '', $rHost, (int)$rPort, null, 6.0, 12.0, 2.0);
+    $liveEngineRes = $liveScanner->scan('Protocol Check', 'Mock clamd zINSTREAM payload', '<p>Test</p>');
+}
+
+if (is_resource($clamProc)) {
+    @fclose($clamPipes[0]); @fclose($clamPipes[1]); @fclose($clamPipes[2]);
+    proc_close($clamProc);
+}
+if (is_resource($rspamdProc)) {
+    @fclose($rspamdPipes[0]); @fclose($rspamdPipes[1]); @fclose($rspamdPipes[2]);
+    proc_close($rspamdProc);
+}
+
+$offlineScanner = new \Nexus\Mail\MailScanner('127.0.0.1', 0, '', '127.0.0.1', 0);
+$offlinePhishRes = $offlineScanner->scan(
+    'URGENT: VERIFY YOUR ACCOUNT PASSWORD IMMEDIATELY',
+    'Confirm your password immediately via the link below.',
+    '<p><a href="https://evil.example/login">https://trusted.example/account</a></p>'
+);
+
+$assertTest(
+    'ClamAV zINSTREAM & Rspamd /checkv2 live TCP protocols and offline heuristic fallback work end-to-end',
+    ($liveEngineRes['status'] ?? '') === 'infected'
+    && ($liveEngineRes['clamav']['driver'] ?? '') === 'clamd_instream'
+    && ($liveEngineRes['clamav']['signature'] ?? '') === 'Nexus.Mock.Virus-1'
+    && ($liveEngineRes['rspamd']['driver'] ?? '') === 'rspamd_http'
+    && (float)($liveEngineRes['spam_score'] ?? 0) === 9.5
+    && ($liveEngineRes['spam_action'] ?? '') === 'add header'
+    && isset($liveEngineRes['rspamd']['symbols']['RSPAMD_MOCK_PHISH'])
+    && ($offlinePhishRes['clamav']['driver'] ?? '') === 'builtin_signatures'
+    && ($offlinePhishRes['rspamd']['driver'] ?? '') === 'heuristic_fallback'
+    && ($offlinePhishRes['status'] ?? '') === 'suspicious'
+    && (float)($offlinePhishRes['spam_score'] ?? 0) >= 6.0
+    && ($offlinePhishRes['spam_action'] ?? '') === 'add header'
+    && isset($offlinePhishRes['rspamd']['symbols']['PHISHING_URGENT_CREDENTIAL'])
+    && isset($offlinePhishRes['rspamd']['symbols']['SUSPICIOUS_LINK_MISMATCH'])
+    && isset($offlinePhishRes['rspamd']['symbols']['UPPERCASE_SUBJECT'])
+);
+
 // Clean up temporary users & test mail/jail directories
 $mailUserRepo->delete($aliceUser['id']);
 $mailUserRepo->delete($bobUser['id']);

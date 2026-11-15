@@ -98,8 +98,8 @@
                 </form>
 
                 <div class="nx-mail-topbar-right">
-                    <span class="nx-mail-shield-pill" title="Messages are AV-scanned and isolated in an ephemeral sandbox jail on read">
-                        <span class="nx-shield-dot"></span> AV + Jail Protected
+                    <span class="nx-mail-shield-pill" title="Messages are scanned by ClamAV + Rspamd and isolated in an ephemeral sandbox jail on read">
+                        <span class="nx-shield-dot"></span> ClamAV + Rspamd + Jail Protected
                     </span>
                 </div>
             </div>
@@ -140,7 +140,7 @@
                     <div class="nx-mail-security-card">
                         <div class="nx-mail-sec-title">Zero-Trust Containment</div>
                         <p class="nx-mail-sec-copy">
-                            Every email is scanned by <strong>Nexus AV</strong> and opened inside a temporary sandbox jail under
+                            Every email is scanned by <strong>ClamAV &amp; Rspamd</strong> and opened inside a temporary sandbox jail under
                             <code>storage/cache/jails/</code> that destroys itself on close.
                         </p>
                     </div>
@@ -217,7 +217,7 @@
                                 <strong>Reader Jail Active:</strong>
                                 <code id="nxJailIdBadge"><?= htmlspecialchars($activeJail['jail_id'] ?? '') ?></code>
                                 <span class="nx-mail-scan-pill nx-scan-<?= htmlspecialchars($activeMessage['scan_status'] ?? 'clean') ?>" id="nxReaderScanPill">
-                                    AV: <?= htmlspecialchars(strtoupper((string)($activeMessage['scan_status'] ?? 'clean'))) ?>
+                                    AV: <?= htmlspecialchars(strtoupper((string)($activeMessage['scan_status'] ?? 'clean'))) ?> &middot; RSPAMD: <?= number_format((float)($activeMessage['spam_score'] ?? 0.0), 1) ?>
                                 </span>
                             </div>
 
@@ -395,8 +395,10 @@
 
                 const rawScanStatus = String(payload.scan?.status || payload.message?.scan_status || 'clean').toLowerCase();
                 const scanStatus = ['clean', 'suspicious', 'infected'].includes(rawScanStatus) ? rawScanStatus : 'clean';
+                const rawScore = Number(payload.scan?.spam_score ?? payload.message?.spam_score ?? 0);
+                const spamScoreLabel = Number.isFinite(rawScore) ? rawScore.toFixed(1) : '0.0';
                 jailIdBadge.textContent = activeJailId;
-                readerScanPill.textContent = 'AV: ' + scanStatus.toUpperCase();
+                readerScanPill.textContent = 'AV: ' + scanStatus.toUpperCase() + ' · RSPAMD: ' + spamScoreLabel;
                 readerScanPill.className = 'nx-mail-scan-pill nx-scan-' + scanStatus;
                 readerSubject.textContent = payload.message.subject || '(No Subject)';
                 readerFrom.textContent = (payload.message.from_name || '') + ' <' + (payload.message.from_address || '') + '>';

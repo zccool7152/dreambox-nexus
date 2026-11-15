@@ -332,6 +332,8 @@ class MailRepository
             'is_starred' => !empty($message['is_starred']),
             'scan_status' => $scan['status'],
             'scan_threats' => $scan['threats'],
+            'spam_score' => (float)($scan['spam_score'] ?? 0.0),
+            'spam_action' => (string)($scan['spam_action'] ?? 'no action'),
             'scanned_at' => $scan['scanned_at'],
             'created_at' => (string)($message['created_at'] ?? gmdate('Y-m-d H:i:s')),
         ];
@@ -613,6 +615,8 @@ class MailRepository
             'is_starred' => !empty($m['is_starred']),
             'scan_status' => (string)($m['scan_status'] ?? 'clean'),
             'scan_threats' => $threats,
+            'spam_score' => (float)($m['spam_score'] ?? 0.0),
+            'spam_action' => (string)($m['spam_action'] ?? 'no action'),
             'scanned_at' => (string)($m['scanned_at'] ?? ''),
             'created_at' => (string)($m['created_at'] ?? ''),
         ];

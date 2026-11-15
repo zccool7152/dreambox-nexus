@@ -37,7 +37,7 @@
             <a href="<?= $appBase ?>/auth/logout/" class="nav-link text-danger ms-auto">🚪 Logout</a>
         </nav>
 
-        <div class="table-card">
+        <div class="table-card audit-table-card">
             <table>
                 <thead>
                     <tr>
@@ -74,7 +74,7 @@
                                 </span>
                             </td>
                             <td>
-                                <span class="badge-verified">VALIDATED</span>
+                                <span class="badge badge-verified">VALIDATED</span>
                             </td>
                         </tr>
                     <?php endforeach; ?>
