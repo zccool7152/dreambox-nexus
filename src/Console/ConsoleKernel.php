@@ -11,6 +11,7 @@ use Nexus\Queue\Worker;
 use Nexus\Schedule\Scheduler;
 use Nexus\Cache\Cache;
 use Nexus\Core\Router;
+use Nexus\Mail\MailJail;
 
 /**
  * Terminal Command Dispatcher & Scaffolding Engine
@@ -40,6 +41,7 @@ class ConsoleKernel
             'schedule:run' => $this->handleScheduleRun(),
             'routes:list' => $this->handleRoutesList(),
             'cache:clear' => $this->handleCacheClear(),
+            'mail:prune-jails' => $this->handlePruneJails(),
             'down' => $this->handleDown($arg1),
             'up' => $this->handleUp(),
             'make:model' => $this->handleMakeModel($arg1),
@@ -180,7 +182,15 @@ class ConsoleKernel
         /** @var Cache $cache */
         $cache = $this->container->make(Cache::class);
         $cache->flush();
-        echo "\033[0;32m✔\033[0m System cache and temporary session files flushed.\n";
+        $prunedJails = (new MailJail())->pruneExpired();
+        echo "\033[0;32m✔\033[0m System cache and temporary session files flushed ({$prunedJails} expired reader jails shredded).\n";
+        return 0;
+    }
+
+    private function handlePruneJails(): int
+    {
+        $pruned = (new MailJail())->pruneExpired();
+        echo "\033[0;32m✔\033[0m Expired Webmail reader jails shredded: {$pruned}\n";
         return 0;
     }
 

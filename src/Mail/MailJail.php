@@ -19,8 +19,35 @@ class MailJail
 
     public function __construct(?string $jailRoot = null, int $ttlSeconds = self::DEFAULT_TTL_SECONDS)
     {
-        $this->jailRoot = rtrim($jailRoot ?? (dirname(__DIR__, 2) . '/storage/cache/jails'), '/');
+        $configuredRoot = $jailRoot ?? (dirname(__DIR__, 2) . '/storage/cache/jails');
+        $this->jailRoot = $jailRoot !== null
+            ? rtrim($configuredRoot, '/')
+            : $this->resolveJailRoot(rtrim($configuredRoot, '/'));
         $this->ttlSeconds = max(60, $ttlSeconds);
+    }
+
+    /**
+     * Resolve a strictly 0700 writable jail directory for the current process UID.
+     */
+    private function resolveJailRoot(string $configuredDir): string
+    {
+        if (!is_dir($configuredDir)) {
+            @mkdir($configuredDir, 0700, true);
+        }
+        if (is_dir($configuredDir) && !is_link($configuredDir)) {
+            @chmod($configuredDir, 0700);
+            if (is_writable($configuredDir)) {
+                return $configuredDir;
+            }
+        }
+
+        $uid = function_exists('posix_geteuid') ? (string)posix_geteuid() : 'default';
+        $fallbackDir = rtrim(sys_get_temp_dir(), '/') . '/nexus_jails_' . $uid;
+        if (!is_dir($fallbackDir)) {
+            @mkdir($fallbackDir, 0700, true);
+        }
+        @chmod($fallbackDir, 0700);
+        return $fallbackDir;
     }
 
     /**
@@ -31,9 +58,9 @@ class MailJail
         $this->pruneExpired();
 
         if (!is_dir($this->jailRoot)) {
-            @mkdir($this->jailRoot, 0777, true);
+            @mkdir($this->jailRoot, 0700, true);
         }
-        @chmod($this->jailRoot, 0777);
+        @chmod($this->jailRoot, 0700);
 
         $now = time();
         $expiresAt = $now + $this->ttlSeconds;
@@ -41,9 +68,9 @@ class MailJail
         $dir = $this->jailRoot . '/' . $jailId;
 
         if (!is_dir($dir)) {
-            @mkdir($dir, 0777, true);
+            @mkdir($dir, 0700, true);
         }
-        @chmod($dir, 0777);
+        @chmod($dir, 0700);
 
         $sandboxHtml = $this->buildSandboxedDocument($message, $scanReport);
 
@@ -64,10 +91,10 @@ class MailJail
         $contentPath = $dir . '/content.html';
 
         file_put_contents($metaPath, json_encode($meta, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), LOCK_EX);
-        @chmod($metaPath, 0666);
+        @chmod($metaPath, 0600);
 
         file_put_contents($contentPath, $sandboxHtml, LOCK_EX);
-        @chmod($contentPath, 0666);
+        @chmod($contentPath, 0600);
 
         return [
             'jail_id' => $jailId,
@@ -86,15 +113,15 @@ class MailJail
      */
     public function get(string $userId, string $jailId): ?array
     {
-        if (!$this->isValidJailId($jailId)) {
+        $dir = $this->resolveContainedJailDir($jailId);
+        if ($dir === null) {
             return null;
         }
 
-        $dir = $this->jailRoot . '/' . $jailId;
         $metaPath = $dir . '/meta.json';
         $contentPath = $dir . '/content.html';
 
-        if (!is_file($metaPath) || !is_file($contentPath)) {
+        if (!is_file($metaPath) || is_link($metaPath) || !is_file($contentPath) || is_link($contentPath)) {
             return null;
         }
 
@@ -117,17 +144,13 @@ class MailJail
      */
     public function destroy(string $userId, string $jailId): bool
     {
-        if (!$this->isValidJailId($jailId)) {
+        $dir = $this->resolveContainedJailDir($jailId);
+        if ($dir === null) {
             return false;
         }
 
-        $dir = $this->jailRoot . '/' . $jailId;
         $metaPath = $dir . '/meta.json';
-        if (!is_dir($dir)) {
-            return false;
-        }
-
-        if (is_file($metaPath)) {
+        if (is_file($metaPath) && !is_link($metaPath)) {
             $meta = json_decode((string)file_get_contents($metaPath), true);
             if (!is_array($meta) || ($meta['user_id'] ?? '') !== $userId) {
                 return false;
@@ -223,7 +246,10 @@ class MailJail
         if (!empty($attachments)) {
             $pills = [];
             foreach ($attachments as $att) {
-                $name = is_array($att) ? (string)($att['name'] ?? 'attachment') : (string)$att;
+                if (is_object($att)) {
+                    $att = (array)$att;
+                }
+                $name = is_array($att) ? (string)($att['name'] ?? 'attachment') : (is_scalar($att) ? (string)$att : 'attachment');
                 $pills[] = '<span style="display:inline-block;padding:4px 10px;border-radius:999px;background:#f1f5f9;border:1px solid #cbd5e1;font-size:12px;color:#334155;">'
                     . htmlspecialchars($name, ENT_QUOTES | ENT_HTML5, 'UTF-8')
                     . ' (Execution Blocked)</span>';
@@ -235,7 +261,7 @@ class MailJail
 
         return '<!DOCTYPE html><html lang="en"><head>'
             . '<meta charset="UTF-8">'
-            . '<meta http-equiv="Content-Security-Policy" content="default-src \'none\'; style-src \'unsafe-inline\'; img-src data:;">'
+            . '<meta http-equiv="Content-Security-Policy" content="default-src \'none\'; style-src \'unsafe-inline\'; img-src data:; base-uri \'none\'; form-action \'none\';">'
             . '<style>'
             . 'body{margin:0;padding:20px 24px;font-family:"Segoe UI",system-ui,-apple-system,sans-serif;font-size:14.5px;line-height:1.62;color:#0f172a;background:#ffffff;word-break:break-word;}'
             . 'a{color:#0369a1;text-decoration:underline;}'
@@ -249,6 +275,26 @@ class MailJail
             . '</body></html>';
     }
 
+    private function resolveContainedJailDir(string $jailId): ?string
+    {
+        if (!$this->isValidJailId($jailId)) {
+            return null;
+        }
+
+        $rootReal = realpath($this->jailRoot);
+        $dir = $this->jailRoot . '/' . $jailId;
+        if ($rootReal === false || !is_dir($dir) || is_link($dir)) {
+            return null;
+        }
+
+        $dirReal = realpath($dir);
+        if ($dirReal === false || !str_starts_with($dirReal, $rootReal . DIRECTORY_SEPARATOR)) {
+            return null;
+        }
+
+        return $dirReal;
+    }
+
     private function isValidJailId(string $jailId): bool
     {
         return (bool)preg_match('/^jail_[a-f0-9]{24}$/', $jailId);
@@ -256,15 +302,25 @@ class MailJail
 
     private function shredDirectory(string $dir): bool
     {
-        if (!is_dir($dir)) {
+        if (!is_dir($dir) || is_link($dir)) {
             return false;
         }
 
-        foreach (scandir($dir) ?: [] as $entry) {
+        $rootReal = realpath($this->jailRoot);
+        $dirReal = realpath($dir);
+        if ($rootReal === false || $dirReal === false || !str_starts_with($dirReal, $rootReal . DIRECTORY_SEPARATOR)) {
+            return false;
+        }
+
+        foreach (scandir($dirReal) ?: [] as $entry) {
             if ($entry === '.' || $entry === '..') {
                 continue;
             }
-            $path = $dir . '/' . $entry;
+            $path = $dirReal . DIRECTORY_SEPARATOR . $entry;
+            if (is_link($path)) {
+                @unlink($path);
+                continue;
+            }
             if (is_file($path)) {
                 $size = max(64, (int)@filesize($path));
                 @file_put_contents($path, random_bytes(min($size, 8192)), LOCK_EX);
@@ -272,7 +328,7 @@ class MailJail
             }
         }
 
-        return @rmdir($dir);
+        return @rmdir($dirReal);
     }
 }
 

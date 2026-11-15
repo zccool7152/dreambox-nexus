@@ -72,6 +72,8 @@ class MailController
         }
         $user = $gate['user'];
 
+        $this->jail->pruneExpired();
+
         if ($this->session !== null) {
             $this->session->start();
         }
@@ -130,6 +132,9 @@ class MailController
         $activeMessage = null;
         $activeJail = null;
         $readId = trim($request->getString('read', ''));
+        if ($readId !== '' && !$this->isValidMessageId($readId)) {
+            $readId = '';
+        }
         if ($readId !== '') {
             $candidate = $this->mailRepo->getMessage((string)$user['id'], $readId);
             if ($candidate !== null) {
@@ -193,6 +198,8 @@ class MailController
             return $gate['response'];
         }
         $user = $gate['user'];
+
+        $this->jail->pruneExpired();
 
         $mailbox = $this->mailRepo->getMailboxForUser((string)$user['id']);
         if ($mailbox === null) {
@@ -335,8 +342,11 @@ class MailController
             return Response::redirect($appBase . '/mail/');
         }
 
-        if ($draftId !== '') {
-            $this->mailRepo->deleteMessageForever((string)$user['id'], $draftId);
+        if ($draftId !== '' && $this->isValidMessageId($draftId)) {
+            $draftCandidate = $this->mailRepo->getMessage((string)$user['id'], $draftId);
+            if ($draftCandidate !== null && ($draftCandidate['folder'] ?? '') === 'drafts') {
+                $this->mailRepo->deleteMessageForever((string)$user['id'], $draftId);
+            }
         }
 
         if ($mode === 'draft') {
@@ -449,6 +459,10 @@ class MailController
             return $csrfErr;
         }
 
+        if (!$this->isValidMessageId($id)) {
+            return Response::error('Email message not found.', 404, 'NOT_FOUND');
+        }
+
         $message = $this->mailRepo->getMessage((string)$user['id'], $id);
         if ($message === null) {
             return Response::error('Email message not found.', 404, 'NOT_FOUND');
@@ -490,14 +504,19 @@ class MailController
         }
         $user = $gate['user'];
 
+        $jailHeaders = [
+            'Cache-Control' => 'no-store, no-cache, must-revalidate',
+            'X-Frame-Options' => 'SAMEORIGIN',
+            'Referrer-Policy' => 'no-referrer',
+            'Content-Security-Policy' => "default-src 'none'; style-src 'unsafe-inline'; img-src data:; base-uri 'none'; form-action 'none'; frame-ancestors 'self';",
+        ];
+
         $jailData = $this->jail->get((string)$user['id'], $jailId);
         if ($jailData === null) {
-            return Response::html('<p style="font-family:sans-serif;color:#64748b;padding:20px;">Reader Jail expired or destroyed.</p>', 404);
+            return Response::html('<p style="font-family:sans-serif;color:#64748b;padding:20px;">Reader Jail expired or destroyed.</p>', 404, $jailHeaders);
         }
 
-        return Response::html((string)$jailData['sandbox_html'], 200, [
-            'Cache-Control' => 'no-store, no-cache, must-revalidate',
-        ]);
+        return Response::html((string)$jailData['sandbox_html'], 200, $jailHeaders);
     }
 
     public function closeJail(Request $request, string $jailId): Response
@@ -539,6 +558,13 @@ class MailController
             return $csrfErr;
         }
 
+        if (!$this->isValidMessageId($id)) {
+            if ($request->wantsJson()) {
+                return Response::error('Email message not found.', 404, 'NOT_FOUND');
+            }
+            return Response::redirect(Request::getAppBase() . '/mail/');
+        }
+
         $message = $this->mailRepo->getMessage((string)$user['id'], $id);
         if ($message === null) {
             if ($request->wantsJson()) {
@@ -548,7 +574,10 @@ class MailController
         }
 
         $action = $request->getString('_action', '');
-        $redirectFolder = $request->getString('return_folder', (string)$message['folder']);
+        $redirectFolder = strtolower($request->getString('return_folder', (string)$message['folder']));
+        if (!in_array($redirectFolder, MailRepository::VALID_FOLDERS, true)) {
+            $redirectFolder = 'inbox';
+        }
         $updated = $message;
 
         switch ($action) {
@@ -689,6 +718,11 @@ class MailController
             return Response::redirect(Request::getAppBase() . '/mail/');
         }
         return null;
+    }
+
+    private function isValidMessageId(string $id): bool
+    {
+        return (bool)preg_match('/^msg_[a-zA-Z0-9_]{4,64}$/', $id);
     }
 
     private function audit(

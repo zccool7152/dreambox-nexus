@@ -5,6 +5,7 @@ namespace Nexus\Mail;
 
 use InvalidArgumentException;
 use Nexus\Core\Env;
+use Nexus\Crypto\Crypto;
 use Nexus\Database\Database;
 use RuntimeException;
 
@@ -12,19 +13,47 @@ use RuntimeException;
  * Hybrid Webmail Repository (MongoDB + SQL + Atomic JSON Store Fallback)
  *
  * Manages per-user mailbox claims (@MAIL_DOMAIN / nexus.local fallback) and
- * scanned message storage across folders (inbox, starred, sent, drafts, trash).
+ * AES-256-GCM encrypted message storage across folders (inbox, starred, sent, drafts, trash).
  */
 class MailRepository
 {
     private ?Database $db;
     private string $storeDir;
+    private static bool $mongoIndexesEnsured = false;
 
     public const VALID_FOLDERS = ['inbox', 'starred', 'sent', 'drafts', 'trash'];
 
     public function __construct(?Database $db = null, ?string $storeDir = null)
     {
         $this->db = $db;
-        $this->storeDir = rtrim($storeDir ?? (dirname(__DIR__, 2) . '/storage/app/private/mail'), '/');
+        $configuredDir = rtrim($storeDir ?? (dirname(__DIR__, 2) . '/storage/app/private/mail'), '/');
+        $this->storeDir = $storeDir !== null
+            ? $configuredDir
+            : $this->resolveStoreDir($configuredDir);
+    }
+
+    /**
+     * Resolve a strictly 0700 writable mail store directory for the current process UID.
+     */
+    private function resolveStoreDir(string $configuredDir): string
+    {
+        if (!is_dir($configuredDir)) {
+            @mkdir($configuredDir, 0700, true);
+        }
+        if (is_dir($configuredDir) && !is_link($configuredDir)) {
+            @chmod($configuredDir, 0700);
+            if (is_writable($configuredDir)) {
+                return $configuredDir;
+            }
+        }
+
+        $uid = function_exists('posix_geteuid') ? (string)posix_geteuid() : 'default';
+        $fallbackDir = rtrim(sys_get_temp_dir(), '/') . '/nexus_mail_' . $uid;
+        if (!is_dir($fallbackDir)) {
+            @mkdir($fallbackDir, 0700, true);
+        }
+        @chmod($fallbackDir, 0700);
+        return $fallbackDir;
     }
 
     /**
@@ -120,48 +149,75 @@ class MailRepository
             );
         }
 
-        $existingOwn = $this->getMailboxForUser($userId);
-        if ($existingOwn !== null) {
-            return $existingOwn;
-        }
-
         $targetDomain = $domain !== null && trim($domain) !== ''
             ? strtolower(trim($domain, " \t\n\r\0\x0B@"))
             : self::getMailDomain();
         $address = $cleanLocal . '@' . $targetDomain;
 
-        if ($this->getMailboxByAddress($address) !== null) {
-            throw new RuntimeException("The address '{$address}' is already claimed by another user.");
-        }
+        $claimedRecord = null;
+        $isNewClaim = false;
 
-        $record = [
-            'id' => 'mb_' . bin2hex(random_bytes(8)),
-            'user_id' => $userId,
-            'address' => $address,
-            'local_part' => $cleanLocal,
-            'domain' => $targetDomain,
-            'created_at' => gmdate('Y-m-d H:i:s'),
-        ];
+        $this->withStoreLock('mailboxes.json', function (array $mailboxes) use ($userId, $cleanLocal, $targetDomain, $address, &$claimedRecord, &$isNewClaim): array {
+            foreach ($mailboxes as $mb) {
+                $mbArr = self::toArrayRecursive($mb);
+                if (($mbArr['user_id'] ?? '') === $userId) {
+                    $claimedRecord = $mbArr;
+                    return $mailboxes;
+                }
+                if (strtolower((string)($mbArr['address'] ?? '')) === $address) {
+                    throw new RuntimeException("The address '{$address}' is already claimed by another user.");
+                }
+            }
 
-        $this->withStoreLock('mailboxes.json', function (array $mailboxes) use ($record): array {
+            $existingOwn = $this->getMailboxForUser($userId);
+            if ($existingOwn !== null) {
+                $claimedRecord = $existingOwn;
+                return $mailboxes;
+            }
+
+            if ($this->getMailboxByAddress($address) !== null) {
+                throw new RuntimeException("The address '{$address}' is already claimed by another user.");
+            }
+
+            $record = [
+                'id' => 'mb_' . bin2hex(random_bytes(8)),
+                'user_id' => $userId,
+                'address' => $address,
+                'local_part' => $cleanLocal,
+                'domain' => $targetDomain,
+                'created_at' => gmdate('Y-m-d H:i:s'),
+            ];
+
+            if ($this->isMongo()) {
+                $this->ensureMongoMailboxIndexes();
+                try {
+                    $this->db->mongoInsert('mailboxes', $record);
+                } catch (\Throwable $e) {
+                    if (str_contains($e->getMessage(), 'E11000') || str_contains(strtolower($e->getMessage()), 'duplicate')) {
+                        throw new RuntimeException("The address '{$address}' is already claimed by another user.", 0, $e);
+                    }
+                    throw $e;
+                }
+            } elseif ($this->isSqlAlive()) {
+                try {
+                    $this->db->execute(
+                        'INSERT INTO mailboxes (id, user_id, address, local_part, domain, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+                        [$record['id'], $record['user_id'], $record['address'], $record['local_part'], $record['domain'], $record['created_at']]
+                    );
+                } catch (\Throwable) {}
+            }
+
             $mailboxes[] = $record;
+            $claimedRecord = $record;
+            $isNewClaim = true;
             return $mailboxes;
         });
 
-        if ($this->isMongo()) {
-            $this->db->mongoInsert('mailboxes', $record);
-        } elseif ($this->isSqlAlive()) {
-            try {
-                $this->db->execute(
-                    'INSERT INTO mailboxes (id, user_id, address, local_part, domain, created_at) VALUES (?, ?, ?, ?, ?, ?)',
-                    [$record['id'], $record['user_id'], $record['address'], $record['local_part'], $record['domain'], $record['created_at']]
-                );
-            } catch (\Throwable) {}
+        if ($isNewClaim && $claimedRecord !== null) {
+            $this->seedInitialMessages($userId, $address, $targetDomain);
         }
 
-        $this->seedInitialMessages($userId, $address, $targetDomain);
-
-        return $this->normalizeMailbox($record);
+        return $this->normalizeMailbox($claimedRecord ?? []);
     }
 
     /**
@@ -252,18 +308,26 @@ class MailRepository
             (array)($message['attachments'] ?? [])
         );
 
+        $messageId = (string)($message['id'] ?? ('msg_' . bin2hex(random_bytes(8))));
+        $ownerUserId = (string)($message['owner_user_id'] ?? '');
+        $aad = $messageId . '|' . $ownerUserId;
+
+        $plainSubject = (string)($message['subject'] ?? '(No Subject)');
+        $plainBodyText = (string)($message['body_text'] ?? '');
+        $plainBodyHtml = (string)$scan['sanitized_html'];
+
         $record = [
-            'id' => (string)($message['id'] ?? ('msg_' . bin2hex(random_bytes(8)))),
-            'owner_user_id' => (string)($message['owner_user_id'] ?? ''),
+            'id' => $messageId,
+            'owner_user_id' => $ownerUserId,
             'mailbox_address' => strtolower(trim((string)($message['mailbox_address'] ?? ''))),
             'folder' => (string)($message['folder'] ?? 'inbox'),
             'from_name' => (string)($message['from_name'] ?? ''),
             'from_address' => strtolower(trim((string)($message['from_address'] ?? ''))),
             'to_address' => strtolower(trim((string)($message['to_address'] ?? ''))),
-            'subject' => (string)($message['subject'] ?? '(No Subject)'),
-            'body_text' => (string)($message['body_text'] ?? ''),
-            'body_html' => $scan['sanitized_html'],
-            'attachments' => (array)($message['attachments'] ?? []),
+            'subject' => $this->encryptField($plainSubject, $aad),
+            'body_text' => $this->encryptField($plainBodyText, $aad),
+            'body_html' => $this->encryptField($plainBodyHtml, $aad),
+            'attachments' => MailScanner::normalizeAttachments($message['attachments'] ?? []),
             'is_read' => !empty($message['is_read']),
             'is_starred' => !empty($message['is_starred']),
             'scan_status' => $scan['status'],
@@ -328,14 +392,23 @@ class MailRepository
     public function updateMessage(string $userId, string $messageId, array $fields): ?array
     {
         $updated = null;
+        $aad = $messageId . '|' . $userId;
+        $persistedFields = [];
+        foreach (['is_read', 'is_starred', 'folder', 'subject', 'to_address', 'body_text', 'body_html'] as $k) {
+            if (array_key_exists($k, $fields)) {
+                if (in_array($k, ['subject', 'body_text', 'body_html'], true)) {
+                    $persistedFields[$k] = $this->encryptField((string)$fields[$k], $aad);
+                } else {
+                    $persistedFields[$k] = $fields[$k];
+                }
+            }
+        }
 
-        $this->withStoreLock('messages.json', function (array $messages) use ($userId, $messageId, $fields, &$updated): array {
+        $this->withStoreLock('messages.json', function (array $messages) use ($userId, $messageId, $persistedFields, &$updated): array {
             foreach ($messages as $i => $msg) {
                 if (($msg['id'] ?? '') === $messageId && ($msg['owner_user_id'] ?? '') === $userId) {
-                    foreach (['is_read', 'is_starred', 'folder', 'subject', 'to_address', 'body_text', 'body_html'] as $k) {
-                        if (array_key_exists($k, $fields)) {
-                            $messages[$i][$k] = $fields[$k];
-                        }
+                    foreach ($persistedFields as $k => $v) {
+                        $messages[$i][$k] = $v;
                     }
                     $updated = $this->normalizeMessage($messages[$i]);
                     break;
@@ -344,30 +417,26 @@ class MailRepository
             return $messages;
         });
 
-        if ($updated !== null && $this->isMongo()) {
-            $mongoSet = [];
-            foreach (['is_read', 'is_starred', 'folder', 'subject', 'to_address', 'body_text', 'body_html'] as $k) {
-                if (array_key_exists($k, $fields)) {
-                    $mongoSet[$k] = $fields[$k];
-                }
+        if ($this->isMongo() && !empty($persistedFields)) {
+            $mod = $this->db->mongoUpdate('mail_messages', ['id' => $messageId, 'owner_user_id' => $userId], ['$set' => $persistedFields]);
+            if ($updated === null && $mod >= 0) {
+                $updated = $this->getMessage($userId, $messageId);
             }
-            if (!empty($mongoSet)) {
-                $this->db->mongoUpdate('mail_messages', ['id' => $messageId, 'owner_user_id' => $userId], ['$set' => $mongoSet]);
-            }
-        } elseif ($updated !== null && $this->isSqlAlive()) {
+        } elseif ($this->isSqlAlive() && !empty($persistedFields)) {
             try {
                 $sets = [];
                 $params = [];
-                foreach (['is_read', 'is_starred', 'folder', 'subject', 'to_address', 'body_text', 'body_html'] as $k) {
-                    if (array_key_exists($k, $fields)) {
-                        $sets[] = "{$k} = ?";
-                        $params[] = is_bool($fields[$k]) ? ($fields[$k] ? 1 : 0) : $fields[$k];
-                    }
+                foreach ($persistedFields as $k => $v) {
+                    $sets[] = "{$k} = ?";
+                    $params[] = is_bool($v) ? ($v ? 1 : 0) : $v;
                 }
                 if (!empty($sets)) {
                     $params[] = $messageId;
                     $params[] = $userId;
                     $this->db->execute('UPDATE mail_messages SET ' . implode(', ', $sets) . ' WHERE id = ? AND owner_user_id = ?', $params);
+                    if ($updated === null) {
+                        $updated = $this->getMessage($userId, $messageId);
+                    }
                 }
             } catch (\Throwable) {}
         }
@@ -391,11 +460,13 @@ class MailRepository
             return $next;
         });
 
-        if ($deleted && $this->isMongo()) {
-            $this->db->mongoDelete('mail_messages', ['id' => $messageId, 'owner_user_id' => $userId]);
-        } elseif ($deleted && $this->isSqlAlive()) {
+        if ($this->isMongo()) {
+            $mongoDeleted = $this->db->mongoDelete('mail_messages', ['id' => $messageId, 'owner_user_id' => $userId]);
+            $deleted = $deleted || $mongoDeleted > 0;
+        } elseif ($this->isSqlAlive()) {
             try {
-                $this->db->execute('DELETE FROM mail_messages WHERE id = ? AND owner_user_id = ?', [$messageId, $userId]);
+                $sqlDeleted = $this->db->execute('DELETE FROM mail_messages WHERE id = ? AND owner_user_id = ?', [$messageId, $userId]);
+                $deleted = $deleted || $sqlDeleted > 0;
             } catch (\Throwable) {}
         }
 
@@ -492,8 +563,9 @@ class MailRepository
         return $out;
     }
 
-    private function normalizeMailbox(array $mb): array
+    private function normalizeMailbox(array|object $mb): array
     {
+        $mb = self::toArrayRecursive($mb);
         return [
             'id' => (string)($mb['id'] ?? $mb['_id'] ?? ''),
             'user_id' => (string)($mb['user_id'] ?? ''),
@@ -504,36 +576,111 @@ class MailRepository
         ];
     }
 
-    private function normalizeMessage(array $m): array
+    private function normalizeMessage(array|object $m): array
     {
+        $m = self::toArrayRecursive($m);
+        $id = (string)($m['id'] ?? $m['_id'] ?? '');
+        $ownerUserId = (string)($m['owner_user_id'] ?? '');
+        $aad = $id . '|' . $ownerUserId;
+
         $attachments = $m['attachments'] ?? [];
         if (is_string($attachments)) {
             $attachments = json_decode($attachments, true) ?: [];
         }
+        $attachments = MailScanner::normalizeAttachments($attachments);
+
         $threats = $m['scan_threats'] ?? [];
         if (is_string($threats)) {
             $threats = json_decode($threats, true) ?: [];
         }
+        $threats = is_array($threats)
+            ? array_values(array_map(static fn($t): string => is_scalar($t) ? (string)$t : json_encode($t), $threats))
+            : [];
 
         return [
-            'id' => (string)($m['id'] ?? $m['_id'] ?? ''),
-            'owner_user_id' => (string)($m['owner_user_id'] ?? ''),
+            'id' => $id,
+            'owner_user_id' => $ownerUserId,
             'mailbox_address' => (string)($m['mailbox_address'] ?? ''),
             'folder' => (string)($m['folder'] ?? 'inbox'),
             'from_name' => (string)($m['from_name'] ?? ''),
             'from_address' => (string)($m['from_address'] ?? ''),
             'to_address' => (string)($m['to_address'] ?? ''),
-            'subject' => (string)($m['subject'] ?? '(No Subject)'),
-            'body_text' => (string)($m['body_text'] ?? ''),
-            'body_html' => (string)($m['body_html'] ?? ''),
-            'attachments' => is_array($attachments) ? $attachments : [],
+            'subject' => $this->decryptField((string)($m['subject'] ?? '(No Subject)'), $aad),
+            'body_text' => $this->decryptField((string)($m['body_text'] ?? ''), $aad),
+            'body_html' => $this->decryptField((string)($m['body_html'] ?? ''), $aad),
+            'attachments' => $attachments,
             'is_read' => !empty($m['is_read']),
             'is_starred' => !empty($m['is_starred']),
             'scan_status' => (string)($m['scan_status'] ?? 'clean'),
-            'scan_threats' => is_array($threats) ? $threats : [],
+            'scan_threats' => $threats,
             'scanned_at' => (string)($m['scanned_at'] ?? ''),
             'created_at' => (string)($m['created_at'] ?? ''),
         ];
+    }
+
+    private static function toArrayRecursive(mixed $value): mixed
+    {
+        if (is_object($value)) {
+            $value = $value instanceof \Traversable
+                ? iterator_to_array($value)
+                : (array)$value;
+        }
+        if (!is_array($value)) {
+            return $value;
+        }
+        foreach ($value as $k => $v) {
+            $value[$k] = self::toArrayRecursive($v);
+        }
+        return $value;
+    }
+
+    private function getCrypto(): Crypto
+    {
+        $raw = (string)Env::get('APP_KEY', '');
+        if (str_starts_with($raw, 'base64:')) {
+            $decoded = base64_decode(substr($raw, 7), true);
+            if ($decoded !== false && strlen($decoded) >= 32) {
+                return new Crypto($raw);
+            }
+        }
+        $derived = strlen($raw) >= 32
+            ? $raw
+            : hash('sha256', $raw !== '' ? $raw : 'dreambox_nexus_mail_dev_fallback_key', true);
+        return new Crypto('base64:' . base64_encode($derived));
+    }
+
+    private function encryptField(string $plaintext, string $aad): string
+    {
+        return 'enc:v1:' . $this->getCrypto()->encrypt($plaintext, $aad);
+    }
+
+    private function decryptField(string $value, string $aad): string
+    {
+        if (!str_starts_with($value, 'enc:v1:')) {
+            return $value;
+        }
+        try {
+            return $this->getCrypto()->decrypt(substr($value, 7), $aad);
+        } catch (\Throwable) {
+            return '';
+        }
+    }
+
+    private function ensureMongoMailboxIndexes(): void
+    {
+        if (self::$mongoIndexesEnsured || !$this->isMongo()) {
+            return;
+        }
+        self::$mongoIndexesEnsured = true;
+        try {
+            $this->db->mongoCommand([
+                'createIndexes' => 'mailboxes',
+                'indexes' => [
+                    ['key' => ['address' => 1], 'name' => 'uniq_mailbox_address', 'unique' => true],
+                    ['key' => ['user_id' => 1], 'name' => 'uniq_mailbox_user_id', 'unique' => true],
+                ],
+            ]);
+        } catch (\Throwable) {}
     }
 
     private function isMongo(): bool
@@ -559,14 +706,14 @@ class MailRepository
     private function withStoreLock(string $filename, callable $mutator): void
     {
         if (!is_dir($this->storeDir)) {
-            @mkdir($this->storeDir, 0777, true);
+            @mkdir($this->storeDir, 0700, true);
         }
-        @chmod($this->storeDir, 0777);
+        @chmod($this->storeDir, 0700);
 
         $path = $this->storeDir . '/' . $filename;
         $lockPath = $path . '.lock';
         $fp = @fopen($lockPath, 'c+');
-        @chmod($lockPath, 0666);
+        @chmod($lockPath, 0600);
         if ($fp !== false) {
             @flock($fp, LOCK_EX);
         }
@@ -579,7 +726,7 @@ class MailRepository
                 json_encode($next, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
                 LOCK_EX
             );
-            @chmod($path, 0666);
+            @chmod($path, 0600);
         } finally {
             if ($fp !== false) {
                 @flock($fp, LOCK_UN);

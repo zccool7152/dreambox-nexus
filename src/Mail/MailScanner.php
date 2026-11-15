@@ -32,10 +32,11 @@ class MailScanner
     /**
      * Scan email content and attachments for malware/XSS/phishing threats and return sanitized HTML.
      */
-    public function scan(string $subject, string $textBody, string $htmlBody = '', array $attachments = []): array
+    public function scan(string $subject, string $textBody, string $htmlBody = '', mixed $attachments = []): array
     {
         $threats = [];
         $severity = 0; // 0 = clean, 1 = suspicious, 2 = infected
+        $normalizedAttachments = self::normalizeAttachments($attachments);
 
         $combined = $subject . "\n" . $textBody . "\n" . $htmlBody;
 
@@ -51,8 +52,8 @@ class MailScanner
             $severity = max($severity, 2);
         }
 
-        if (preg_match('/<\s*(iframe|object|embed|applet|base|meta)\b/i', $htmlBody)) {
-            $threats[] = 'Embedded Active Container Tag (<iframe/object/embed>) Blocked';
+        if (preg_match('/<\s*(iframe|frame|frameset|object|embed|applet|base|meta|link)\b/i', $htmlBody)) {
+            $threats[] = 'Embedded Active Container Tag Blocked';
             $severity = max($severity, 1);
         }
 
@@ -61,8 +62,12 @@ class MailScanner
             $severity = max($severity, 1);
         }
 
-        $decodedForUriCheck = html_entity_decode($combined, ENT_QUOTES | ENT_HTML5, 'UTF-8');
-        if (preg_match('/(?:javascript|vbscript)\s*:|data\s*:\s*text\/html/i', $decodedForUriCheck)) {
+        $decodedForUriCheck = $this->decodeEntitiesIteratively($combined);
+        $strippedForUriCheck = preg_replace('/[\x00-\x20]+/', '', $decodedForUriCheck) ?? $decodedForUriCheck;
+        if (
+            preg_match('/(?:javascript|vbscript)\s*:|data\s*:\s*(?:text\/html|image\/svg\+xml)/i', $decodedForUriCheck)
+            || preg_match('/(?:javascript|vbscript):|data:(?:text\/html|image\/svg\+xml)/i', $strippedForUriCheck)
+        ) {
             $threats[] = 'Malicious Script/HTML Data URI Neutralized';
             $severity = max($severity, 2);
         }
@@ -72,9 +77,12 @@ class MailScanner
             $severity = max($severity, 2);
         }
 
-        // 3. Attachment Extension & Subject Double-Extension Inspection
-        foreach ($attachments as $att) {
-            $name = is_array($att) ? (string)($att['name'] ?? '') : (string)$att;
+        // 3. Attachment Extension & Subject Double-Extension Inspection (stdClass-safe)
+        foreach ($normalizedAttachments as $att) {
+            if (is_object($att)) {
+                $att = (array)$att;
+            }
+            $name = is_array($att) ? (string)($att['name'] ?? '') : (is_scalar($att) ? (string)$att : '');
             $ext = strtolower(pathinfo($name, PATHINFO_EXTENSION));
             if ($ext !== '' && in_array($ext, self::DANGEROUS_EXTENSIONS, true)) {
                 $threats[] = "Hazardous Executable/Script Attachment: {$name}";
@@ -121,6 +129,66 @@ class MailScanner
     }
 
     /**
+     * Recursively normalize MongoDB BSON / stdClass structures into plain PHP arrays.
+     */
+    public static function normalizeAttachments(mixed $attachments): array
+    {
+        if (is_object($attachments)) {
+            $attachments = $attachments instanceof \Traversable
+                ? iterator_to_array($attachments)
+                : (array)$attachments;
+        }
+        if (!is_array($attachments)) {
+            return [];
+        }
+
+        $normalized = [];
+        foreach ($attachments as $item) {
+            if (is_object($item)) {
+                $item = $item instanceof \Traversable
+                    ? iterator_to_array($item)
+                    : (array)$item;
+            }
+            if (is_array($item)) {
+                $normalized[] = self::normalizeValueRecursive($item);
+            } elseif (is_scalar($item)) {
+                $normalized[] = (string)$item;
+            }
+        }
+
+        return $normalized;
+    }
+
+    private static function normalizeValueRecursive(mixed $value): mixed
+    {
+        if (is_object($value)) {
+            $value = $value instanceof \Traversable
+                ? iterator_to_array($value)
+                : (array)$value;
+        }
+        if (!is_array($value)) {
+            return $value;
+        }
+        foreach ($value as $k => $v) {
+            $value[$k] = self::normalizeValueRecursive($v);
+        }
+        return $value;
+    }
+
+    private function decodeEntitiesIteratively(string $value): string
+    {
+        $decoded = $value;
+        for ($i = 0; $i < 3; $i++) {
+            $next = html_entity_decode($decoded, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            if ($next === $decoded) {
+                break;
+            }
+            $decoded = $next;
+        }
+        return $decoded;
+    }
+
+    /**
      * Strictly sanitize email HTML via DOMDocument allowlist so no script or active tag survives.
      */
     public function sanitizeHtml(string $html): string
@@ -129,20 +197,23 @@ class MailScanner
             return '';
         }
 
+        // Strip caller-supplied DOCTYPE/ENTITY declarations before DOM parsing
+        $cleanInput = preg_replace('/<!(?:DOCTYPE|ENTITY)[^>]*>/i', '', $html) ?? $html;
+
         $dom = new \DOMDocument('1.0', 'UTF-8');
         $prevUseErrors = libxml_use_internal_errors(true);
 
         $wrapped = '<!DOCTYPE html><html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"></head><body><div id="nx-mail-root">'
-            . $html
+            . $cleanInput
             . '</div></body></html>';
 
-        $dom->loadHTML($wrapped, LIBXML_NONET | LIBXML_NOENT | LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD);
+        $dom->loadHTML($wrapped, LIBXML_NONET | LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD);
         libxml_clear_errors();
         libxml_use_internal_errors($prevUseErrors);
 
         $root = $dom->getElementById('nx-mail-root');
         if ($root === null) {
-            return '<p>' . htmlspecialchars(strip_tags($html), ENT_QUOTES | ENT_HTML5, 'UTF-8') . '</p>';
+            return '<p>' . htmlspecialchars(strip_tags($cleanInput), ENT_QUOTES | ENT_HTML5, 'UTF-8') . '</p>';
         }
 
         $this->sanitizeNodeRecursive($root);
@@ -162,8 +233,15 @@ class MailScanner
             $children[] = $child;
         }
 
+        $dropElements = [
+            'script', 'style', 'iframe', 'frame', 'frameset', 'object', 'embed',
+            'applet', 'form', 'input', 'button', 'textarea', 'select', 'svg',
+            'math', 'base', 'meta', 'link', 'noscript', 'template', 'audio',
+            'video', 'source', 'track', 'canvas',
+        ];
+
         foreach ($children as $child) {
-            if ($child instanceof \DOMComment) {
+            if ($child instanceof \DOMComment || $child instanceof \DOMDocumentType || $child instanceof \DOMProcessingInstruction) {
                 $node->removeChild($child);
                 continue;
             }
@@ -172,7 +250,7 @@ class MailScanner
                 $tag = strtolower($child->tagName);
                 if (!in_array($tag, self::ALLOWED_HTML_ELEMENTS, true)) {
                     // Drop dangerous container elements and their script payloads outright
-                    if (in_array($tag, ['script', 'style', 'iframe', 'object', 'embed', 'applet', 'form', 'svg', 'noscript'], true)) {
+                    if (in_array($tag, $dropElements, true)) {
                         $node->removeChild($child);
                         continue;
                     }
@@ -196,14 +274,24 @@ class MailScanner
                         continue;
                     }
 
+                    if ($lower === 'colspan' || $lower === 'rowspan') {
+                        $spanVal = trim($child->getAttribute($attrName));
+                        if (!ctype_digit($spanVal) || (int)$spanVal < 1 || (int)$spanVal > 20) {
+                            $child->removeAttribute($attrName);
+                        }
+                        continue;
+                    }
+
                     if ($lower === 'href') {
-                        $val = html_entity_decode(
-                            html_entity_decode(trim($child->getAttribute($attrName)), ENT_QUOTES | ENT_HTML5, 'UTF-8'),
-                            ENT_QUOTES | ENT_HTML5,
-                            'UTF-8'
-                        );
-                        $scheme = parse_url($val, PHP_URL_SCHEME);
-                        if ($scheme !== null && !in_array(strtolower((string)$scheme), ['http', 'https', 'mailto'], true)) {
+                        $decodedUrl = $this->decodeEntitiesIteratively(trim($child->getAttribute($attrName)));
+                        $normalizedUrl = preg_replace('/[\x00-\x20]+/', '', $decodedUrl) ?? $decodedUrl;
+                        $scheme = parse_url($normalizedUrl, PHP_URL_SCHEME);
+                        $hasProtocolRelative = str_starts_with($normalizedUrl, '//');
+                        if (
+                            $normalizedUrl === ''
+                            || $hasProtocolRelative
+                            || ($scheme !== null && !in_array(strtolower((string)$scheme), ['http', 'https', 'mailto'], true))
+                        ) {
                             $child->removeAttribute($attrName);
                         }
                     }

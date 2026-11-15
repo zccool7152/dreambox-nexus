@@ -244,6 +244,7 @@
                                 id="nxMailJailFrame"
                                 class="nx-mail-jail-frame"
                                 sandbox=""
+                                referrerpolicy="no-referrer"
                                 title="Sandboxed Email Reader Jail"
                                 srcdoc="<?= htmlspecialchars($activeJail['sandbox_html'] ?? '', ENT_QUOTES, 'UTF-8') ?>"
                             ></iframe>
@@ -392,7 +393,8 @@
                     rowEl.classList.remove('is-unread');
                 }
 
-                const scanStatus = String(payload.scan?.status || payload.message?.scan_status || 'clean').toLowerCase();
+                const rawScanStatus = String(payload.scan?.status || payload.message?.scan_status || 'clean').toLowerCase();
+                const scanStatus = ['clean', 'suspicious', 'infected'].includes(rawScanStatus) ? rawScanStatus : 'clean';
                 jailIdBadge.textContent = activeJailId;
                 readerScanPill.textContent = 'AV: ' + scanStatus.toUpperCase();
                 readerScanPill.className = 'nx-mail-scan-pill nx-scan-' + scanStatus;

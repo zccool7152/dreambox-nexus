@@ -61,7 +61,9 @@ class Headers implements MiddlewareInterface
         }
 
         foreach ($headers as $name => $val) {
-            $response->setHeader($name, $val);
+            if ($response->getHeader($name) === null) {
+                $response->setHeader($name, $val);
+            }
         }
 
         foreach ($this->customHeaders as $name => $val) {

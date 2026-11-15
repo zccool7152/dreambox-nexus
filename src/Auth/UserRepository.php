@@ -469,11 +469,14 @@ class UserRepository
         $path = $this->mailOverlayPath();
         $dir = dirname($path);
         if (!is_dir($dir)) {
-            @mkdir($dir, 0777, true);
+            @mkdir($dir, 0700, true);
         }
-        @chmod($dir, 0777);
+        @chmod($dir, 0700);
+        if (!is_writable($dir)) {
+            return;
+        }
         $fp = @fopen($path . '.lock', 'c+');
-        @chmod($path . '.lock', 0666);
+        @chmod($path . '.lock', 0600);
         if ($fp !== false) {
             @flock($fp, LOCK_EX);
         }
@@ -481,8 +484,8 @@ class UserRepository
             $all = $this->readAllMailOverlays();
             $current = isset($all[$userId]) && is_array($all[$userId]) ? $all[$userId] : [];
             $all[$userId] = array_merge($current, $patch);
-            file_put_contents($path, json_encode($all, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), LOCK_EX);
-            @chmod($path, 0666);
+            @file_put_contents($path, json_encode($all, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), LOCK_EX);
+            @chmod($path, 0600);
         } finally {
             if ($fp !== false) {
                 @flock($fp, LOCK_UN);
@@ -494,7 +497,7 @@ class UserRepository
     private function deleteMailOverlay(string $userId): void
     {
         $path = $this->mailOverlayPath();
-        if (!is_file($path)) {
+        if (!is_file($path) || !is_writable($path)) {
             return;
         }
         $fp = @fopen($path . '.lock', 'c+');
@@ -505,7 +508,8 @@ class UserRepository
             $all = $this->readAllMailOverlays();
             if (array_key_exists($userId, $all)) {
                 unset($all[$userId]);
-                file_put_contents($path, json_encode($all, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), LOCK_EX);
+                @file_put_contents($path, json_encode($all, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), LOCK_EX);
+                @chmod($path, 0600);
             }
         } finally {
             if ($fp !== false) {

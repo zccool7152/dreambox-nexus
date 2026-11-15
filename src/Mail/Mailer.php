@@ -28,7 +28,7 @@ class Mailer
         ?string $username = null,
         ?string $password = null,
         ?string $encryption = null,
-        string $fromAddress = 'nexus@localhost',
+        string $fromAddress = 'nexus@nexus.local',
         string $fromName = 'Dreambox Nexus'
     ) {
         $this->host = $host;
@@ -37,6 +37,9 @@ class Mailer
         $this->password = $password;
         $this->encryption = $encryption;
         $this->fromAddress = $this->sanitizeHeader($fromAddress);
+        if (!filter_var($this->fromAddress, FILTER_VALIDATE_EMAIL)) {
+            throw new InvalidArgumentException("Invalid sender email address: '{$this->fromAddress}'");
+        }
         $this->fromName = $this->sanitizeHeader($fromName);
     }
 
@@ -44,6 +47,8 @@ class Mailer
     {
         $safeTo = $this->sanitizeHeader($to);
         $safeSubject = $this->sanitizeHeader($subject);
+        $safeHtmlBody = str_replace("\0", '', $htmlBody);
+        $safeTextBody = str_replace("\0", '', $textBody);
 
         if (!filter_var($safeTo, FILTER_VALIDATE_EMAIL)) {
             throw new InvalidArgumentException("Invalid recipient email address: '{$safeTo}'");
@@ -60,21 +65,21 @@ class Mailer
             'X-Mailer: Dreambox Nexus Core',
         ];
 
-        if ($textBody !== '') {
+        if ($safeTextBody !== '') {
             $boundary = 'nexus_' . bin2hex(random_bytes(12));
             $headers[] = "Content-Type: multipart/alternative; boundary=\"{$boundary}\"";
             $mimeBody = "--{$boundary}\r\n"
                 . "Content-Type: text/plain; charset=UTF-8\r\n"
                 . "Content-Transfer-Encoding: 8bit\r\n\r\n"
-                . $textBody . "\r\n\r\n"
+                . $safeTextBody . "\r\n\r\n"
                 . "--{$boundary}\r\n"
                 . "Content-Type: text/html; charset=UTF-8\r\n"
                 . "Content-Transfer-Encoding: 8bit\r\n\r\n"
-                . $htmlBody . "\r\n\r\n"
+                . $safeHtmlBody . "\r\n\r\n"
                 . "--{$boundary}--";
         } else {
             $headers[] = 'Content-Type: text/html; charset=UTF-8';
-            $mimeBody = $htmlBody;
+            $mimeBody = $safeHtmlBody;
         }
 
         return $this->sendSmtp($safeTo, $safeSubject, $mimeBody, $headers);
@@ -86,7 +91,14 @@ class Mailer
     private function sendSmtp(string $to, string $subject, string $htmlBody, array $headers): bool
     {
         $remote = ($this->encryption === 'ssl' ? 'ssl://' : 'tcp://') . $this->host . ':' . $this->port;
-        $socket = @stream_socket_client($remote, $errno, $errstr, 3);
+        $context = stream_context_create([
+            'ssl' => [
+                'verify_peer' => true,
+                'verify_peer_name' => true,
+                'allow_self_signed' => false,
+            ],
+        ]);
+        $socket = @stream_socket_client($remote, $errno, $errstr, 3, STREAM_CLIENT_CONNECT, $context);
         if ($socket === false) {
             return false;
         }
@@ -183,8 +195,10 @@ class Mailer
 
     private function sanitizeHeader(string $value): string
     {
-        // Strip carriage returns and line feeds to prevent CRLF injection
-        return trim(str_replace(["\r", "\n", "%0a", "%0d"], '', $value));
+        // Strip NUL bytes, encoded CRLF sequences, and all ASCII control characters
+        $clean = str_ireplace(['%0a', '%0d', '%00'], '', $value);
+        $clean = preg_replace('/[\x00-\x1F\x7F]+/', '', $clean) ?? $clean;
+        return trim($clean);
     }
 }
 

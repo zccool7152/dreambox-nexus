@@ -1539,6 +1539,126 @@ $assertTest(
     && $sendInfectedRes->getStatusCode() === 422
 );
 
+// 19.8 serveJailFrame() enforces HTTP CSP + framing headers compatible with <iframe sandbox="">
+$frameOpenRes = $aliceCtrl->openJail(
+    new \Nexus\Core\Request('POST', '/api/v1/mail/messages/' . $aliceInbox[0]['id'] . '/open-jail', ['accept' => 'application/json', 'x-csrf-token' => $mailToken], [], [], '', '127.0.0.1'),
+    $aliceInbox[0]['id']
+);
+$frameOpenJson = json_decode($frameOpenRes->getContent(), true);
+$frameJailId = (string)($frameOpenJson['data']['jail']['jail_id'] ?? '');
+$frameReq = new \Nexus\Core\Request('GET', '/api/v1/mail/jail/' . $frameJailId, [], [], [], '', '127.0.0.1');
+$frameRes = (new \Nexus\Security\Headers())->handle($frameReq, fn($r) => $aliceCtrl->serveJailFrame($r, $frameJailId));
+$frameCsp = (string)$frameRes->getHeader('Content-Security-Policy', '');
+$mailViewSource = (string)file_get_contents($baseDir . '/resources/views/mail/index.php');
+
+$assertTest(
+    'serveJailFrame enforces strict HTTP CSP + SAMEORIGIN framing and view uses <iframe sandbox="">',
+    $frameJailId !== ''
+    && $frameRes->getStatusCode() === 200
+    && $frameRes->getHeader('X-Frame-Options') === 'SAMEORIGIN'
+    && $frameRes->getHeader('Referrer-Policy') === 'no-referrer'
+    && str_contains($frameCsp, "default-src 'none'")
+    && str_contains($frameCsp, "base-uri 'none'")
+    && str_contains($frameCsp, "form-action 'none'")
+    && str_contains($frameCsp, "frame-ancestors 'self'")
+    && str_contains($mailViewSource, 'sandbox=""')
+    && str_contains($mailViewSource, 'referrerpolicy="no-referrer"')
+);
+
+// 19.9 Least-privilege 0700/0600 permissions, symlink/traversal rejection & expired jail pruning
+clearstatcache(true);
+$mailDirMode = fileperms($tmpMailStore) & 0777;
+$messagesFileMode = fileperms($tmpMailStore . '/messages.json') & 0777;
+$jailRootMode = fileperms($tmpJailStore) & 0777;
+$activeJailDirMode = fileperms($tmpJailStore . '/' . $frameJailId) & 0777;
+$activeJailFileMode = fileperms($tmpJailStore . '/' . $frameJailId . '/content.html') & 0777;
+
+$traversalBlocked = $mailJail->get($aliceUser['id'], '../evil') === null;
+$staleJailDir = $tmpJailStore . '/jail_' . str_repeat('a', 24);
+mkdir($staleJailDir, 0700, true);
+file_put_contents($staleJailDir . '/meta.json', json_encode(['jail_id' => basename($staleJailDir), 'user_id' => $aliceUser['id'], 'expires_at' => time() - 120]));
+file_put_contents($staleJailDir . '/content.html', '<p>expired</p>');
+$prunedJailsCount = $mailJail->pruneExpired(time());
+$aliceCtrl->closeJail(
+    new \Nexus\Core\Request('POST', '/api/v1/mail/jail/' . $frameJailId . '/close', ['accept' => 'application/json', 'x-csrf-token' => $mailToken], [], [], '', '127.0.0.1'),
+    $frameJailId
+);
+
+$assertTest(
+    'MailJail & MailRepository enforce 0700/0600 permissions, reject traversal, and prune expired jails',
+    $mailDirMode === 0700
+    && $messagesFileMode === 0600
+    && $jailRootMode === 0700
+    && $activeJailDirMode === 0700
+    && $activeJailFileMode === 0600
+    && $traversalBlocked
+    && $prunedJailsCount >= 1
+    && !is_dir($staleJailDir)
+);
+
+// 19.10 AES-256-GCM at-rest encryption in MailRepository
+$rawMessagesJson = (string)file_get_contents($tmpMailStore . '/messages.json');
+$rawMessagesList = json_decode($rawMessagesJson, true) ?: [];
+$encryptedCipherMatch = false;
+foreach ($rawMessagesList as $rawMsg) {
+    if (($rawMsg['owner_user_id'] ?? '') === $bobUser['id'] && str_starts_with((string)($rawMsg['body_text'] ?? ''), 'enc:v1:')) {
+        $encryptedCipherMatch = true;
+        break;
+    }
+}
+$assertTest(
+    'MailRepository encrypts subject/body_text/body_html with AES-256-GCM at rest and decrypts for owner reads',
+    $encryptedCipherMatch
+    && !str_contains($rawMessagesJson, 'Quarterly Security Brief')
+    && !str_contains($rawMessagesJson, 'All systems nominal.')
+    && count($bobSearch) === 1
+    && ($bobSearch[0]['body_text'] ?? '') === 'All systems nominal.'
+);
+
+// 19.11 MailScanner MongoDB stdClass attachment hydration & entity-encoded XSS sanitization
+$stdClassAttachment = (object)['name' => 'Dropper_Stage1.exe', 'size' => 1024];
+$stdClassScanOk = false;
+try {
+    $stdScanRes = $mailScanner->scan(
+        'Security Check',
+        'Review attachment',
+        '<!DOCTYPE foo><a href="&#x6a;&#x61;vascript:alert(1)">Click</a><img src="x" onerror="alert(2)"><svg onload="alert(3)"><animate/></svg>',
+        [$stdClassAttachment]
+    );
+    $stdClassScanOk = ($stdScanRes['status'] ?? '') === 'infected'
+        && !str_contains((string)$stdScanRes['sanitized_html'], 'javascript:')
+        && !str_contains((string)$stdScanRes['sanitized_html'], '<svg')
+        && !str_contains((string)$stdScanRes['sanitized_html'], 'onerror');
+} catch (\Throwable $e) {
+    $stdClassScanOk = false;
+}
+$assertTest(
+    'MailScanner handles MongoDB stdClass attachments without crashing and neutralizes entity/DOM XSS',
+    $stdClassScanOk
+);
+
+// 19.12 Mailer strict sender validation, control-character stripping, & TLS peer verification context
+$invalidSenderBlocked = false;
+try {
+    new \Nexus\Mail\Mailer('127.0.0.1', 1025, null, null, null, "bad@nexus.local\r\nBcc: pwn@evil.com");
+} catch (\InvalidArgumentException) {
+    $invalidSenderBlocked = true;
+}
+$invalidEmailBlocked = false;
+try {
+    new \Nexus\Mail\Mailer('127.0.0.1', 1025, null, null, null, 'not-an-email');
+} catch (\InvalidArgumentException) {
+    $invalidEmailBlocked = true;
+}
+$mailerUpdatedSource = (string)file_get_contents($baseDir . '/src/Mail/Mailer.php');
+$assertTest(
+    'Mailer validates fromAddress, strips ASCII control chars, and enables TLS peer verification',
+    $invalidSenderBlocked
+    && $invalidEmailBlocked
+    && str_contains($mailerUpdatedSource, "'verify_peer' => true")
+    && str_contains($mailerUpdatedSource, "'verify_peer_name' => true")
+);
+
 // Clean up temporary users & test mail/jail directories
 $mailUserRepo->delete($aliceUser['id']);
 $mailUserRepo->delete($bobUser['id']);
