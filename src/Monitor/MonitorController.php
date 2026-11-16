@@ -12,6 +12,7 @@ use Nexus\Events\AuditLogger;
 use Nexus\Schedule\Scheduler;
 use Nexus\Cache\Cache;
 use Nexus\Compliance\ConsentManager;
+use Nexus\Mail\MailRepository;
 
 /**
  * 360-Degree Real-Time Framework Telemetry Controller
@@ -204,11 +205,28 @@ class MonitorController
             }
         }
 
+        $mailQueue = [
+            'counts' => [
+                'total' => 0,
+                'inbound' => 0,
+                'outbound' => 0,
+                'scanning' => 0,
+                'delivered' => 0,
+                'quarantined' => 0,
+                'drafts' => 0,
+            ],
+            'items' => [],
+        ];
+        try {
+            $mailQueue = (new MailRepository($this->db))->getMailQueueTelemetry(25);
+        } catch (\Throwable) {}
+
         $data = [
             'pending_jobs' => $pending,
             'failed_jobs_count' => count($failed),
             'failed_jobs' => $failed,
             'worker_engine' => $driver === 'mongodb' ? 'MongoDB Atomic Lock' : 'MariaDB SKIP LOCKED',
+            'mail_queue' => $mailQueue,
         ];
 
         return Response::json($data, 'Queue telemetry retrieved.', 200, [], $request->getTraceId());

@@ -9,7 +9,7 @@
     <link rel="icon" type="image/png" sizes="16x16" href="<?= htmlspecialchars($appBase) ?>/brand/favicon-16x16.png">
     <link rel="apple-touch-icon" sizes="180x180" href="<?= htmlspecialchars($appBase) ?>/brand/apple-touch-icon.png">
     <link rel="manifest" href="<?= htmlspecialchars($appBase) ?>/brand/site.webmanifest">
-    <link rel="stylesheet" href="<?= htmlspecialchars($appBase) ?>/css/theme.css">
+    <link rel="stylesheet" href="<?= htmlspecialchars($appBase) ?>/css/theme.css?v=<?= file_exists(dirname(__DIR__, 2) . '/css/theme.css') ? filemtime(dirname(__DIR__, 2) . '/css/theme.css') : time() ?>">
 </head>
 <body>
     <?php include dirname(__DIR__) . "/partials/topbar.php"; ?>
@@ -222,6 +222,7 @@
                             </div>
 
                             <div class="nx-mail-jail-actions">
+                                <button type="button" class="btn btn-primary btn-xs <?= ($activeMessage['folder'] ?? $folder) === 'drafts' ? '' : 'hidden' ?>" id="btnEditDraft">Edit Draft</button>
                                 <button type="button" class="btn btn-secondary btn-xs" id="btnReplyMail">Reply</button>
                                 <button type="button" class="btn btn-secondary btn-xs" id="btnTrashMail">
                                     <?= $folder === 'trash' ? 'Delete Forever' : 'Trash' ?>
@@ -246,7 +247,9 @@
                                 sandbox=""
                                 referrerpolicy="no-referrer"
                                 title="Sandboxed Email Reader Jail"
-                                srcdoc="<?= htmlspecialchars($activeJail['sandbox_html'] ?? '', ENT_QUOTES, 'UTF-8') ?>"
+                                <?php if (!empty($activeJail['sandbox_html'])): ?>
+                                srcdoc="<?= htmlspecialchars((string)$activeJail['sandbox_html'], ENT_QUOTES, 'UTF-8') ?>"
+                                <?php endif; ?>
                             ></iframe>
                         </div>
                     </div>
@@ -262,6 +265,7 @@
                     </div>
                     <form method="POST" action="<?= htmlspecialchars($appBase) ?>/mail/" id="composeForm">
                         <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
+                        <input type="hidden" name="draft_id" id="composeDraftId" value="">
                         <div class="mb-3">
                             <label for="composeTo" class="nx-mail-label">To</label>
                             <input type="email" id="composeTo" name="to" class="form-input" placeholder="colleague@<?= htmlspecialchars($mailDomain) ?>" required>
@@ -297,7 +301,7 @@
         const folder = shell.dataset.folder || 'inbox';
 
         let activeJailId = shell.dataset.activeJailId || '';
-        let activeMessage = null;
+        let activeMessage = <?= $activeMessage !== null ? json_encode($activeMessage, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) : 'null' ?>;
 
         const placeholderEl = document.getElementById('nxMailPlaceholder');
         const readerActiveEl = document.getElementById('nxMailReaderActive');
@@ -308,8 +312,10 @@
         const readerTo = document.getElementById('nxReaderTo');
         const readerTime = document.getElementById('nxReaderTime');
         const jailFrame = document.getElementById('nxMailJailFrame');
+        const btnEditDraft = document.getElementById('btnEditDraft');
 
         const composeModal = document.getElementById('composeModal');
+        const composeDraftId = document.getElementById('composeDraftId');
         const composeTo = document.getElementById('composeTo');
         const composeSubject = document.getElementById('composeSubject');
         const composeBody = document.getElementById('composeBody');
@@ -326,6 +332,7 @@
 
         if (btnOpenCompose) {
             btnOpenCompose.addEventListener('click', function() {
+                if (composeDraftId) composeDraftId.value = '';
                 composeTo.value = '';
                 composeSubject.value = '';
                 composeBody.value = '';
@@ -339,9 +346,10 @@
             if (!activeJailId) return;
             const targetId = activeJailId;
             activeJailId = '';
+            activeMessage = null;
             shell.dataset.activeJailId = '';
 
-            if (jailFrame) jailFrame.srcdoc = '';
+            if (jailFrame) jailFrame.removeAttribute('srcdoc');
             if (readerActiveEl) readerActiveEl.classList.add('hidden');
             if (placeholderEl) placeholderEl.classList.remove('hidden');
 
@@ -366,6 +374,10 @@
                 await closeActiveJail(false);
             }
 
+            if (rowEl) {
+                rowEl.style.opacity = '0.65';
+            }
+
             try {
                 const res = await fetch(appBase + '/mail/', {
                     method: 'POST',
@@ -379,6 +391,7 @@
 
                 const json = await res.json();
                 if (!res.ok || !json.data || !json.data.jail) {
+                    window.location.href = appBase + '/mail/?folder=' + encodeURIComponent(folder) + '&read=' + encodeURIComponent(msgId);
                     return;
                 }
 
@@ -404,11 +417,24 @@
                 readerFrom.textContent = (payload.message.from_name || '') + ' <' + (payload.message.from_address || '') + '>';
                 readerTo.textContent = payload.message.to_address || '';
                 readerTime.textContent = payload.message.created_at || '';
-                jailFrame.srcdoc = payload.jail.sandbox_html || '';
+
+                if (btnEditDraft) {
+                    btnEditDraft.classList.toggle('hidden', (payload.message.folder || folder) !== 'drafts');
+                }
 
                 placeholderEl.classList.add('hidden');
                 readerActiveEl.classList.remove('hidden');
-            } catch (e) {}
+
+                const sandboxHtml = payload.jail.sandbox_html || payload.message.body_html || '';
+                jailFrame.setAttribute('srcdoc', sandboxHtml);
+                jailFrame.srcdoc = sandboxHtml;
+            } catch (e) {
+                window.location.href = appBase + '/mail/?folder=' + encodeURIComponent(folder) + '&read=' + encodeURIComponent(msgId);
+            } finally {
+                if (rowEl) {
+                    rowEl.style.opacity = '';
+                }
+            }
         }
 
         document.querySelectorAll('.nx-mail-row').forEach(function(row) {
@@ -455,10 +481,22 @@
             });
         }
 
+        if (btnEditDraft) {
+            btnEditDraft.addEventListener('click', function() {
+                if (!activeMessage) return;
+                if (composeDraftId) composeDraftId.value = activeMessage.id || '';
+                composeTo.value = activeMessage.to_address || '';
+                composeSubject.value = (activeMessage.subject === '(Untitled Draft)') ? '' : (activeMessage.subject || '');
+                composeBody.value = activeMessage.body_text || '';
+                setModalOpen(true);
+            });
+        }
+
         const btnReplyMail = document.getElementById('btnReplyMail');
         if (btnReplyMail) {
             btnReplyMail.addEventListener('click', function() {
                 if (!activeMessage) return;
+                if (composeDraftId) composeDraftId.value = '';
                 composeTo.value = activeMessage.from_address || '';
                 const subj = activeMessage.subject || '';
                 composeSubject.value = /^re:/i.test(subj) ? subj : ('Re: ' + subj);

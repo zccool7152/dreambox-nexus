@@ -439,16 +439,45 @@ class UserRepository
 
     private function mailOverlayPath(): string
     {
-        return dirname(__DIR__, 2) . '/storage/app/private/mail/user_mail_permissions.json';
+        $dir = dirname(__DIR__, 2) . '/storage/app/private/mail';
+        if (!is_dir($dir)) {
+            @mkdir($dir, 0700, true);
+        }
+        $usePrimary = is_dir($dir) && !is_link($dir);
+        if ($usePrimary && function_exists('posix_geteuid')) {
+            $owner = @fileowner($dir);
+            if ($owner !== false && $owner !== posix_geteuid()) {
+                $usePrimary = false;
+            }
+        }
+        if ($usePrimary) {
+            $probe = $dir . '/.nx_overlay_probe_' . getmypid();
+            if (@file_put_contents($probe, '1', LOCK_EX) !== false) {
+                @unlink($probe);
+                return $dir . '/user_mail_permissions.json';
+            }
+        }
+
+        $uid = function_exists('posix_geteuid') ? (string)posix_geteuid() : 'default';
+        $fallbackDir = rtrim(sys_get_temp_dir(), '/') . '/nexus_mail_' . $uid;
+        if (!is_dir($fallbackDir)) {
+            @mkdir($fallbackDir, 0700, true);
+        }
+        @chmod($fallbackDir, 0700);
+        return $fallbackDir . '/user_mail_permissions.json';
     }
 
     private function readAllMailOverlays(): array
     {
         $path = $this->mailOverlayPath();
-        if (!is_file($path)) {
+        if (!is_file($path) || !is_readable($path)) {
             return [];
         }
-        $decoded = json_decode((string)file_get_contents($path), true);
+        $raw = @file_get_contents($path);
+        if (!is_string($raw) || $raw === '') {
+            return [];
+        }
+        $decoded = json_decode($raw, true);
         return is_array($decoded) ? $decoded : [];
     }
 

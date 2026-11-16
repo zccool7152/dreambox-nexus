@@ -161,15 +161,17 @@ $cspNonce = (string)($nonce ?? (\Nexus\Security\Headers::getNonce() ?: ''));
                                 </div>
                             </div>
 
-                            <div class="rx-skill-group">
-                                <div class="rx-skill-heading">
-                                    <span class="rx-dot rx-dot-amber" aria-hidden="true"></span>
-                                    <span>Networking &amp; Support</span>
-                                </div>
-                                <div class="rx-skill-tags">
-                                    <span class="rx-skill-tag">Cisco Networking &amp; Automation</span>
-                                    <span class="rx-skill-tag">Enterprise Networking Solutions</span>
-                                    <span class="rx-skill-tag">IT Support</span>
+                            <div class="rx-print-page2-pad">
+                                <div class="rx-skill-group">
+                                    <div class="rx-skill-heading">
+                                        <span class="rx-dot rx-dot-amber" aria-hidden="true"></span>
+                                        <span>Networking &amp; Support</span>
+                                    </div>
+                                    <div class="rx-skill-tags">
+                                        <span class="rx-skill-tag">Cisco Networking &amp; Automation</span>
+                                        <span class="rx-skill-tag">Enterprise Networking Solutions</span>
+                                        <span class="rx-skill-tag">IT Support</span>
+                                    </div>
                                 </div>
                             </div>
 

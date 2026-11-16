@@ -209,6 +209,37 @@ $initStorageBreakdown = 'Logs: ' . ($vitals['storage_formatted']['logs'] ?? '0 B
                 <div class="metric-value" id="val-queue-failed">0</div>
                 <div class="metric-sub">Jobs requiring retry</div>
             </div>
+            <div class="card">
+                <div class="card-header"><span>Inbound Mail</span><span class="badge badge-info">INGRESS</span></div>
+                <div class="metric-value" id="val-mail-inbound">0</div>
+                <div class="metric-sub">Delivered: <span id="val-mail-delivered">0</span> &middot; Quarantined: <span id="val-mail-quarantined">0</span></div>
+            </div>
+            <div class="card">
+                <div class="card-header"><span>Outbound Mail</span><span class="badge badge-success">EGRESS</span></div>
+                <div class="metric-value" id="val-mail-outbound">0</div>
+                <div class="metric-sub">Scanning: <span id="val-mail-scanning">0</span> &middot; Drafts: <span id="val-mail-drafts">0</span></div>
+            </div>
+        </div>
+
+        <div class="data-table-wrapper mb-4">
+            <div class="p-3 fw-bold border-bottom d-flex justify-content-between align-items-center">
+                <span>Inbound &amp; Outbound Mail Queue (ClamAV &amp; Rspamd Pipeline)</span>
+                <span class="badge badge-secondary" id="val-mail-total">0 Messages</span>
+            </div>
+            <table id="tbl-mail-queue">
+                <thead>
+                    <tr>
+                        <th>Direction</th>
+                        <th>From</th>
+                        <th>To</th>
+                        <th>Subject</th>
+                        <th>Scan Engine</th>
+                        <th>Status</th>
+                        <th>Timestamp</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
         </div>
 
         <div class="data-table-wrapper">
@@ -406,6 +437,48 @@ $initStorageBreakdown = 'Logs: ' . ($vitals['storage_formatted']['logs'] ?? '0 B
                 if (data) {
                     document.getElementById('val-queue-pending').innerText = data.pending_jobs || 0;
                     document.getElementById('val-queue-failed').innerText = data.failed_jobs_count || 0;
+
+                    const mq = data.mail_queue || {};
+                    const mqCounts = mq.counts || {};
+                    const mqItems = Array.isArray(mq.items) ? mq.items : [];
+
+                    document.getElementById('val-mail-inbound').innerText = mqCounts.inbound || 0;
+                    document.getElementById('val-mail-outbound').innerText = mqCounts.outbound || 0;
+                    document.getElementById('val-mail-delivered').innerText = mqCounts.delivered || 0;
+                    document.getElementById('val-mail-quarantined').innerText = mqCounts.quarantined || 0;
+                    document.getElementById('val-mail-scanning').innerText = mqCounts.scanning || 0;
+                    document.getElementById('val-mail-drafts').innerText = mqCounts.drafts || 0;
+                    document.getElementById('val-mail-total').innerText = `${mqCounts.total || mqItems.length || 0} Messages`;
+
+                    const mailTbody = document.querySelector('#tbl-mail-queue tbody');
+                    mailTbody.innerHTML = '';
+                    if (mqItems.length > 0) {
+                        mqItems.forEach(item => {
+                            const dir = String(item.direction || 'INBOUND').toUpperCase();
+                            const dirBadge = dir === 'OUTBOUND' ? 'badge-primary' : 'badge-cyan';
+                            const qStatus = String(item.queue_status || 'DELIVERED').toUpperCase();
+                            let statusBadge = 'badge-success';
+                            if (qStatus === 'QUARANTINED') statusBadge = 'badge-danger';
+                            else if (qStatus === 'SCANNING') statusBadge = 'badge-warning';
+                            else if (qStatus === 'DRAFT' || qStatus === 'TRASHED') statusBadge = 'badge-secondary';
+
+                            const scanState = String(item.scan_status || 'clean').toUpperCase();
+                            const score = Number(item.spam_score || 0).toFixed(1);
+                            const tr = document.createElement('tr');
+                            tr.innerHTML = `
+                                <td><span class="badge ${dirBadge}">${esc(dir)}</span></td>
+                                <td class="table-cell-truncate">${esc(item.from_address || '-')}</td>
+                                <td class="table-cell-truncate">${esc(item.to_address || '-')}</td>
+                                <td class="table-cell-truncate">${esc(item.subject || '(No Subject)')}</td>
+                                <td><code>AV:${esc(scanState)} · ${esc(score)}</code></td>
+                                <td><span class="badge ${statusBadge}">${esc(qStatus)}</span></td>
+                                <td class="text-nowrap">${esc(item.created_at || '-')}</td>
+                            `;
+                            mailTbody.appendChild(tr);
+                        });
+                    } else {
+                        mailTbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">Mail queue is empty. No inbound or outbound messages recorded.</td></tr>';
+                    }
 
                     const tbody = document.querySelector('#tbl-failed-jobs tbody');
                     tbody.innerHTML = '';

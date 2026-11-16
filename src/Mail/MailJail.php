@@ -20,9 +20,7 @@ class MailJail
     public function __construct(?string $jailRoot = null, int $ttlSeconds = self::DEFAULT_TTL_SECONDS)
     {
         $configuredRoot = $jailRoot ?? (dirname(__DIR__, 2) . '/storage/cache/jails');
-        $this->jailRoot = $jailRoot !== null
-            ? rtrim($configuredRoot, '/')
-            : $this->resolveJailRoot(rtrim($configuredRoot, '/'));
+        $this->jailRoot = $this->resolveJailRoot(rtrim($configuredRoot, '/'));
         $this->ttlSeconds = max(60, $ttlSeconds);
     }
 
@@ -35,9 +33,20 @@ class MailJail
             @mkdir($configuredDir, 0700, true);
         }
         if (is_dir($configuredDir) && !is_link($configuredDir)) {
-            @chmod($configuredDir, 0700);
-            if (is_writable($configuredDir)) {
-                return $configuredDir;
+            $ownerOk = true;
+            if (function_exists('posix_geteuid')) {
+                $owner = @fileowner($configuredDir);
+                if ($owner !== false && $owner !== posix_geteuid()) {
+                    $ownerOk = false;
+                }
+            }
+            if ($ownerOk) {
+                @chmod($configuredDir, 0700);
+                $probe = $configuredDir . '/.nx_jail_probe_' . getmypid();
+                if (@file_put_contents($probe, '1', LOCK_EX) !== false) {
+                    @unlink($probe);
+                    return $configuredDir;
+                }
             }
         }
 

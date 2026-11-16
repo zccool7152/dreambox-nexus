@@ -46,7 +46,7 @@ class Headers implements MiddlewareInterface
             'X-Content-Type-Options' => 'nosniff',
             'Referrer-Policy' => 'strict-origin-when-cross-origin',
             'Permissions-Policy' => 'camera=(), microphone=(), geolocation=()',
-            'Content-Security-Policy' => "default-src 'self'; {$scriptSrc} style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; frame-ancestors 'none'; object-src 'none'; base-uri 'self';",
+            'Content-Security-Policy' => "default-src 'self'; {$scriptSrc} style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; frame-src 'self' about:; frame-ancestors 'none'; object-src 'none'; base-uri 'self';",
             'X-Permitted-Cross-Domain-Policies' => 'none',
             'X-CSP-Nonce' => self::$currentNonce,
         ];

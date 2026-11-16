@@ -27,9 +27,7 @@ class MailRepository
     {
         $this->db = $db;
         $configuredDir = rtrim($storeDir ?? (dirname(__DIR__, 2) . '/storage/app/private/mail'), '/');
-        $this->storeDir = $storeDir !== null
-            ? $configuredDir
-            : $this->resolveStoreDir($configuredDir);
+        $this->storeDir = $this->resolveStoreDir($configuredDir);
     }
 
     /**
@@ -37,16 +35,15 @@ class MailRepository
      */
     private function resolveStoreDir(string $configuredDir): string
     {
-        if (!is_dir($configuredDir)) {
-            @mkdir($configuredDir, 0700, true);
-        }
-        if (is_dir($configuredDir) && !is_link($configuredDir)) {
-            @chmod($configuredDir, 0700);
-            if (is_writable($configuredDir)) {
-                return $configuredDir;
-            }
+        if ($this->isOwnedWritableDir($configuredDir)) {
+            return $configuredDir;
         }
 
+        return $this->ensureFallbackStoreDir();
+    }
+
+    private function ensureFallbackStoreDir(): string
+    {
         $uid = function_exists('posix_geteuid') ? (string)posix_geteuid() : 'default';
         $fallbackDir = rtrim(sys_get_temp_dir(), '/') . '/nexus_mail_' . $uid;
         if (!is_dir($fallbackDir)) {
@@ -54,6 +51,42 @@ class MailRepository
         }
         @chmod($fallbackDir, 0700);
         return $fallbackDir;
+    }
+
+    private function isOwnedWritableDir(string $dir): bool
+    {
+        if (!is_dir($dir)) {
+            @mkdir($dir, 0700, true);
+        }
+        if (!is_dir($dir) || is_link($dir)) {
+            return false;
+        }
+        if (function_exists('posix_geteuid')) {
+            $owner = @fileowner($dir);
+            if ($owner !== false && $owner !== posix_geteuid()) {
+                return false;
+            }
+        }
+        @chmod($dir, 0700);
+
+        $probe = $dir . '/.nx_write_probe_' . getmypid();
+        $ok = @file_put_contents($probe, '1', LOCK_EX);
+        if ($ok === false) {
+            return false;
+        }
+        @unlink($probe);
+
+        // If messages.json already exists in this dir, ensure the current UID can also write it
+        $existingMessages = $dir . '/messages.json';
+        if (is_file($existingMessages)) {
+            $h = @fopen($existingMessages, 'r+');
+            if ($h === false) {
+                return false;
+            }
+            @fclose($h);
+        }
+
+        return true;
     }
 
     /**
@@ -687,6 +720,119 @@ class MailRepository
         } catch (\Throwable) {}
     }
 
+    /**
+     * Aggregate inbound and outbound mail telemetry for the SecOps Queue & Workers monitor.
+     *
+     * @return array{counts: array<string, int>, items: list<array<string, mixed>>}
+     */
+    public function getMailQueueTelemetry(int $limit = 25): array
+    {
+        $byId = [];
+
+        if ($this->isMongo()) {
+            try {
+                $docs = $this->db->mongoFind('mail_messages', [], ['sort' => ['created_at' => -1], 'limit' => max($limit * 3, 100)]);
+                foreach ($docs as $doc) {
+                    $norm = $this->normalizeMessage($doc);
+                    if ($norm['id'] !== '') {
+                        $byId[$norm['id']] = $norm;
+                    }
+                }
+            } catch (\Throwable) {}
+        } elseif ($this->isSqlAlive()) {
+            try {
+                $rows = $this->db->fetchAll('SELECT * FROM mail_messages ORDER BY created_at DESC LIMIT ?', [max($limit * 3, 100)]);
+                foreach ($rows as $row) {
+                    $norm = $this->normalizeMessage($row);
+                    if ($norm['id'] !== '') {
+                        $byId[$norm['id']] = $norm;
+                    }
+                }
+            } catch (\Throwable) {}
+        }
+
+        foreach ($this->readJsonStore('messages.json') as $rawMsg) {
+            $norm = $this->normalizeMessage($rawMsg);
+            if ($norm['id'] !== '' && !isset($byId[$norm['id']])) {
+                $byId[$norm['id']] = $norm;
+            }
+        }
+
+        $messages = array_values($byId);
+        usort($messages, static fn(array $a, array $b): int => strcmp((string)($b['created_at'] ?? ''), (string)($a['created_at'] ?? '')));
+
+        $counts = [
+            'total' => 0,
+            'inbound' => 0,
+            'outbound' => 0,
+            'scanning' => 0,
+            'delivered' => 0,
+            'quarantined' => 0,
+            'drafts' => 0,
+        ];
+        $items = [];
+
+        foreach ($messages as $msg) {
+            $folder = strtolower((string)($msg['folder'] ?? 'inbox'));
+            $scanStatus = strtolower((string)($msg['scan_status'] ?? 'clean'));
+            $fromAddr = strtolower((string)($msg['from_address'] ?? ''));
+            $mailboxAddr = strtolower((string)($msg['mailbox_address'] ?? ''));
+
+            if (in_array($folder, ['sent', 'drafts'], true)) {
+                $direction = 'OUTBOUND';
+            } elseif (in_array($folder, ['inbox', 'quarantine'], true)) {
+                $direction = 'INBOUND';
+            } else {
+                $direction = ($fromAddr !== '' && $fromAddr === $mailboxAddr) ? 'OUTBOUND' : 'INBOUND';
+            }
+
+            if ($folder === 'drafts') {
+                $queueStatus = 'DRAFT';
+                $counts['drafts']++;
+            } elseif (in_array($scanStatus, ['pending', 'scanning'], true)) {
+                $queueStatus = 'SCANNING';
+                $counts['scanning']++;
+            } elseif ($folder === 'quarantine' || in_array($scanStatus, ['infected', 'suspicious', 'quarantined'], true)) {
+                $queueStatus = 'QUARANTINED';
+                $counts['quarantined']++;
+            } elseif ($folder === 'trash') {
+                $queueStatus = 'TRASHED';
+            } else {
+                $queueStatus = 'DELIVERED';
+                $counts['delivered']++;
+            }
+
+            $counts['total']++;
+            if ($direction === 'OUTBOUND') {
+                $counts['outbound']++;
+            } else {
+                $counts['inbound']++;
+            }
+
+            if (count($items) < $limit) {
+                $items[] = [
+                    'id' => $msg['id'],
+                    'direction' => $direction,
+                    'from_address' => (string)($msg['from_address'] ?? ''),
+                    'to_address' => (string)($msg['to_address'] ?? ''),
+                    'subject' => (string)($msg['subject'] ?? '(No Subject)'),
+                    'folder' => $folder,
+                    'scan_status' => $scanStatus,
+                    'spam_score' => (float)($msg['spam_score'] ?? 0.0),
+                    'spam_action' => (string)($msg['spam_action'] ?? 'no action'),
+                    'queue_status' => $queueStatus,
+                    'scanned_at' => (string)($msg['scanned_at'] ?? ''),
+                    'created_at' => (string)($msg['created_at'] ?? ''),
+                ];
+            }
+        }
+
+        return [
+            'counts' => $counts,
+            'items' => $items,
+        ];
+    }
+
     private function isMongo(): bool
     {
         return $this->db !== null && $this->db->getDriver() === 'mongodb' && $this->db->isAlive();
@@ -700,23 +846,32 @@ class MailRepository
     private function readJsonStore(string $filename): array
     {
         $path = $this->storeDir . '/' . $filename;
-        if (!is_file($path)) {
+        if (!is_file($path) || !is_readable($path)) {
             return [];
         }
-        $decoded = json_decode((string)file_get_contents($path), true);
+        $raw = @file_get_contents($path);
+        if (!is_string($raw) || $raw === '') {
+            return [];
+        }
+        $decoded = json_decode($raw, true);
         return is_array($decoded) ? $decoded : [];
     }
 
     private function withStoreLock(string $filename, callable $mutator): void
     {
-        if (!is_dir($this->storeDir)) {
-            @mkdir($this->storeDir, 0700, true);
+        if (!$this->isOwnedWritableDir($this->storeDir)) {
+            $this->storeDir = $this->ensureFallbackStoreDir();
         }
-        @chmod($this->storeDir, 0700);
 
         $path = $this->storeDir . '/' . $filename;
         $lockPath = $path . '.lock';
         $fp = @fopen($lockPath, 'c+');
+        if ($fp === false) {
+            $this->storeDir = $this->ensureFallbackStoreDir();
+            $path = $this->storeDir . '/' . $filename;
+            $lockPath = $path . '.lock';
+            $fp = @fopen($lockPath, 'c+');
+        }
         @chmod($lockPath, 0600);
         if ($fp !== false) {
             @flock($fp, LOCK_EX);
@@ -725,11 +880,13 @@ class MailRepository
         try {
             $current = $this->readJsonStore($filename);
             $next = $mutator($current);
-            file_put_contents(
-                $path,
-                json_encode($next, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
-                LOCK_EX
-            );
+            $encoded = json_encode($next, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+            $written = @file_put_contents($path, $encoded, LOCK_EX);
+            if ($written === false) {
+                $this->storeDir = $this->ensureFallbackStoreDir();
+                $path = $this->storeDir . '/' . $filename;
+                file_put_contents($path, $encoded, LOCK_EX);
+            }
             @chmod($path, 0600);
         } finally {
             if ($fp !== false) {

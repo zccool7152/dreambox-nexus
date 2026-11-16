@@ -152,8 +152,18 @@ class MailScanner
             $severity = max($severity, 1);
         }
 
-        // 4. ClamAV Scan (clamd zINSTREAM socket -> clamscan/clamdscan CLI -> builtin signatures)
-        $clamResult = $this->scanWithClamAv($combined, $normalizedAttachments, $signals['eicar']);
+        // 4. ClamAV Scan (clamd zINSTREAM socket -> clamdscan/clamscan CLI -> builtin signatures)
+        $parts = [];
+        foreach ([$textBody, $htmlBody, $combined] as $candidatePart) {
+            if ($candidatePart !== '' && !in_array($candidatePart, $parts, true)) {
+                $parts[] = $candidatePart;
+            }
+        }
+        if ($parts === []) {
+            $parts = [$combined];
+        }
+
+        $clamResult = $this->scanWithClamAv($parts, $normalizedAttachments, $signals['eicar']);
         if (!empty($clamResult['infected'])) {
             $sig = (string)($clamResult['signature'] ?? 'Malware.Generic');
             $threats[] = "ClamAV Signature Match: {$sig}";
@@ -201,38 +211,31 @@ class MailScanner
     }
 
     /**
-     * Scan raw message payload and attachment files through ClamAV clamd zINSTREAM,
-     * falling back to clamscan/clamdscan CLI or built-in signatures.
+     * Scan raw message body parts individually (byte-0 aligned) and attachment files
+     * through ClamAV clamd zINSTREAM, falling back to clamdscan/clamscan CLI or built-in signatures.
      */
-    private function scanWithClamAv(string $payload, array $attachments, bool $hasEicarSignature): array
+    private function scanWithClamAv(array $parts, array $attachments, bool $hasEicarSignature): array
     {
-        $instreamResult = $this->clamdInstreamScan($payload);
-        if ($instreamResult !== null) {
-            if (empty($instreamResult['infected'])) {
-                foreach ($attachments as $att) {
-                    if (is_array($att) && !empty($att['tmp_path']) && is_string($att['tmp_path']) && is_file($att['tmp_path'])) {
-                        $attBytes = @file_get_contents($att['tmp_path']);
-                        if (is_string($attBytes) && $attBytes !== '') {
-                            $attRes = $this->clamdInstreamScan($attBytes);
-                            if ($attRes !== null && !empty($attRes['infected'])) {
-                                return $attRes;
-                            }
-                        }
-                    }
-                }
+        $daemonResponded = false;
+        foreach ($parts as $part) {
+            $instreamResult = $this->clamdInstreamScan((string)$part);
+            if ($instreamResult === null) {
+                continue;
             }
-            return $instreamResult;
+            $daemonResponded = true;
+            if (!empty($instreamResult['infected'])) {
+                return $instreamResult;
+            }
         }
 
-        $binary = $this->findClamScanBinary();
-        if ($binary !== null) {
-            $cliHit = $this->scanRawWithClamIfInstalled($payload, $binary);
-            if ($cliHit === null) {
-                foreach ($attachments as $att) {
-                    if (is_array($att) && !empty($att['tmp_path']) && is_string($att['tmp_path'])) {
-                        $cliHit = $this->runClamScan($att['tmp_path'], $binary);
-                        if ($cliHit !== null) {
-                            break;
+        if ($daemonResponded) {
+            foreach ($attachments as $att) {
+                if (is_array($att) && !empty($att['tmp_path']) && is_string($att['tmp_path']) && is_file($att['tmp_path'])) {
+                    $attBytes = @file_get_contents($att['tmp_path']);
+                    if (is_string($attBytes) && $attBytes !== '') {
+                        $attRes = $this->clamdInstreamScan($attBytes);
+                        if ($attRes !== null && !empty($attRes['infected'])) {
+                            return $attRes;
                         }
                     }
                 }
@@ -240,10 +243,51 @@ class MailScanner
 
             return [
                 'engine' => 'ClamAV',
-                'driver' => 'clamscan_cli',
-                'infected' => $cliHit !== null,
-                'signature' => $cliHit,
+                'driver' => 'clamd_instream',
+                'infected' => false,
+                'signature' => null,
             ];
+        }
+
+        foreach ($this->findClamScanBinaries() as $binary) {
+            $tmpFiles = [];
+            try {
+                foreach ($parts as $part) {
+                    $tmpFile = tempnam(sys_get_temp_dir(), 'nxav_');
+                    if ($tmpFile === false) {
+                        continue;
+                    }
+                    file_put_contents($tmpFile, (string)$part);
+                    $tmpFiles[] = $tmpFile;
+                }
+
+                $scanTargets = $tmpFiles;
+                foreach ($attachments as $att) {
+                    if (is_array($att) && !empty($att['tmp_path']) && is_string($att['tmp_path']) && is_file($att['tmp_path'])) {
+                        $scanTargets[] = $att['tmp_path'];
+                    }
+                }
+
+                if ($scanTargets === []) {
+                    continue;
+                }
+
+                $cliRes = $this->runClamScanFiles($scanTargets, $binary);
+                if ($cliRes === null) {
+                    continue;
+                }
+
+                return [
+                    'engine' => 'ClamAV',
+                    'driver' => 'clamscan_cli',
+                    'infected' => !empty($cliRes['infected']),
+                    'signature' => $cliRes['signature'],
+                ];
+            } finally {
+                foreach ($tmpFiles as $tf) {
+                    @unlink($tf);
+                }
+            }
         }
 
         return [
@@ -826,35 +870,26 @@ class MailScanner
         }
     }
 
-    private function scanRawWithClamIfInstalled(string $content, ?string $binary = null): ?string
+    /**
+     * Execute clamdscan/clamscan once across multiple part/attachment files so virus DB loads at most once.
+     *
+     * @param list<string> $filePaths
+     */
+    private function runClamScanFiles(array $filePaths, ?string $binary = null): ?array
     {
         $binary = $binary ?? $this->findClamScanBinary();
-        if ($binary === null) {
+        $targets = array_values(array_filter($filePaths, static fn(string $p): bool => $p !== '' && file_exists($p)));
+        if ($binary === null || $targets === []) {
             return null;
         }
 
-        $tmpFile = tempnam(sys_get_temp_dir(), 'nxav_');
-        if ($tmpFile === false) {
-            return null;
-        }
-
-        try {
-            file_put_contents($tmpFile, $content);
-            return $this->runClamScan($tmpFile, $binary);
-        } finally {
-            @unlink($tmpFile);
-        }
-    }
-
-    private function runClamScan(string $filePath, ?string $binary = null): ?string
-    {
-        $binary = $binary ?? $this->findClamScanBinary();
-        if ($binary === null || !file_exists($filePath)) {
-            return null;
-        }
+        $isDaemonClient = str_contains(basename($binary), 'clamdscan');
+        $cmd = $isDaemonClient
+            ? array_merge([$binary, '--no-summary', '--fdpass', '--infected'], $targets)
+            : array_merge([$binary, '--no-summary', '--infected'], $targets);
 
         $proc = @proc_open(
-            [$binary, '--no-summary', '--infected', $filePath],
+            $cmd,
             [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']],
             $pipes
         );
@@ -869,19 +904,42 @@ class MailScanner
         $code = proc_close($proc);
 
         if ($code === 1 && trim($stdout) !== '') {
-            return trim($stdout);
+            $sig = trim($stdout);
+            if (preg_match('/:\s*(.+?)\s+FOUND$/im', $sig, $m)) {
+                $sig = trim($m[1]);
+            }
+            return ['infected' => true, 'signature' => $sig];
         }
 
+        if ($code === 0) {
+            return ['infected' => false, 'signature' => null];
+        }
+
+        // Exit code >= 2 indicates CLI/daemon failure (e.g., clamd unreachable); allow fallback
         return null;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function findClamScanBinaries(): array
+    {
+        $found = [];
+        foreach ([
+            '/usr/bin/clamdscan',
+            '/usr/local/bin/clamdscan',
+            '/usr/bin/clamscan',
+            '/usr/local/bin/clamscan',
+        ] as $path) {
+            if (is_file($path) && is_executable($path)) {
+                $found[] = $path;
+            }
+        }
+        return $found;
     }
 
     private function findClamScanBinary(): ?string
     {
-        foreach (['/usr/bin/clamdscan', '/usr/bin/clamscan', '/usr/local/bin/clamscan'] as $path) {
-            if (is_file($path) && is_executable($path)) {
-                return $path;
-            }
-        }
-        return null;
+        return $this->findClamScanBinaries()[0] ?? null;
     }
 }

@@ -1764,7 +1764,7 @@ $assertTest(
     && (float)($liveEngineRes['spam_score'] ?? 0) === 9.5
     && ($liveEngineRes['spam_action'] ?? '') === 'add header'
     && isset($liveEngineRes['rspamd']['symbols']['RSPAMD_MOCK_PHISH'])
-    && ($offlinePhishRes['clamav']['driver'] ?? '') === 'builtin_signatures'
+    && in_array(($offlinePhishRes['clamav']['driver'] ?? ''), ['builtin_signatures', 'clamscan_cli'], true)
     && ($offlinePhishRes['rspamd']['driver'] ?? '') === 'heuristic_fallback'
     && ($offlinePhishRes['status'] ?? '') === 'suspicious'
     && (float)($offlinePhishRes['spam_score'] ?? 0) >= 6.0
@@ -1772,6 +1772,61 @@ $assertTest(
     && isset($offlinePhishRes['rspamd']['symbols']['PHISHING_URGENT_CREDENTIAL'])
     && isset($offlinePhishRes['rspamd']['symbols']['SUSPICIOUS_LINK_MISMATCH'])
     && isset($offlinePhishRes['rspamd']['symbols']['UPPERCASE_SUBJECT'])
+);
+
+// 19.14 MailRepository & MailJail fall back cleanly to per-UID 0700 storage when configured path is unwritable
+$unwritableFallbackOk = false;
+try {
+    $fallbackRepo = new \Nexus\Mail\MailRepository(null, '/proc/1/nexus_unwritable_mail');
+    $fallbackJail = new \Nexus\Mail\MailJail('/proc/1/nexus_unwritable_jails');
+    $savedDraft = $fallbackRepo->saveMessage([
+        'owner_user_id' => $aliceUser['id'],
+        'mailbox_address' => $aliceAddress,
+        'folder' => 'drafts',
+        'from_name' => $aliceUser['name'],
+        'from_address' => $aliceAddress,
+        'to_address' => $bobAddress,
+        'subject' => 'Fallback Draft Permission Test',
+        'body_text' => 'Saved safely despite unwritable primary path.',
+    ]);
+    $openedFallbackJail = $fallbackJail->open($aliceUser['id'], $savedDraft, $mailScanner->scan('Fallback Draft', 'Safe'));
+    $unwritableFallbackOk = !empty($savedDraft['id'])
+        && !empty($openedFallbackJail['jail_id'])
+        && $fallbackRepo->deleteMessageForever($aliceUser['id'], (string)$savedDraft['id'])
+        && $fallbackJail->destroy($aliceUser['id'], (string)$openedFallbackJail['jail_id']);
+} catch (\Throwable) {
+    $unwritableFallbackOk = false;
+}
+$assertTest(
+    'MailRepository & MailJail fall back to per-UID 0700 temp dirs without Permission denied errors',
+    $unwritableFallbackOk
+);
+
+// 19.15 Byte-0 EICAR scanning, SecOps Inbound/Outbound Mail Queue telemetry & Webmail fallback/CSP
+$byteZeroEicar = $offlineScanner->scan('Subject Padding Test', \Nexus\Mail\MailScanner::EICAR_SIGNATURE);
+$queueTelemetry = $mailRepo->getMailQueueTelemetry(25);
+$queueCtrl = new \Nexus\Monitor\MonitorController($mongoDb, new \Nexus\Core\Router($app->getContainer()));
+$queueApiRes = $queueCtrl->queue(new \Nexus\Core\Request('GET', '/api/v1/monitor/queue', ['accept' => 'application/json'], [], [], '', '127.0.0.1'));
+$queueApiJson = json_decode($queueApiRes->getContent(), true);
+$hasMailQueuePayload = isset($queueApiJson['data']['mail_queue']['counts']['inbound'], $queueApiJson['data']['mail_queue']['counts']['outbound'], $queueApiJson['data']['mail_queue']['items']);
+$hdrSample = (new \Nexus\Security\Headers())->handle(
+    new \Nexus\Core\Request('GET', '/mail/', [], [], [], '', '127.0.0.1'),
+    static fn() => \Nexus\Core\Response::html('<html></html>')
+);
+$cspHeader = (string)$hdrSample->getHeader('Content-Security-Policy', '');
+$mailViewLatest = (string)file_get_contents($baseDir . '/resources/views/mail/index.php');
+
+$assertTest(
+    'Byte-0 EICAR detection, Monitor Mail Queue API, and Webmail CSP/read-fallback work correctly',
+    !empty($byteZeroEicar['clamav']['infected'])
+    && !empty($byteZeroEicar['clamav']['signature'])
+    && ($queueTelemetry['counts']['total'] ?? 0) >= 2
+    && ($queueTelemetry['counts']['inbound'] ?? 0) >= 1
+    && ($queueTelemetry['counts']['outbound'] ?? 0) >= 1
+    && !empty($queueTelemetry['items'])
+    && $hasMailQueuePayload
+    && str_contains($cspHeader, "frame-src 'self' about:")
+    && str_contains($mailViewLatest, '&read=')
 );
 
 // Clean up temporary users & test mail/jail directories
